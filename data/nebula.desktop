@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Nebula
+Comment=Native workspace manager for terminal AI agents
+Exec=nebula
+Icon=utilities-terminal
+Terminal=false
+Categories=Development;System;TerminalEmulator;
+StartupWMClass=nebula
