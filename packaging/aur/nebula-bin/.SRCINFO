@@ -18,6 +18,6 @@ pkgbase = nebula-bin
 	options = !strip
 	options = !debug
 	source = nebula-0.1.0-x86_64-linux.tar.gz::https://github.com/enrell/nebula/releases/download/v0.1.0/nebula-0.1.0-x86_64-linux.tar.gz
-	sha256sums = SKIP
+	sha256sums = ec3acfa39943bd259d3cac26f8ab119774b1508b9744f855c78af91026547954
 
 pkgname = nebula-bin

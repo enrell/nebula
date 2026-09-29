@@ -16,7 +16,7 @@ provides=(nebula)
 conflicts=(nebula nebula-git)
 options=(!strip !debug)
 source=("$_name-$pkgver-x86_64-linux.tar.gz::https://github.com/enrell/nebula/releases/download/v$pkgver/$_name-$pkgver-x86_64-linux.tar.gz")
-sha256sums=('SKIP')
+sha256sums=('ec3acfa39943bd259d3cac26f8ab119774b1508b9744f855c78af91026547954')
 
 package() {
   # the tarball is a /usr-prefixed tree: bin, share/applications, share/icons, share/licenses
