@@ -1,8 +1,32 @@
-# nebula
+<h1 align="center">nebula</h1>
 
-A native workspace for running several terminal AI agents side by side (Claude Code, Codex, opencode, Gemini, aider, or any CLI): spaces, tabs and split panes, live *working / blocked / done* status for every agent, and a built-in **operator** you chat with to launch, prompt and supervise them. Inspired by herdr. Follows the current Omarchy theme and terminal font live.
+<p align="center">
+  A native workspace for running several terminal AI agents side by side.
+</p>
 
-Stack: C++20 + Qt 6 Quick, libvterm (emulation), forkpty (PTY). MIT licensed.
+<p align="center">
+  <a href="https://github.com/enrell/nebula/actions/workflows/ci.yml"><img alt="ci" src="https://github.com/enrell/nebula/actions/workflows/ci.yml/badge.svg"></a>
+  <a href="https://github.com/enrell/nebula/releases/latest"><img alt="release" src="https://img.shields.io/github/v/release/enrell/nebula"></a>
+  <a href="LICENSE"><img alt="license: MIT" src="https://img.shields.io/badge/license-MIT-blue"></a>
+</p>
+
+## Introduction
+
+nebula runs Claude Code, Codex, opencode, Gemini, aider or any other CLI in
+spaces, tabs and split panes, and shows a live *working / blocked / done*
+status for every agent so you always know which one needs you. A built-in
+**operator** lets you launch, prompt and supervise them by chatting.
+Inspired by [herdr](https://github.com/ogulcancelik/herdr). It follows the
+current Omarchy theme and terminal font live.
+
+- **Panes, tabs and spaces**: a real terminal (libvterm + PTY) with splits, zoom, scrollback and IME support.
+- **Agent status**: exact state through hooks, or screen heuristics as a fallback, in the sidebar, status bar and desktop notifications.
+- **Launcher**: any agent CLI, with API-key profiles and an optional git worktree per agent so parallel work doesn't collide.
+- **Operator**: a built-in agent that drives nebula through MCP; subscriptions (Codex, Claude Code) work without an API key.
+- **Persistent sessions**: a background host owns the panes, so closing or crashing the window never kills your shells or agents.
+- **Scriptable**: a Unix-socket JSON API, `nebula ctl` and an MCP server.
+
+Stack: C++20, Qt 6 Quick, libvterm, forkpty. MIT licensed.
 
 ![nebula: two panes, an agent in the sidebar](docs/screenshots/main.png)
 
@@ -144,3 +168,15 @@ Screenshots in this README are regenerated with `tests/screenshots.sh` (throw-aw
 ## IME
 
 The terminal item implements Qt's input-method protocol (cursor rectangle, preedit rendering at the cursor, commit), so fcitx5/ibus composition works.
+
+## Security
+
+nebula can type into terminals and launch agents, so treat access to it like access to your shell. The automation socket, the MCP server and operator auto-approve are described above; see [SECURITY.md](SECURITY.md) for the security model and how to report a vulnerability privately.
+
+## Contributing
+
+Issues and pull requests are welcome. Build with `just build`, run `just test` and `just lint` before opening a PR (see [Development](#development-just)).
+
+## License
+
+[MIT](LICENSE)
