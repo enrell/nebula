@@ -5,6 +5,7 @@ BIN=$(realpath "${1:-./build/nebula}")
 HERE=$(cd "$(dirname "$0")" && pwd)
 export HOME=$(mktemp -d)
 unset WAYLAND_DISPLAY DISPLAY
+export QT_FORCE_STDERR_LOGGING=1  # Qt logs to journald when stderr is not a tty
 export QT_QPA_PLATFORM=offscreen QT_QUICK_BACKEND=software QT_QPA_PLATFORMTHEME= GDK_BACKEND= NEBULA_SECRETS=file
 export NEBULA_SOCKET=${XDG_RUNTIME_DIR:-/tmp}/nebula-e2e-a.sock
 export NEBULA_STATE_DIR=$HOME/state

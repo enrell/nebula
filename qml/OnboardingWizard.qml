@@ -226,7 +226,7 @@ FocusScope {
                 Flow {
                     width: parent.width; spacing: 8
                     Repeater {
-                        model: operatorAgent.agentPresets
+                        model: operatorAgent.agentPresets()
                         delegate: Badge { required property var modelData; text: modelData.label + (modelData.available ? "" : " ✕"); tone: modelData.available ? theme.green : theme.muted }
                     }
                 }

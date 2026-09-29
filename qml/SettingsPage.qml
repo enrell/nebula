@@ -346,12 +346,12 @@ FocusScope {
                 Item { width: 1; height: 6 }
                 SettingRow {
                     label: "Agent"
-                    description: "Empty auto-detects. Installed: " + (operatorAgent.agentPresets.filter(p => p.available).map(p => p.label).join(", ") || "none found")
+                    description: "Empty auto-detects. Installed: " + (operatorAgent.agentPresets().filter(p => p.available).map(p => p.label).join(", ") || "none found")
                     Choice {
                         width: 240
-                        model: ["auto-detect"].concat(operatorAgent.agentPresets.map(p => p.label + (p.available ? "" : " (missing)")))
+                        model: ["auto-detect"].concat(operatorAgent.agentPresets().map(p => p.label + (p.available ? "" : " (missing)")))
                         index: 0
-                        onPicked: (i) => { const c = i > 0 ? operatorAgent.agentPresets[i - 1].command : ""; opCmdField.setText(c); settings.operatorAgent = c }
+                        onPicked: (i) => { const c = i > 0 ? operatorAgent.agentPresets()[i - 1].command : ""; opCmdField.setText(c); settings.operatorAgent = c }
                     }
                 }
                 SettingRow {

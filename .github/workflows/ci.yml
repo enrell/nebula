@@ -31,3 +31,8 @@ jobs:
           ./tests/e2e.sh ./build-dev/nebula
           ./tests/e2e_persist.sh ./build-dev/nebula
           ./tests/e2e_agents.sh ./build-dev/nebula
+      - name: QML sanity (release build, AOT-compiled QML)
+        run: |
+          cmake -S . -B build-rel -G Ninja -DCMAKE_BUILD_TYPE=Release
+          cmake --build build-rel
+          ./tests/qml_sanity.sh ./build-rel/nebula

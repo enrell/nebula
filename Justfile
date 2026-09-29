@@ -8,7 +8,7 @@ prefix    := env_var_or_default("PREFIX", "/usr/local")
 
 # dev instances use their own socket and state so they never touch your real session
 # NEBULA_QML_DIR makes the dev instance load qml/ from disk and hot-reload it on save (no rebuild for UI changes)
-dev_env := "NEBULA_SOCKET=${XDG_RUNTIME_DIR:-/tmp}/nebula-dev.sock NEBULA_STATE_DIR=/tmp/nebula-dev-state NEBULA_QML_DIR=" + justfile_directory() + "/qml QT_LOGGING_RULES='qt.qml.*=false'"
+dev_env := "NEBULA_SOCKET=${XDG_RUNTIME_DIR:-/tmp}/nebula-dev.sock NEBULA_STATE_DIR=/tmp/nebula-dev-state NEBULA_QML_DIR=" + justfile_directory() + "/qml QT_FORCE_STDERR_LOGGING=1"
 
 default:
     @just --list --unsorted

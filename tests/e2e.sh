@@ -6,6 +6,7 @@ export NEBULA_SOCKET=${XDG_RUNTIME_DIR:-/tmp}/nebula-e2e.sock
 export NEBULA_STATE_DIR=$(mktemp -d)
 # always headless: never open a window on the user's desktop
 unset WAYLAND_DISPLAY DISPLAY
+export QT_FORCE_STDERR_LOGGING=1  # Qt logs to journald when stderr is not a tty
 export QT_QPA_PLATFORM=offscreen QT_QUICK_BACKEND=software QT_QPA_PLATFORMTHEME= GDK_BACKEND=
 # kill only the pty daemon bound to THIS test's socket, never the user's real one
 kill_host() { for pid in $(pgrep -f "$BIN --host" 2>/dev/null); do tr '\0' '\n' < "/proc/$pid/environ" 2>/dev/null | grep -qx "NEBULA_SOCKET=$NEBULA_SOCKET" && kill "$pid" 2>/dev/null || true; done; }

@@ -5,7 +5,6 @@ Rectangle {
     property string label
     property bool primary: false
     property bool danger: false
-    property bool enabled: true
     signal clicked
     readonly property color base: danger ? theme.red : theme.accent
 
