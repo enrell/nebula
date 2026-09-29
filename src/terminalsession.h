@@ -92,6 +92,8 @@ private:
     static int cbPop(int, VTermScreenCell *, void *);
     static int cbSbClear(void *);
     static void cbOutput(const char *, size_t, void *);
+    static int cbCsi(const char *leader, const long args[], int argcount, const char *intermed, char command, void *);
+    void reply(const char *s);
 
     int m_id;
     VTerm *m_vt = nullptr;

@@ -9,6 +9,7 @@
 #include <QFileInfo>
 #include <QKeyEvent>
 #include <cerrno>
+#include <cstring>
 #include <csignal>
 #include <fcntl.h>
 #include <pty.h>
@@ -30,6 +31,10 @@ TerminalSession::TerminalSession(const QString &cwd, QObject *parent, int fixedI
     static const VTermScreenCallbacks cbs = {cbDamage, nullptr, cbMoveCursor, cbSetProp, cbBell, nullptr, cbPush, cbPop, cbSbClear};
     vterm_screen_set_callbacks(m_screen, &cbs, this);
     vterm_screen_enable_altscreen(m_screen, 1);
+    // Answer terminal-identification queries libvterm leaves unhandled (fish, and TUIs probing the
+    // terminal, wait for the DA1 reply and warn/degrade if it never comes).
+    static const VTermStateFallbacks fb = {nullptr, cbCsi, nullptr, nullptr, nullptr, nullptr, nullptr};
+    vterm_state_set_unrecognised_fallbacks(vterm_obtain_state(m_vt), &fb, this);
     vterm_screen_reset(m_screen, 1);
 
     m_repaint.setSingleShot(true);
@@ -102,7 +107,9 @@ void TerminalSession::hostExit(int) {
 void TerminalSession::hostGone() { hostExit(-2); }
 
 void TerminalSession::writeOut(const char *s, size_t len) {
-    if (m_alive) HostClient::instance()->input(m_id, QByteArray(s, qsizetype(len)));
+    // Replies to queries found in replayed history (a reattach) are stale: the program that asked
+    // is long past them, and typing them into the pty would corrupt whatever runs there now.
+    if (m_alive && !m_replaying) HostClient::instance()->input(m_id, QByteArray(s, qsizetype(len)));
 }
 
 void TerminalSession::resize(int rows, int cols) {
@@ -226,6 +233,20 @@ int TerminalSession::cbSbClear(void *u) {
     static_cast<TerminalSession *>(u)->m_sb.clear();
     return 1;
 }
+int TerminalSession::cbCsi(const char *leader, const long args[], int argcount, const char *intermed, char command, void *u) {
+    auto *t = static_cast<TerminalSession *>(u);
+    const bool zero = argcount == 0 || args[0] == CSI_ARG_MISSING || args[0] == 0;
+    if (!intermed && command == 'c' && zero) {
+        if (!leader) t->reply("\x1b[?62;22c");             // primary DA: VT220 with color
+        else if (leader[0] == '>' && !leader[1]) t->reply("\x1b[>1;10;0c");   // secondary DA
+        else return 0;
+        return 1;
+    }
+    return 0;
+}
+
+void TerminalSession::reply(const char *s) { writeOut(s, strlen(s)); }
+
 void TerminalSession::cbOutput(const char *s, size_t len, void *u) { static_cast<TerminalSession *>(u)->writeOut(s, len); }
 
 // ---- input ----
