@@ -4,7 +4,7 @@ Two packages live here: `nebula-bin` (prebuilt tarball from the GitHub release, 
 (builds the latest commit). The AUR is a git host: each package is a repo containing `PKGBUILD` and `.SRCINFO`.
 
 ## One-time setup
-1. Register at <https://aur.archlinux.org/register> (this is separate from the Arch mailing lists / forum accounts).
+1. Register at <https://aur.archlinux.org/register> (separate from the Arch mailing lists / forum accounts). Registration has been paused during a wave of bot signups: follow aur-general or the Arch news, do not script retries.
 2. Add your SSH **public** key under *My Account* on the AUR.
 
 ## Publish a package

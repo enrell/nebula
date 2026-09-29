@@ -12,10 +12,11 @@ Stack: C++20 + Qt 6 Quick, libvterm (emulation), forkpty (PTY). MIT licensed.
 
 ## Install
 
-**Arch / Omarchy** (AUR):
+**Arch / Omarchy**: build the package from the prebuilt release (needs only `git` and `base-devel`):
 
-    yay -S nebula-bin      # prebuilt binary, uses your system Qt
-    yay -S nebula-git      # or build the latest commit
+    git clone https://github.com/enrell/nebula && cd nebula/packaging/aur/nebula-bin && makepkg -si
+
+(`nebula-git` in the sibling directory builds the latest commit instead.) The AUR listing (`yay -S nebula-bin`) is planned but not published yet: AUR registration is currently closed.
 
 **Any x86_64 Linux** (AppImage into `~/.local`, no root; verifies the checksum):
 
