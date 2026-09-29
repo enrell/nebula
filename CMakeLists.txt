@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.21)
-project(nebula VERSION 0.1.0 LANGUAGES CXX)
+project(nebula VERSION 0.1.1 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -93,3 +93,29 @@ install(TARGETS nebula RUNTIME DESTINATION bin)
 install(FILES data/nebula.desktop DESTINATION share/applications)
 install(FILES data/nebula.svg DESTINATION share/icons/hicolor/scalable/apps)
 install(FILES LICENSE DESTINATION share/licenses/nebula)
+
+# Native .deb / .rpm packages (`cpack -G DEB` / `cpack -G RPM` in the build dir). Library dependencies are computed
+# from the binary (dpkg-shlibdeps / rpm autoreq); QML and Wayland runtime modules are not linked, so list them here.
+set(CPACK_PACKAGE_NAME nebula)
+set(CPACK_PACKAGE_VENDOR enrell)
+set(CPACK_PACKAGE_CONTACT "enrell <enrellsa10@proton.me>")
+set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Native Qt Quick workspace manager for terminal AI agents")
+set(CPACK_PACKAGE_HOMEPAGE_URL "https://github.com/enrell/nebula")
+set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_SOURCE_DIR}/LICENSE")
+set(CPACK_PACKAGING_INSTALL_PREFIX /usr)
+set(CPACK_STRIP_FILES ON)
+set(CPACK_DEBIAN_FILE_NAME DEB-DEFAULT)
+set(CPACK_DEBIAN_PACKAGE_SECTION devel)
+set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS ON)
+set(CPACK_DEBIAN_PACKAGE_DEPENDS "qml6-module-qtquick, qml6-module-qtquick-window, qml6-module-qtqml-workerscript, qt6-wayland")
+set(CPACK_DEBIAN_PACKAGE_SUGGESTS "libsecret-tools")
+set(CPACK_RPM_FILE_NAME RPM-DEFAULT)
+set(CPACK_RPM_PACKAGE_LICENSE MIT)
+set(CPACK_RPM_PACKAGE_GROUP "Development/Tools")
+set(CPACK_RPM_PACKAGE_AUTOREQ ON)
+set(CPACK_RPM_PACKAGE_REQUIRES "qt6-qtdeclarative, qt6-qtwayland")
+set(CPACK_RPM_PACKAGE_SUGGESTS "libsecret")
+# do not claim ownership of standard system directories
+set(CPACK_RPM_EXCLUDE_FROM_AUTO_FILELIST_ADDITION /usr/share/applications /usr/share/icons /usr/share/icons/hicolor
+    /usr/share/icons/hicolor/scalable /usr/share/icons/hicolor/scalable/apps /usr/share/licenses)
+include(CPack)

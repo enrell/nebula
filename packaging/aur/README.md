@@ -1,6 +1,6 @@
 # Publishing to the AUR
 
-Two packages live here: `nebula-bin` (prebuilt tarball from the GitHub release, uses the system Qt) and `nebula-git`
+Two packages live here: `nebula-bin` (repackages the Arch package from the GitHub release, uses the system Qt) and `nebula-git`
 (builds the latest commit). The AUR is a git host: each package is a repo containing `PKGBUILD` and `.SRCINFO`.
 
 ## One-time setup
@@ -18,8 +18,8 @@ git add PKGBUILD .SRCINFO && git commit -m "nebula-bin 0.1.0" && git push origin
 The AUR branch is `master`. Repeat with `nebula-git`.
 
 ## Release a new version
-1. Tag and push: `git tag -a vX.Y.Z -m "nebula X.Y.Z" && git push origin vX.Y.Z` (CI builds and publishes the tarball, the AppImage and `SHA256SUMS`).
-2. In `nebula-bin/PKGBUILD` set `pkgver=X.Y.Z`, `pkgrel=1` and the tarball's `sha256sums` (`gh release download vX.Y.Z -p SHA256SUMS -O -`).
+1. Bump `project(nebula VERSION X.Y.Z)` in `CMakeLists.txt`, commit, then `git tag -a vX.Y.Z -m "nebula X.Y.Z" && git push origin main vX.Y.Z` (CI builds and publishes every package and `SHA256SUMS`).
+2. In `nebula-bin/PKGBUILD` set `pkgver=X.Y.Z`, `pkgrel=1` and the `nebula-X.Y.Z-1-x86_64.pkg.tar.zst` entry of `sha256sums` (`gh release download vX.Y.Z -p SHA256SUMS -O -`).
 3. `makepkg --printsrcinfo > .SRCINFO`, test with `makepkg -f`, then push to the AUR as above.
 
 `nebula-git` needs no edits per release (it computes its version from `git describe`).

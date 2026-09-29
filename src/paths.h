@@ -1,7 +1,6 @@
 #pragma once
 #include <QCoreApplication>
 #include <QDir>
-#include <QFileInfo>
 #include <QStandardPaths>
 #include <QString>
 
@@ -22,14 +21,8 @@ inline QString stateDir() {
     QDir().mkpath(dir);
     return dir;
 }
-// The executable to re-launch for `--host`, `mcp` and hook commands. Inside an AppImage the running binary lives in a
-// temporary mount that vanishes when the app quits (taking the session daemon and any registered MCP command with it),
-// so point at the .AppImage file itself.
-inline QString selfExe() {
-    const QByteArray appImage = qgetenv("APPIMAGE");
-    if (!appImage.isEmpty() && QFileInfo::exists(QString::fromLocal8Bit(appImage))) return QString::fromLocal8Bit(appImage);
-    return QCoreApplication::applicationFilePath();
-}
+// The executable to re-launch for `--host`, `mcp` and hook commands.
+inline QString selfExe() { return QCoreApplication::applicationFilePath(); }
 inline QString configDir() { return QDir::homePath() + "/.config/nebula"; }
 
 // One-time upgrade: move ~/.config|state/ainebula -> nebula when the new dir does not exist yet.

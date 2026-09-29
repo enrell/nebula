@@ -1,7 +1,7 @@
 # Maintainer: enrell <enrellsa10@proton.me>
 pkgname=nebula-bin
 _name=nebula
-pkgver=0.1.0
+pkgver=0.1.1
 pkgrel=1
 pkgdesc='Native Qt Quick workspace manager for terminal AI agents (Claude Code, Codex, opencode, ...) - prebuilt binary'
 arch=(x86_64)
@@ -15,10 +15,10 @@ optdepends=('libsecret: store API keys in the system keyring (secret-tool)'
 provides=(nebula)
 conflicts=(nebula nebula-git)
 options=(!strip !debug)
-source=("$_name-$pkgver-x86_64-linux.tar.gz::https://github.com/enrell/nebula/releases/download/v$pkgver/$_name-$pkgver-x86_64-linux.tar.gz")
-sha256sums=('ec3acfa39943bd259d3cac26f8ab119774b1508b9744f855c78af91026547954')
+source=("$_name-$pkgver-1-x86_64.pkg.tar.zst::https://github.com/enrell/nebula/releases/download/v$pkgver/$_name-$pkgver-1-x86_64.pkg.tar.zst")
+sha256sums=('SKIP')
 
 package() {
-  # the tarball is a /usr-prefixed tree: bin, share/applications, share/icons, share/licenses
+  # repackages the Arch package built by the release workflow (packaging/arch/PKGBUILD)
   cp -a "$srcdir/usr" "$pkgdir/usr"
 }

@@ -12,24 +12,23 @@ Stack: C++20 + Qt 6 Quick, libvterm (emulation), forkpty (PTY). MIT licensed.
 
 ## Install
 
-**Arch / Omarchy**: build the package from the prebuilt release (needs only `git` and `base-devel`):
+Every release has native packages (small, use your distro's Qt) and a portable build (Qt bundled, any distro):
 
-    git clone https://github.com/enrell/nebula && cd nebula/packaging/aur/nebula-bin && makepkg -si
+| Distro | Install |
+|---|---|
+| Arch / Omarchy | `sudo pacman -U https://github.com/enrell/nebula/releases/latest/download/nebula-<ver>-1-x86_64.pkg.tar.zst` (AUR `nebula-bin` / `nebula-git` once AUR registration reopens; the PKGBUILDs are in `packaging/aur/`) |
+| Debian 13, Ubuntu 25.04+ | download `nebula_<ver>_amd64.deb` / `arm64.deb` from the release, `sudo apt install ./nebula_*.deb` |
+| Fedora 41+ | `sudo dnf install <url of nebula-<ver>-1.x86_64.rpm>` |
+| Anything else (x86_64, aarch64) | `curl -fsSL https://raw.githubusercontent.com/enrell/nebula/main/install.sh \| sh` |
 
-(`nebula-git` in the sibling directory builds the latest commit instead.) The AUR listing (`yay -S nebula-bin`) is planned but not published yet: AUR registration is currently closed.
+The installer puts the portable build in `~/.local/lib/nebula` (no root, checksum verified) and links `~/.local/bin/nebula`; `... | sh -s -- --uninstall` removes it. It is built on Ubuntu 22.04, so it runs on distros with glibc 2.35 or newer and only expects the usual desktop libraries (OpenGL/EGL, fontconfig, X11 or Wayland).
 
-**Any x86_64 Linux** (AppImage into `~/.local`, no root; verifies the checksum):
+**From source** (Qt >= 6.5 with Quick, libvterm >= 0.3, CMake, Ninja):
 
-    curl -fsSL https://raw.githubusercontent.com/enrell/nebula/main/install.sh | sh
+    sudo pacman -S qt6-base qt6-declarative qt6-wayland libvterm cmake ninja   # or your distro's equivalents
+    just build && sudo just install
 
-Uninstall with `... | sh -s -- --uninstall`. If the AppImage complains about FUSE, install `libfuse2` or run it with `APPIMAGE_EXTRACT_AND_RUN=1`.
-
-**From source** (Qt >= 6.5 with Quick, libvterm, CMake, Ninja):
-
-    sudo pacman -S qt6-base qt6-declarative libvterm cmake ninja   # or your distro's equivalents
-    just build && sudo just install        # or: cmake -S . -B build -G Ninja && cmake --build build && sudo cmake --install build
-
-Releases (binary tarball for the AUR package + AppImage) are built by CI when a `vX.Y.Z` tag is pushed.
+Releases are built by CI when a `vX.Y.Z` tag matching the version in `CMakeLists.txt` is pushed (`.github/workflows/release.yml`).
 
 ## Getting started
 
@@ -49,7 +48,7 @@ Releases (binary tarball for the AUR package + AppImage) are built by CI when a 
 | `just ctl <args>` / `just dctl <args>` | talk to the running / dev instance |
 | `just events` | stream agent events |
 | `just screenshots` / `just pkg` | regenerate README screenshots / build the Arch package from the checkout |
-| `just release-local` | build the release tarball + AppImage in an Arch container (docker) into `dist/` |
+| `just release-local` | build every release artifact in docker containers into `dist/` |
 | `just install` / `just clean` / `just fmt` / `just lint` | misc |
 
 ## Keybindings (no prefix; press `Ctrl+Shift+?` in the app)

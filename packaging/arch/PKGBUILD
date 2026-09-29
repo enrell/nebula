@@ -4,7 +4,7 @@
 #     cd packaging/arch && makepkg -si
 # Once the repository is published, swap the local build for a normal source:
 #     source=("git+https://<your-host>/nebula.git")   and use "$srcdir/nebula" instead of "$_root"
-pkgname=nebula-git
+pkgname=nebula
 pkgver=0.1.0.r5.g98b1728
 pkgrel=1
 pkgdesc='Native Qt Quick workspace manager for terminal AI agents (Claude Code, Codex, opencode, ...)'
@@ -17,14 +17,15 @@ optdepends=('libsecret: store API keys in the system keyring (secret-tool)'
             'claude-code: Claude Code agent and operator'
             'codex: Codex agent and operator'
             'opencode: opencode agent and operator')
-provides=(nebula)
-conflicts=(nebula)
+conflicts=(nebula-bin nebula-git)
 options=(!debug)
 
 _root="$(realpath "$startdir/../..")"
 
 pkgver() {
   cd "$_root"
+  # release builds (CI) use the plain project version
+  if [ -n "${NEBULA_RELEASE:-}" ]; then sed -n 's/^project(nebula VERSION \([0-9.]*\).*/\1/p' CMakeLists.txt; return; fi
   local v; v=$(sed -n 's/^project(nebula VERSION \([0-9.]*\).*/\1/p' CMakeLists.txt)
   printf '%s.r%s.g%s' "$v" "$(git rev-list --count HEAD 2>/dev/null || echo 0)" "$(git rev-parse --short HEAD 2>/dev/null || echo local)"
 }
