@@ -16,7 +16,7 @@ provides=(nebula)
 conflicts=(nebula nebula-git)
 options=(!strip !debug)
 source=("$_name-$pkgver-1-x86_64.pkg.tar.zst::https://github.com/enrell/nebula/releases/download/v$pkgver/$_name-$pkgver-1-x86_64.pkg.tar.zst")
-sha256sums=('SKIP')
+sha256sums=('3e06e4e8bba05834d966a6f14985bce409e464f11f4ebfd572b296946e1656c0')
 
 package() {
   # repackages the Arch package built by the release workflow (packaging/arch/PKGBUILD)

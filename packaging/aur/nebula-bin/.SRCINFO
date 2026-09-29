@@ -1,6 +1,6 @@
 pkgbase = nebula-bin
 	pkgdesc = Native Qt Quick workspace manager for terminal AI agents (Claude Code, Codex, opencode, ...) - prebuilt binary
-	pkgver = 0.1.0
+	pkgver = 0.1.1
 	pkgrel = 1
 	url = https://github.com/enrell/nebula
 	arch = x86_64
@@ -17,7 +17,7 @@ pkgbase = nebula-bin
 	conflicts = nebula-git
 	options = !strip
 	options = !debug
-	source = nebula-0.1.0-x86_64-linux.tar.gz::https://github.com/enrell/nebula/releases/download/v0.1.0/nebula-0.1.0-x86_64-linux.tar.gz
-	sha256sums = ec3acfa39943bd259d3cac26f8ab119774b1508b9744f855c78af91026547954
+	source = nebula-0.1.1-1-x86_64.pkg.tar.zst::https://github.com/enrell/nebula/releases/download/v0.1.1/nebula-0.1.1-1-x86_64.pkg.tar.zst
+	sha256sums = 3e06e4e8bba05834d966a6f14985bce409e464f11f4ebfd572b296946e1656c0
 
 pkgname = nebula-bin
