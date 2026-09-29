@@ -91,3 +91,5 @@ add_test(NAME agentdetect COMMAND test_agentdetect)
 
 install(TARGETS nebula RUNTIME DESTINATION bin)
 install(FILES data/nebula.desktop DESTINATION share/applications)
+install(FILES data/nebula.svg DESTINATION share/icons/hicolor/scalable/apps)
+install(FILES LICENSE DESTINATION share/licenses/nebula)

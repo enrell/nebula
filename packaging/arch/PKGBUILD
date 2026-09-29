@@ -1,0 +1,43 @@
+# Maintainer: enrell <enrellsa10@proton.me>
+#
+# Builds nebula from the working tree this file lives in (packaging/arch/ -> repo root):
+#     cd packaging/arch && makepkg -si
+# Once the repository is published, swap the local build for a normal source:
+#     source=("git+https://<your-host>/nebula.git")   and use "$srcdir/nebula" instead of "$_root"
+pkgname=nebula-git
+pkgver=0.1.0.r5.g98b1728
+pkgrel=1
+pkgdesc='Native Qt Quick workspace manager for terminal AI agents (Claude Code, Codex, opencode, ...)'
+arch=(x86_64)
+url='https://github.com/enrell/nebula'
+license=(MIT)
+depends=(qt6-base qt6-declarative libvterm)
+makedepends=(cmake ninja git)
+optdepends=('libsecret: store API keys in the system keyring (secret-tool)'
+            'claude-code: Claude Code agent and operator'
+            'codex: Codex agent and operator'
+            'opencode: opencode agent and operator')
+provides=(nebula)
+conflicts=(nebula)
+options=(!debug)
+
+_root="$(realpath "$startdir/../..")"
+
+pkgver() {
+  cd "$_root"
+  local v; v=$(sed -n 's/^project(nebula VERSION \([0-9.]*\).*/\1/p' CMakeLists.txt)
+  printf '%s.r%s.g%s' "$v" "$(git rev-list --count HEAD 2>/dev/null || echo 0)" "$(git rev-parse --short HEAD 2>/dev/null || echo local)"
+}
+
+build() {
+  cmake -S "$_root" -B "$srcdir/build" -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr
+  cmake --build "$srcdir/build"
+}
+
+check() {
+  ctest --test-dir "$srcdir/build" --output-on-failure
+}
+
+package() {
+  DESTDIR="$pkgdir" cmake --install "$srcdir/build"
+}

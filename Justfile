@@ -63,6 +63,14 @@ shot OUT="/tmp/nebula.png": build
     sleep 1
     $B ctl window.screenshot path={{OUT}}
 
+# Regenerate the README screenshots (headless, throw-away HOME, fake agents)
+screenshots: build
+    ./tests/screenshots.sh ./{{build_dir}}/nebula
+
+# Build an Arch package from this checkout (packaging/arch/PKGBUILD)
+pkg:
+    cd packaging/arch && makepkg -f
+
 # Lint QML files
 lint:
     qmllint -I {{dev_dir}} qml/*.qml || true
@@ -88,7 +96,8 @@ install: build
     cmake --install {{build_dir}} --prefix {{prefix}}
 
 uninstall:
-    rm -f {{prefix}}/bin/nebula {{prefix}}/share/applications/nebula.desktop
+    rm -f {{prefix}}/bin/nebula {{prefix}}/share/applications/nebula.desktop {{prefix}}/share/icons/hicolor/scalable/apps/nebula.svg
+    rm -rf {{prefix}}/share/licenses/nebula
 
 # Remove build directories
 clean:

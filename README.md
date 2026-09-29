@@ -1,8 +1,32 @@
 # nebula
 
-Native Qt Quick (QML) workspace manager for terminal AI agents, inspired by herdr. Follows the current Omarchy theme and terminal font live.
+A native workspace for running several terminal AI agents side by side (Claude Code, Codex, opencode, Gemini, aider, or any CLI): spaces, tabs and split panes, live *working / blocked / done* status for every agent, and a built-in **operator** you chat with to launch, prompt and supervise them. Inspired by herdr. Follows the current Omarchy theme and terminal font live.
 
-Stack: C++20 + Qt 6 Quick, libvterm (emulation), forkpty (PTY).
+Stack: C++20 + Qt 6 Quick, libvterm (emulation), forkpty (PTY). MIT licensed.
+
+![nebula: two panes, an agent in the sidebar](docs/screenshots/main.png)
+
+| Operator chat | Settings |
+|---|---|
+| ![operator](docs/screenshots/operator.png) | ![settings](docs/screenshots/settings.png) |
+
+## Install
+
+**Arch / Omarchy** (builds from this checkout and installs a package):
+
+    cd packaging/arch && makepkg -si
+
+**From source** (Qt >= 6.5 with Quick, libvterm, CMake, Ninja):
+
+    sudo pacman -S qt6-base qt6-declarative libvterm cmake ninja   # or your distro's equivalents
+    just build && sudo just install        # or: cmake -S . -B build -G Ninja && cmake --build build && sudo cmake --install build
+
+## Getting started
+
+1. Run `nebula`. On first launch a short **setup wizard** picks your font size, detects the agent CLIs on your machine, optionally saves an API key, and offers to install the state hooks. Reopen it any time from Settings > *Setup wizard*.
+2. Press `Ctrl+Shift+L` to launch an agent (claude, codex, opencode, ...), optionally in its own git worktree. Its status shows up in the sidebar and the status bar; `Ctrl+Shift+A` jumps to whichever agent needs you.
+3. Press `Ctrl+Shift+I` to open the operator chat and ask for things like *"launch claude and codex on the flaky test, each in a worktree"*.
+4. Close the window whenever you like: shells and agents keep running and are reattached next time.
 
 ## Development (`just`)
 
@@ -14,6 +38,7 @@ Stack: C++20 + Qt 6 Quick, libvterm (emulation), forkpty (PTY).
 | `just test` / `just e2e` | unit tests / API end-to-end test |
 | `just ctl <args>` / `just dctl <args>` | talk to the running / dev instance |
 | `just events` | stream agent events |
+| `just screenshots` / `just pkg` | regenerate README screenshots / build the Arch package |
 | `just install` / `just clean` / `just fmt` / `just lint` | misc |
 
 ## Keybindings (no prefix; press `Ctrl+Shift+?` in the app)
@@ -51,9 +76,9 @@ Actions: split-right split-down close-pane zoom-pane focus-left/right/up/down ne
 
 **MCP server**: `nebula mcp` (stdio). Install it for claude/opencode/codex/gemini from the same settings section, or add it yourself: `claude mcp add --scope user nebula -- /path/to/nebula mcp`. Tools: `whoami`, `list_panes`, `list_agents`, `list_spaces`, `list_profiles` (never secrets), `read_pane`, `send_text`, `send_keys`, `launch_agent`, `wait_for_state`, `broadcast`, `close_pane`, `create_space`. This lets one agent delegate to and supervise others. It is real terminal control: only install it in agents you trust.
 
-**Operator** (`Ctrl+Shift+I`, Settings > Operator): a built-in agent that operates *nebula itself*. It is a real agent CLI: nebula spawns it, gives it a `nebula` MCP server (the same tools external agents get, `src/tools.cpp`), and streams its turns into a panel. Because the agent authenticates itself, **subscriptions work out of the box** — Codex (ChatGPT) and Claude Code (subscription) are driven **natively**, with no adapter and no npm: Claude through `claude -p --input-format stream-json`, Codex through `codex app-server` (`src/nativeagents.cpp`). `opencode acp`, `gemini --acp` or any other [ACP](https://agentclientprotocol.com) command set under Settings > Agents & AI use ACP. Empty auto-detects codex → claude → opencode → gemini, and the panel header itself cycles through the detected presets. The model can be pinned via `operatorModel` (Settings > Operator > Model); when left empty, a stale model in the agent's own CLI config is healed automatically through `session/set_config_option` (or the native equivalent) using the account's real model list. Tell it things like "launch claude and codex on the flaky auth test, each in a worktree" or "which agents are blocked? approve the first one"; it lists/reads panes, launches and prompts agents, answers permission prompts, and reorganizes spaces/tabs/splits. Every tool call the agent wants to run shows an Allow/Deny prompt in the panel unless you turn on Auto-approve. Pane text is marked untrusted in the instructions sent to the agent. Non-interactive use: `nebula ctl operator.ask prompt="..." approve=all` (`approve=none` rejects every permission request).
+**Operator** (`Ctrl+Shift+I`, Settings > Agents & AI): a built-in agent that operates *nebula itself*. It is a real agent CLI: nebula spawns it, gives it a `nebula` MCP server (the same tools external agents get, `src/tools.cpp`), and streams its turns into a panel. Because the agent authenticates itself, **subscriptions work out of the box** — Codex (ChatGPT) and Claude Code (subscription) are driven **natively**, with no adapter and no npm: Claude through `claude -p --input-format stream-json`, Codex through `codex app-server` (`src/nativeagents.cpp`). `opencode acp`, `gemini --acp` or any other [ACP](https://agentclientprotocol.com) command set under Settings > Agents & AI use ACP. Empty auto-detects codex → claude → opencode → gemini, and the chat has agent and model dropdowns (the model choice is remembered as `operatorModel`); when a configured model is unavailable, a stale model in the agent's own CLI config is healed automatically through `session/set_config_option` (or the native equivalent) using the account's real model list. Tell it things like "launch claude and codex on the flaky auth test, each in a worktree" or "which agents are blocked? approve the first one"; it lists/reads panes, launches and prompts agents, answers permission prompts, and reorganizes spaces/tabs/splits. Tool calls are **auto-approved by default** (the "auto-approve on" badge in the chat header toggles it); turn it off and every tool call shows an Allow/Deny prompt in the chat. The chat is restored after a restart as display history only (the agent starts fresh), idle agents that vanish are reconnected, and error cards have a *Copy log* button that copies the agent state, stderr and the last protocol lines for bug reports (`NEBULA_ACP_TRACE=1` also prints the wire log). Pane text is marked untrusted in the instructions sent to the agent. Non-interactive use: `nebula ctl operator.ask prompt="..." approve=all` (`approve=none` rejects every permission request).
 
-**Summaries** (optional, off by default because it sends terminal output to your provider): a one-line "what it did" when an unfocused agent finishes, shown in the sidebar and the desktop notification. Toggle under Settings > AI features. `nebula ctl llm.ask prompt="..."` is a plain one-shot chat request against a profile.
+**Summaries** (optional, off by default because it sends terminal output to your provider): a one-line "what it did" when an unfocused agent finishes, shown in the sidebar and the desktop notification. Toggle under Settings > Agents & AI. `nebula ctl llm.ask prompt="..."` is a plain one-shot chat request against a profile.
 
 ## Sessions (zellij-style persistence)
 
@@ -91,6 +116,20 @@ Shells started inside nebula get `NEBULA_PANE` and `NEBULA_SOCKET`. Agent hooks 
 ## Agent state
 
 Agent = foreground process (claude, opencode, codex, gemini, aider, ...). State is classified from the bottom of the screen with per-agent patterns (permission prompts -> `blocked`, "esc to interrupt" and title spinners -> `working`), plus output activity for unfocused panes, with debounce so spinners don't flicker. `done` = finished while you were elsewhere; cleared when you focus it. Notifications via `notify-send`.
+
+## Files and configuration
+
+| Path | What |
+|---|---|
+| `~/.config/nebula/settings.json` | Settings (also editable in the app; `nebula ctl settings.get/set`) |
+| `~/.config/nebula/keys.conf` | Key overrides, one `Ctrl+Shift+D = split-right` per line (`none` unbinds) |
+| `~/.config/nebula/agents.conf` | Extra launcher agents, one `name = command` per line (`mytool = mytool --fast`) |
+| `~/.config/nebula/secrets.json` | API keys, only when no system keyring is available (mode 0600) |
+| `~/.local/state/nebula/session.json` | Layout of spaces, tabs and splits |
+| `~/.local/state/nebula/operator-history.json` | Operator chat history (display only) |
+| `$XDG_RUNTIME_DIR/nebula.sock` | Automation socket (`NEBULA_SOCKET` overrides; `NEBULA_STATE_DIR` moves the state dir) |
+
+Screenshots in this README are regenerated with `tests/screenshots.sh` (throw-away HOME, fake agents).
 
 ## IME
 
