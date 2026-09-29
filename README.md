@@ -21,7 +21,7 @@ Every release has native packages (small, use your distro's Qt) and a portable b
 | Fedora 41+ | `sudo dnf install <url of nebula-<ver>-1.x86_64.rpm>` |
 | Anything else (x86_64, aarch64) | `curl -fsSL https://raw.githubusercontent.com/enrell/nebula/main/install.sh \| sh` |
 
-The installer puts the portable build in `~/.local/lib/nebula` (no root, checksum verified) and links `~/.local/bin/nebula`; `... | sh -s -- --uninstall` removes it. It is built on Ubuntu 22.04, so it runs on distros with glibc 2.35 or newer and only expects the usual desktop libraries (OpenGL/EGL, fontconfig, X11 or Wayland).
+The installer puts the portable build in `~/.local/lib/nebula` (no root, checksum verified) and links `~/.local/bin/nebula`; `... | sh -s -- --uninstall` removes it. The x86_64 build is made on Ubuntu 22.04 (glibc 2.35 or newer), the aarch64 one on Ubuntu 24.04 (glibc 2.39 or newer); both only expect the usual desktop libraries (OpenGL/EGL, fontconfig, X11 or Wayland).
 
 **From source** (Qt >= 6.5 with Quick, libvterm >= 0.3, CMake, Ninja):
 
