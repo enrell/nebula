@@ -174,6 +174,7 @@ assert any("prompt" in l and "operating nebula" in l["prompt"] for l in lines), 
 if k == "claude":
     argv = [l["argv"] for l in lines if "argv" in l][0]
     assert "--strict-mcp-config" in argv and "--input-format" in argv and "stream-json" in argv, argv
+    assert argv[argv.index("--permission-prompt-tool") + 1] == "stdio", argv
     assert [l["setModel"] for l in lines if "setModel" in l] == ["fast"], lines   # configured model applied via set_model
 else:
     ts = [l["threadStart"] for l in lines if "threadStart" in l][0]

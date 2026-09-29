@@ -7,7 +7,7 @@ FocusScope {
     default property alias content: body.data
     readonly property int fs: Math.round(theme.fontSize * 1.33)
 
-    Rectangle { anchors.fill: parent; color: Qt.rgba(0, 0, 0, 0.6) }
+    Rectangle { anchors.fill: parent; color: Qt.rgba(0, 0, 0, 0.86) }
     MouseArea { anchors.fill: parent; onClicked: app.hideOverlay() }
 
     Rectangle {

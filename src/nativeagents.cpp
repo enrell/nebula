@@ -100,6 +100,8 @@ void ClaudeNativeClient::spawn(int id, const QJsonObject &params) {
     setWorkingDirectory(params["cwd"].toString());
     const QStringList args = {"-p", "--input-format", "stream-json", "--output-format", "stream-json", "--verbose",
                               "--include-partial-messages", "--no-session-persistence", "--strict-mcp-config",
+                              // without this claude denies anything not pre-approved by itself, instead of asking us
+                              "--permission-mode", "default", "--permission-prompt-tool", "stdio",
                               "--mcp-config", QString::fromUtf8(QJsonDocument(QJsonObject{{"mcpServers", servers}}).toJson(QJsonDocument::Compact))};
     AcpClient::start("claude", args);   // (begins with stop(), which clears our state: set it afterwards)
     m_newId = id;

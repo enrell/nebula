@@ -57,7 +57,7 @@ FocusScope {
         toBottom()
     }
 
-    Rectangle { anchors.fill: parent; color: Qt.rgba(0, 0, 0, 0.72) }
+    Rectangle { anchors.fill: parent; color: Qt.rgba(0, 0, 0, 0.88) }
     MouseArea { anchors.fill: parent; onClicked: app.hideOverlay() }
 
     Rectangle {

@@ -21,7 +21,7 @@ FocusScope {
     Component.onCompleted: forceActiveFocus()
     Component.onDestruction: settings.onboarded = true
 
-    Rectangle { anchors.fill: parent; color: Qt.rgba(0, 0, 0, 0.72) }
+    Rectangle { anchors.fill: parent; color: Qt.rgba(0, 0, 0, 0.88) }
     MouseArea { anchors.fill: parent }
 
     component H1: Text {
@@ -52,7 +52,7 @@ FocusScope {
         id: box
         anchors.centerIn: parent
         width: Math.min(root.width - 40, 680)
-        height: Math.min(root.height - 40, 560)
+        height: Math.min(root.height - 40, 500)
         radius: 10
         color: theme.bg
         border.width: 1

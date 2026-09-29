@@ -136,7 +136,7 @@ Window {
     Rectangle {
         anchors.fill: parent
         visible: app.helpVisible
-        color: Qt.rgba(0, 0, 0, 0.6)
+        color: Qt.rgba(0, 0, 0, 0.86)
         MouseArea { anchors.fill: parent; onClicked: app.hideHelp() }
 
         Rectangle {
