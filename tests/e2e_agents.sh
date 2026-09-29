@@ -181,7 +181,8 @@ else:
     assert ts["model"] == "good-1" and ts["servers"] == ["nebula"], ts            # always names a model, injects the nebula MCP server
     assert [l["model"] for l in lines if "prompt" in l][0] == "good-2", lines      # configured model used for the turn
 PY
-  X=$(ctl pane.split pane="$N" direction=down | python3 -c 'import json,sys;print(json.load(sys.stdin)["pane"])')
+  # split the first pane, not $N: the MCP bridge check below reads $N and a shrunken pane loses its text
+  X=$(ctl pane.split pane="$(ctl pane.list | python3 -c 'import json,sys;print(json.load(sys.stdin)[0]["id"])')" direction=down | python3 -c 'import json,sys;print(json.load(sys.stdin)["pane"])')
   ctl operator.ask prompt="close pane $X" approve=none >/dev/null
   ctl pane.get pane="$X" >/dev/null || fail "$K: denied close_pane still closed the pane"
   [ "$(ctl operator.ask prompt="close pane $X" approve=all)" = "closed pane $X" ] || fail "$K: approved close_pane answer"
