@@ -6,6 +6,8 @@
 #include "settings.h"
 #include <QCoreApplication>
 #include <QDir>
+#include <QFile>
+#include <QJsonArray>
 #include <QJsonDocument>
 #include <QProcess>
 #include <QStandardPaths>
@@ -55,7 +57,43 @@ bool candMatches(const Cand &c, const QString &cmd) { return cmd == c.cmd || c.a
 
 } // namespace
 
+// The chat survives restarts as display history only: the agent itself starts fresh.
+static QString historyPath() { return Paths::stateDir() + "/operator-history.json"; }
+
+void Operator::loadHistory() {
+    QFile f(historyPath());
+    if (!f.open(QIODevice::ReadOnly)) return;
+    for (const QJsonValue &v : QJsonDocument::fromJson(f.readAll()).array()) {
+        const QJsonObject o = v.toObject();
+        QVariantMap e{{"kind", o["kind"].toString()}, {"text", o["text"].toString()}, {"detail", o["detail"].toString()},
+                      {"status", o["kind"].toString() == "tool" && o["status"].toString().isEmpty() ? QString("stopped") : o["status"].toString()}};
+        m_transcript << e;
+    }
+    if (!m_transcript.isEmpty())
+        m_transcript << QVariantMap{{"kind", "info"}, {"text", "Restored from your previous session. The agent starts fresh and does not remember this conversation."}, {"detail", QString()}, {"status", QString()}};
+}
+
+void Operator::saveHistory() const {
+    QJsonArray a;
+    const int from = qMax(0, int(m_transcript.size()) - 200);
+    for (int i = from; i < m_transcript.size(); ++i) {
+        const QVariantMap e = m_transcript[i].toMap();
+        const QString k = e["kind"].toString();
+        if (k == "thought" || k == "info") continue;
+        a << QJsonObject{{"kind", k}, {"text", e["text"].toString()}, {"detail", e["detail"].toString()}, {"status", e["status"].toString()}};
+    }
+    QFile f(historyPath());
+    if (a.isEmpty()) { f.remove(); return; }
+    if (f.open(QIODevice::WriteOnly | QIODevice::Truncate)) f.write(QJsonDocument(a).toJson(QJsonDocument::Compact));
+}
+
 Operator::Operator(ApiServer *api, QObject *parent) : QObject(parent), m_api(api) {
+    loadHistory();
+    m_saveTimer = new QTimer(this);
+    m_saveTimer->setSingleShot(true);
+    m_saveTimer->setInterval(800);
+    connect(m_saveTimer, &QTimer::timeout, this, [this] { saveHistory(); });
+    connect(this, &Operator::transcriptChanged, m_saveTimer, qOverload<>(&QTimer::start));
     connect(Settings::instance(), &Settings::changed, this, &Operator::agentNameChanged);
     connect(Settings::instance(), &Settings::changed, this, &Operator::availabilityChanged);
 }
@@ -156,6 +194,20 @@ void Operator::dropSession() {
     emit modelsChanged();
 }
 
+QString Operator::diagnostics() const {
+    QStringList l;
+    l << "nebula " + QCoreApplication::applicationVersion() + " operator diagnostics"
+      << "agent:      " + agentName() + "  (" + agentCommand() + ")"
+      << "connection: " + connection() + ", stage " + QString::number(int(m_stage)) + ", busy " + (m_busy ? "yes" : "no")
+      << "model:      " + m_currentModel
+      << "last error: " + (m_lastError.isEmpty() ? "-" : m_lastError);
+    if (m_acp) {
+        l << "\n--- agent stderr ---" << (m_acp->stderrTail().trimmed().isEmpty() ? "(empty)" : m_acp->stderrTail().trimmed())
+          << "\n--- protocol log (newest last) ---" << m_acp->wireLog();
+    }
+    return l.join('\n');
+}
+
 void Operator::connectNow() {
     if (m_busy || m_warm) return;
     dropSession();
@@ -183,6 +235,7 @@ void Operator::setModel(const QString &value) {
 // The session is up: send the waiting prompt, or just report ready when we only connected.
 void Operator::readyForPrompt() {
     m_warm = false;
+    m_reconnects = 0;
     setStage(Stage::Prompt);
     emit connectionChanged();
     if (m_busy) sendPrompt();
@@ -256,6 +309,7 @@ void Operator::reset() {
     m_authTried = false;
     m_transcript.clear();
     m_toolLines.clear();
+    m_reconnects = 0;
     m_warm = false;
     m_lastError.clear();
     m_models.clear();
@@ -332,6 +386,7 @@ void Operator::beginAgent() {
         connect(m_acp, &AcpClient::notification, this, &Operator::onAgentNotification);
         connect(m_acp, &AcpClient::request, this, &Operator::onAgentRequest);
         connect(m_acp, &AcpClient::died, this, [this](const QString &err) {
+            const bool wasHealthy = !m_session.isEmpty() && !m_busy && !m_warm;
             m_session.clear(); m_primed = false; setStage(Stage::Idle);
             QString msg = "agent process died: " + err;
             const QString tail = m_acp->stderrTail().trimmed();
@@ -340,6 +395,11 @@ void Operator::beginAgent() {
             if (m_busy || m_warm) finish({}, msg);
             else if (!m_transcript.isEmpty()) push("error", msg);
             emit connectionChanged();
+            // an idle agent that vanished (crash, killed): bring it back, a couple of times at most
+            if (wasHealthy && m_reconnects < 2) {
+                ++m_reconnects;
+                QTimer::singleShot(1500, this, [this] { if (!m_busy && !m_warm && m_session.isEmpty()) connectNow(); });
+            }
         });
     }
     m_sessionCmd = cmd;

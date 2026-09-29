@@ -20,6 +20,8 @@ public:
     void setWorkingDirectory(const QString &dir) { m_workDir = dir; }
     // Last lines the agent wrote to stderr (for diagnostics when it dies or errors).
     QString stderrTail() const { return m_stderr; }
+    // Last protocol lines in both directions (always recorded, bounded): what "copy log" hands to a bug report.
+    QString wireLog() const { return m_wire.join('\n'); }
 
     // JSON-RPC request -> result() signal. Returns the request id.
     virtual int call(const QString &method, const QJsonObject &params = {});
@@ -45,6 +47,8 @@ protected:
     QByteArray m_buf;
     QString m_stderr;
     QString m_workDir;
+    void recordWire(const char *dir, const QByteArray &line);
+    QStringList m_wire;
     bool m_died = false;   // died() is emitted once per process (a crash triggers both errorOccurred and finished)
     int m_nextId = 1;
 };

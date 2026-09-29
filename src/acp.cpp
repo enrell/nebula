@@ -12,6 +12,7 @@ AcpClient::~AcpClient() { stop(); }
 void AcpClient::start(const QString &program, const QStringList &args) {
     stop();
     m_stderr.clear();
+    m_wire.clear();
     m_died = false;
     m_proc = new QProcess(this);
     // Claude Code refuses to start inside another Claude Code session; nebula may itself have been launched from one.
@@ -32,7 +33,7 @@ void AcpClient::start(const QString &program, const QStringList &args) {
         while ((nl = m_buf.indexOf('\n')) >= 0) {
             const QByteArray line = m_buf.left(nl).trimmed();
             m_buf.remove(0, nl + 1);
-            if (traceOn()) std::fprintf(stderr, "acp <- %.400s\n", line.constData());
+            recordWire("<-", line);
             if (!line.isEmpty()) dispatch(QJsonDocument::fromJson(line).object());
         }
     });
@@ -59,10 +60,16 @@ void AcpClient::stop() {
 
 bool AcpClient::running() const { return m_proc && m_proc->state() == QProcess::Running; }
 
+void AcpClient::recordWire(const char *dir, const QByteArray &line) {
+    if (traceOn()) std::fprintf(stderr, "acp %s %.400s\n", dir, line.constData());
+    m_wire << QString("%1 %2").arg(QLatin1String(dir), QString::fromUtf8(line.left(300)));
+    while (m_wire.size() > 80) m_wire.removeFirst();
+}
+
 void AcpClient::write(const QJsonObject &msg) {
     if (!m_proc || m_proc->state() == QProcess::NotRunning) return;
     const QByteArray line = QJsonDocument(msg).toJson(QJsonDocument::Compact);
-    if (traceOn()) std::fprintf(stderr, "acp -> %.400s\n", line.constData());
+    recordWire("->", line);
     m_proc->write(line + '\n');
 }
 

@@ -45,6 +45,7 @@ public:
     Q_INVOKABLE void cancel();
     Q_INVOKABLE void reset();
     Q_INVOKABLE void confirm(bool allow);
+    Q_INVOKABLE QString diagnostics() const;                // agent, state, error, stderr and wire log, for bug reports
     Q_INVOKABLE void connectNow();                          // start the agent and open a session without a prompt
     Q_INVOKABLE void setModel(const QString &value);        // switch model (live if connected, saved either way)
 
@@ -65,6 +66,8 @@ signals:
 private:
     enum class Stage { Idle, Spawn, Initialize, Auth, NewSession, Configure, Prompt };
 
+    void loadHistory();
+    void saveHistory() const;
     void dropSession();
     void readyForPrompt();
     void setStage(Stage s);
@@ -87,6 +90,8 @@ private:
 
     ApiServer *m_api;
     AcpClient *m_acp = nullptr;
+    int m_reconnects = 0;              // automatic reconnects since the last healthy session
+    QTimer *m_saveTimer = nullptr;
     QString m_sessionCmd;              // agent command the live session was started with
     QString m_acpKind;                 // "acp" | "claude" | "codex": which client class m_acp is
     Stage m_stage = Stage::Idle;

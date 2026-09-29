@@ -320,6 +320,19 @@ FocusScope {
                         }
                     }
 
+                    // info divider (restored history)
+                    Item {
+                        visible: msg.kind === "info"
+                        width: parent.width; height: visible ? iText.implicitHeight + 8 : 0
+                        Text {
+                            id: iText
+                            x: 20; width: parent.width - 40
+                            horizontalAlignment: Text.AlignHCenter; wrapMode: Text.WordWrap
+                            text: msg.kind === "info" ? "— " + msg.modelData.text + " —" : ""
+                            color: theme.muted; opacity: 0.8; font.family: theme.fontFamily; font.pixelSize: root.fs - 2
+                        }
+                    }
+
                     // error card
                     Item {
                         visible: msg.kind === "error"
@@ -340,7 +353,15 @@ FocusScope {
                                     text: msg.kind === "error" ? msg.modelData.text : ""
                                     color: theme.red; font.family: theme.fontFamily; font.pixelSize: root.fs - 1
                                 }
-                                Button { label: "Retry"; visible: msg.index === root.log.length - 1 && root.lastUser() !== "" && !root.busy; onClicked: operatorAgent.send(root.lastUser()) }
+                                Row {
+                                    spacing: 8
+                                    Button { label: "Retry"; visible: msg.index === root.log.length - 1 && root.lastUser() !== "" && !root.busy; onClicked: operatorAgent.send(root.lastUser()) }
+                                    Button {
+                                        property bool copied: false
+                                        label: copied ? "Copied" : "Copy log"
+                                        onClicked: { app.copyToClipboard(operatorAgent.diagnostics()); copied = true }
+                                    }
+                                }
                             }
                         }
                     }

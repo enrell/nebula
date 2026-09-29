@@ -188,6 +188,8 @@ PY
   { ctl pane.get pane="$X" 2>&1 || true; } | grep -q "no such pane" || fail "$K: approved close_pane did not close the pane"
   echo "operator native $K: ok"
 done
+sleep 1.2; grep -q "closed pane" "$NEBULA_STATE_DIR/operator-history.json" || fail "operator history was not persisted"
+echo "operator history: ok"
 
 
 # ---- MCP bridge
