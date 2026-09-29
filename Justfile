@@ -71,6 +71,11 @@ screenshots: build
 pkg:
     cd packaging/arch && makepkg -f
 
+# Build the release tarball + AppImage in an Arch container, exactly like the release workflow (needs docker)
+release-local VERSION="0.0.0-local":
+    docker run --rm -v "{{justfile_directory()}}":/src:ro -v "{{justfile_directory()}}/dist":/out archlinux:latest bash -c \
+      "pacman -Syu --noconfirm --needed base-devel git cmake ninja qt6-base qt6-declarative qt6-wayland libvterm curl file && /src/packaging/release/build.sh {{VERSION}} /out"
+
 # Lint QML files
 lint:
     qmllint -I {{dev_dir}} qml/*.qml || true

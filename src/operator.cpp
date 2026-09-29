@@ -526,7 +526,7 @@ void Operator::onAgentResult(int reqId, bool ok, const QJsonValue &value, const 
         m_setupId = 0;
         const auto newSession = [this] {
             const QJsonObject env{{"name", "NEBULA_SOCKET"}, {"value", Paths::socket()}};
-            const QJsonObject server{{"name", "nebula"}, {"command", QCoreApplication::applicationFilePath()},
+            const QJsonObject server{{"name", "nebula"}, {"command", Paths::selfExe()},
                                      {"args", QJsonArray{"mcp"}}, {"env", QJsonArray{env}}};
             m_setupId = m_acp->call("session/new", {{"cwd", paneCwd()}, {"mcpServers", QJsonArray{server}}});
             setStage(Stage::NewSession);

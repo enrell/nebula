@@ -1,3 +1,4 @@
+#include "paths.h"
 #include "integrations.h"
 #include <QCoreApplication>
 #include <QDir>
@@ -14,7 +15,7 @@ const char *kMarker = "pane.report_state";
 const QStringList kAgents = {"claude", "opencode", "codex", "gemini"};
 
 QString home() { return QDir::homePath(); }
-QString bin() { return QCoreApplication::applicationFilePath(); }
+QString bin() { return Paths::selfExe(); }
 
 QString reportCmd(const QString &state) {
     return QString("sh -c '[ -n \"$NEBULA_PANE\" ] && \"${NEBULA_BIN:-nebula}\" ctl pane.report_state state=%1 ttl=3600 >/dev/null 2>&1; exit 0'").arg(state);

@@ -1,0 +1,38 @@
+# Maintainer: enrell <enrellsa10@proton.me>
+pkgname=nebula-git
+pkgver=0.1.0
+pkgrel=1
+pkgdesc='Native Qt Quick workspace manager for terminal AI agents (Claude Code, Codex, opencode, ...) - git version'
+arch=(x86_64)
+url='https://github.com/enrell/nebula'
+license=(MIT)
+depends=(qt6-base qt6-declarative libvterm)
+makedepends=(cmake ninja git)
+optdepends=('libsecret: store API keys in the system keyring (secret-tool)'
+            'claude-code: Claude Code agent and operator'
+            'codex: Codex agent and operator'
+            'opencode: opencode agent and operator')
+provides=(nebula)
+conflicts=(nebula nebula-bin)
+options=(!debug)
+source=("$pkgname::git+https://github.com/enrell/nebula.git")
+sha256sums=('SKIP')
+
+pkgver() {
+  cd "$pkgname"
+  git describe --long --tags 2>/dev/null | sed 's/^v//;s/\([^-]*-g\)/r\1/;s/-/./g' \
+    || printf '0.1.0.r%s.g%s' "$(git rev-list --count HEAD)" "$(git rev-parse --short HEAD)"
+}
+
+build() {
+  cmake -S "$pkgname" -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr
+  cmake --build build
+}
+
+check() {
+  ctest --test-dir build --output-on-failure
+}
+
+package() {
+  DESTDIR="$pkgdir" cmake --install build
+}

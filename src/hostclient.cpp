@@ -28,7 +28,7 @@ bool HostClient::connectToHost() {
         return m_sock.waitForConnected(ms);
     };
     if (!tryConnect(200)) {
-        QProcess::startDetached(QCoreApplication::applicationFilePath(), {"--host"});
+        QProcess::startDetached(Paths::selfExe(), {"--host"});
         QDeadlineTimer deadline(4000);
         bool ok = false;
         while (!deadline.hasExpired() && !(ok = tryConnect(100))) QThread::msleep(50);
@@ -78,10 +78,10 @@ void HostClient::spawn(int id, const QString &cwd, const QString &shell, int row
         if (!override.contains(v.section('=', 0, 0))) env.append(v);
     }
     env.append("NEBULA_SOCKET=" + Paths::socket());
-    env.append("NEBULA_BIN=" + QCoreApplication::applicationFilePath());
+    env.append("NEBULA_BIN=" + Paths::selfExe());
     // pre-rename aliases so hooks/scripts installed by older versions keep working
     env.append("AINEBULA_SOCKET=" + Paths::socket());
-    env.append("AINEBULA_BIN=" + QCoreApplication::applicationFilePath());
+    env.append("AINEBULA_BIN=" + Paths::selfExe());
     for (const QString &e : extraEnv) env.append(e);
     QByteArray sh = shell.toLocal8Bit();
     if (sh.isEmpty()) sh = qgetenv("SHELL");

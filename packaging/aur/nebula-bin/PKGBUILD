@@ -1,0 +1,24 @@
+# Maintainer: enrell <enrellsa10@proton.me>
+pkgname=nebula-bin
+_name=nebula
+pkgver=0.1.0
+pkgrel=1
+pkgdesc='Native Qt Quick workspace manager for terminal AI agents (Claude Code, Codex, opencode, ...) - prebuilt binary'
+arch=(x86_64)
+url='https://github.com/enrell/nebula'
+license=(MIT)
+depends=(qt6-base qt6-declarative libvterm)
+optdepends=('libsecret: store API keys in the system keyring (secret-tool)'
+            'claude-code: Claude Code agent and operator'
+            'codex: Codex agent and operator'
+            'opencode: opencode agent and operator')
+provides=(nebula)
+conflicts=(nebula nebula-git)
+options=(!strip !debug)
+source=("$_name-$pkgver-x86_64-linux.tar.gz::https://github.com/enrell/nebula/releases/download/v$pkgver/$_name-$pkgver-x86_64-linux.tar.gz")
+sha256sums=('SKIP')
+
+package() {
+  # the tarball is a /usr-prefixed tree: bin, share/applications, share/icons, share/licenses
+  cp -a "$srcdir/usr" "$pkgdir/usr"
+}

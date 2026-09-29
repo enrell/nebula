@@ -12,14 +12,23 @@ Stack: C++20 + Qt 6 Quick, libvterm (emulation), forkpty (PTY). MIT licensed.
 
 ## Install
 
-**Arch / Omarchy** (builds from this checkout and installs a package):
+**Arch / Omarchy** (AUR):
 
-    cd packaging/arch && makepkg -si
+    yay -S nebula-bin      # prebuilt binary, uses your system Qt
+    yay -S nebula-git      # or build the latest commit
+
+**Any x86_64 Linux** (AppImage into `~/.local`, no root; verifies the checksum):
+
+    curl -fsSL https://raw.githubusercontent.com/enrell/nebula/main/install.sh | sh
+
+Uninstall with `... | sh -s -- --uninstall`. If the AppImage complains about FUSE, install `libfuse2` or run it with `APPIMAGE_EXTRACT_AND_RUN=1`.
 
 **From source** (Qt >= 6.5 with Quick, libvterm, CMake, Ninja):
 
     sudo pacman -S qt6-base qt6-declarative libvterm cmake ninja   # or your distro's equivalents
     just build && sudo just install        # or: cmake -S . -B build -G Ninja && cmake --build build && sudo cmake --install build
+
+Releases (binary tarball for the AUR package + AppImage) are built by CI when a `vX.Y.Z` tag is pushed.
 
 ## Getting started
 
@@ -38,7 +47,8 @@ Stack: C++20 + Qt 6 Quick, libvterm (emulation), forkpty (PTY). MIT licensed.
 | `just test` / `just e2e` | unit tests / API end-to-end test |
 | `just ctl <args>` / `just dctl <args>` | talk to the running / dev instance |
 | `just events` | stream agent events |
-| `just screenshots` / `just pkg` | regenerate README screenshots / build the Arch package |
+| `just screenshots` / `just pkg` | regenerate README screenshots / build the Arch package from the checkout |
+| `just release-local` | build the release tarball + AppImage in an Arch container (docker) into `dist/` |
 | `just install` / `just clean` / `just fmt` / `just lint` | misc |
 
 ## Keybindings (no prefix; press `Ctrl+Shift+?` in the app)
