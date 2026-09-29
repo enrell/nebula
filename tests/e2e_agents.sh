@@ -197,7 +197,7 @@ OUT=$( (printf '%s\n' \
   '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-03-26","capabilities":{},"clientInfo":{"name":"t","version":"1"}}}' \
   '{"jsonrpc":"2.0","method":"notifications/initialized"}' \
   '{"jsonrpc":"2.0","id":2,"method":"tools/list"}' \
-  "{\"jsonrpc\":\"2.0\",\"id\":3,\"method\":\"tools/call\",\"params\":{\"name\":\"read_pane\",\"arguments\":{\"pane\":$N}}}" \
+  "{\"jsonrpc\":\"2.0\",\"id\":3,\"method\":\"tools/call\",\"params\":{\"name\":\"read_pane\",\"arguments\":{\"pane\":$N,\"lines\":300}}}" \
   '{"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"list_profiles","arguments":{}}}' \
   '{"jsonrpc":"2.0","id":5,"method":"tools/call","params":{"name":"nope","arguments":{}}}' ) | "$BIN" mcp)
 echo "$OUT" | python3 -c '
@@ -206,7 +206,7 @@ r = {m["id"]: m for m in map(json.loads, sys.stdin)}
 assert r[1]["result"]["protocolVersion"] == "2025-03-26" and "tools" in r[1]["result"]["capabilities"]
 names = {t["name"] for t in r[2]["result"]["tools"]}
 assert {"launch_agent", "read_pane", "send_text", "wait_for_state", "list_panes", "whoami"} <= names, names
-assert "key=sk-work" in r[3]["result"]["content"][0]["text"]
+assert "key=sk-work" in r[3]["result"]["content"][0]["text"], r[3]["result"]["content"][0]["text"][-600:]
 assert "sk-" not in r[4]["result"]["content"][0]["text"], "list_profiles leaked a secret"
 assert r[5]["error"]["code"] == -32602
 ' || fail "mcp bridge"
