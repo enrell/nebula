@@ -13,11 +13,16 @@ export FAKEACP_LOG=$HOME/acp.log    # read by the fake ACP agent process (child 
 LOG=$HOME/llm.log
 GUI=; FAKE=
 ctl() { "$BIN" ctl "$@"; }
-fail() { echo "FAIL: $*" >&2; exit 1; }
+fail() { echo "FAIL: $*" >&2; cat "$HOME"/fake_*.err "$HOME/acp.log" >&2 2>/dev/null; exit 1; }
 # kill only the pty daemon bound to THIS test's socket, never the user's real one
 kill_host() { for pid in $(pgrep -f "$BIN --host" 2>/dev/null); do tr '\0' '\n' < "/proc/$pid/environ" 2>/dev/null | grep -qx "NEBULA_SOCKET=$NEBULA_SOCKET" && kill "$pid" 2>/dev/null || true; done; }
 cleanup() { ctl action.run action=kill-session >/dev/null 2>&1 || true; kill $GUI $FAKE 2>/dev/null || true; kill_host; rm -rf "$HOME" "$NEBULA_SOCKET" "$NEBULA_SOCKET.host"; }
 trap cleanup EXIT
+
+# fake `claude` / `codex` CLIs so the native operator drivers can be exercised without network or accounts
+mkdir -p "$HOME/fakebin"
+for k in claude codex; do printf '#!/bin/sh\nexec python3 "%s/fake_native.py" %s "$@" 2>>"%s/fake_%s.err"\n' "$HERE" "$k" "$HOME" "$k" > "$HOME/fakebin/$k"; chmod +x "$HOME/fakebin/$k"; done
+export PATH="$HOME/fakebin:$PATH"
 
 python3 "$HERE/fake_llm.py" "$LOG" "$PORT" & FAKE=$!
 "$BIN" & GUI=$!
@@ -152,6 +157,36 @@ ctl pane.get pane="$X" >/dev/null || fail "denied close_pane still closed the pa
 [ "$(ctl operator.ask prompt="close pane $X" approve=all)" = "closed pane $X" ] || fail "approved close_pane answer"
 { ctl pane.get pane="$X" 2>&1 || true; } | grep -q "no such pane" || fail "approved close_pane did not close the pane"
 echo "operator: ok"
+
+# ---- operator: native claude (stream-json) and codex (app-server) drivers
+for K in claude codex; do
+  : > "$HOME/acp.log"
+  ctl settings.set key=operatorAgent value="native:$K" >/dev/null
+  ctl settings.set key=operatorModel value="$([ $K = claude ] && echo fast || echo good-2)" >/dev/null
+  before=$(count)
+  [ "$(ctl operator.ask prompt="please launch a shell" approve=all)" = "launched a shell" ] || fail "$K: operator final answer"
+  [ "$(count)" = $((before + 1)) ] || fail "$K: operator did not launch a pane through the MCP bridge"
+  python3 - "$HOME/acp.log" "$K" <<'PY'
+import json, sys
+lines = [json.loads(l) for l in open(sys.argv[1])]
+k = sys.argv[2]
+assert any("prompt" in l and "operating nebula" in l["prompt"] for l in lines), lines
+if k == "claude":
+    argv = [l["argv"] for l in lines if "argv" in l][0]
+    assert "--strict-mcp-config" in argv and "--input-format" in argv and "stream-json" in argv, argv
+    assert [l["setModel"] for l in lines if "setModel" in l] == ["fast"], lines   # configured model applied via set_model
+else:
+    ts = [l["threadStart"] for l in lines if "threadStart" in l][0]
+    assert ts["model"] == "good-1" and ts["servers"] == ["nebula"], ts            # always names a model, injects the nebula MCP server
+    assert [l["model"] for l in lines if "prompt" in l][0] == "good-2", lines      # configured model used for the turn
+PY
+  X=$(ctl pane.split pane="$N" direction=down | python3 -c 'import json,sys;print(json.load(sys.stdin)["pane"])')
+  ctl operator.ask prompt="close pane $X" approve=none >/dev/null
+  ctl pane.get pane="$X" >/dev/null || fail "$K: denied close_pane still closed the pane"
+  [ "$(ctl operator.ask prompt="close pane $X" approve=all)" = "closed pane $X" ] || fail "$K: approved close_pane answer"
+  { ctl pane.get pane="$X" 2>&1 || true; } | grep -q "no such pane" || fail "$K: approved close_pane did not close the pane"
+  echo "operator native $K: ok"
+done
 
 
 # ---- MCP bridge

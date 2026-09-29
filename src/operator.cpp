@@ -141,8 +141,25 @@ QString Operator::connection() const {
     return m_lastError.isEmpty() ? "off" : "error";
 }
 
+// The configured agent changed (Settings, ctl, the chat's dropdown) while a session was live: forget that session,
+// keep the transcript.
+void Operator::dropSession() {
+    if (m_session.isEmpty() || agentCommand() == m_sessionCmd) return;
+    if (m_acp) m_acp->stop();
+    m_session.clear();
+    m_primed = false;
+    m_authTried = false;
+    m_models.clear();
+    m_currentModel.clear();
+    m_legacyModels = false;
+    setStage(Stage::Idle);
+    emit modelsChanged();
+}
+
 void Operator::connectNow() {
-    if (m_busy || m_warm || agentCommand().isEmpty()) return;
+    if (m_busy || m_warm) return;
+    dropSession();
+    if (agentCommand().isEmpty()) return;
     if (m_acp && m_acp->running() && !m_session.isEmpty()) return;
     m_lastError.clear();
     m_warm = true;
@@ -273,6 +290,7 @@ int Operator::ask(const QString &prompt, Approval mode) {
 }
 
 void Operator::start(const QString &text, Approval mode, int id) {
+    if (!m_busy && !m_warm) dropSession();
     m_mode = mode;
     m_reqId = id;
     m_lastText.clear();
@@ -324,6 +342,7 @@ void Operator::beginAgent() {
             emit connectionChanged();
         });
     }
+    m_sessionCmd = cmd;
     if (cmd.isEmpty()) { finish({}, "no ACP agent found - install codex/claude/gemini or set a command in Settings > Operator"); return; }
     setStage(Stage::Spawn);
     const QStringList parts = QProcess::splitCommand(cmd);

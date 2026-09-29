@@ -65,6 +65,7 @@ signals:
 private:
     enum class Stage { Idle, Spawn, Initialize, Auth, NewSession, Configure, Prompt };
 
+    void dropSession();
     void readyForPrompt();
     void setStage(Stage s);
     void armWatchdog();
@@ -86,6 +87,7 @@ private:
 
     ApiServer *m_api;
     AcpClient *m_acp = nullptr;
+    QString m_sessionCmd;              // agent command the live session was started with
     QString m_acpKind;                 // "acp" | "claude" | "codex": which client class m_acp is
     Stage m_stage = Stage::Idle;
     bool m_legacyModels = false;       // agent reports `models` + session/set_model instead of a model config option
