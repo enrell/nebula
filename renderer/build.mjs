@@ -42,7 +42,10 @@ const noEval = {
     });
   },
 };
-await esbuild.build({ ...common, entryPoints: ['src/page/index.js'], outfile: 'dist/page.js', format: 'iife', target: 'chrome108', plugins: [deepImports, noEval] });
+// No identifier minification: with these plugins esbuild renames symbols differently from run to run, and CI
+// checks that dist/ is reproducible. Syntax and whitespace minification are deterministic; the size cost is small
+// for a bundle that is loaded from the binary, never over a network.
+await esbuild.build({ ...common, minify: false, minifySyntax: true, minifyWhitespace: true, entryPoints: ['src/page/index.js'], outfile: 'dist/page.js', format: 'iife', target: 'chrome108', plugins: [deepImports, noEval] });
 if ((await readFile('dist/page.js', 'utf8')).match(/new Function\(|\beval\(/)) throw new Error('dist/page.js contains eval / new Function, which the page CSP blocks');
 await esbuild.build({ ...common, entryPoints: ['src/page/page.css'], outfile: 'dist/page.css', target: 'chrome108' });
 copyFileSync('src/page/page.html', 'dist/page.html');
