@@ -5,7 +5,7 @@ import standalone from 'ajv/dist/standalone/index.js';
 import * as esbuild from 'esbuild';
 import { copyFileSync, mkdirSync, writeFileSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
+import { dirname, relative, resolve } from 'node:path';
 import { FRONT_MATTER } from './src/core/front.js';
 import { components } from './src/components/index.js';
 
@@ -36,7 +36,8 @@ const noEval = {
       const code = await readFile(args.path, 'utf8');
       const call = "new Function('width', 'height', 'dpr', 'return ' + exprRes[1])";
       if (!code.includes(call)) throw new Error('claygl changed: update the claygl-no-eval plugin in build.mjs');
-      const helper = JSON.stringify(resolve('src/page/sizeexpr.js'));
+      // a relative specifier: an absolute path would make the bundle depend on where the repository is checked out
+      const helper = JSON.stringify(relative(dirname(args.path), resolve('src/page/sizeexpr.js')));
       return { contents: `import { compileSizeExpr } from ${helper};\n${code.replace(call, 'compileSizeExpr(exprRes[1])')}`, loader: 'js' };
     });
   },
