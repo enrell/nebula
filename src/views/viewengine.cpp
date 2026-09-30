@@ -14,6 +14,23 @@ public:
     Q_INVOKABLE QString stat(const QString &path) const { return ViewFiles::statJson(baseDir, path); }
 };
 
+// V4 lints the bundled library code as it compiles it (lazily, so also during checks): "used before its
+// declaration" and the like. Not ours to fix, and it would drown real QML warnings (tests fail on qt.qml.*), so
+// exactly those categories are silenced while this engine runs, and only then.
+namespace {
+struct QuietLint {
+    static inline QLoggingCategory::CategoryFilter previous = nullptr;
+    QuietLint() {
+        previous = QLoggingCategory::installFilter([](QLoggingCategory *c) {
+            const char *n = c->categoryName();
+            if (qstrcmp(n, "qt.qml.compiler") == 0 || qstrcmp(n, "qt.qml.usedbeforedeclared") == 0) c->setEnabled(QtWarningMsg, false);
+            else if (previous) previous(c);
+        });
+    }
+    ~QuietLint() { QLoggingCategory::installFilter(previous); }
+};
+} // namespace
+
 ViewEngine &ViewEngine::instance() {
     static ViewEngine e;
     return e;
@@ -32,15 +49,8 @@ bool ViewEngine::load(QString *error) {
     if (!f.open(QIODevice::ReadOnly)) m_loadError = "view checker missing from this build";
     else {
         m_js = std::make_unique<QJSEngine>();
-        // V4's compiler lints bundled library code ("used before its declaration"); that is not ours to fix
-        // and would drown real QML warnings, so silence exactly that category while the bundle compiles.
-        static QLoggingCategory::CategoryFilter previous = nullptr;
-        previous = QLoggingCategory::installFilter([](QLoggingCategory *c) {
-            if (qstrcmp(c->categoryName(), "qt.qml.compiler") == 0) c->setEnabled(QtWarningMsg, false);
-            else if (previous) previous(c);
-        });
+        const QuietLint quiet;
         const QJSValue r = m_js->evaluate(QString::fromUtf8(f.readAll()), "core.js");
-        QLoggingCategory::installFilter(previous);
         if (r.isError()) m_loadError = QString("view checker failed to load: %1 (line %2)").arg(r.toString()).arg(r.property("lineNumber").toInt());
         else m_js->globalObject().setProperty("nebulaHost", m_js->newQObject(m_host.get()));
     }
@@ -50,6 +60,7 @@ bool ViewEngine::load(QString *error) {
 
 QString ViewEngine::call(const char *fn, const QList<QVariant> &args, QString *error) {
     if (!load(error)) return {};
+    const QuietLint quiet;
     QJSValueList jsArgs;
     for (const QVariant &a : args) jsArgs << m_js->toScriptValue(a);
     const QJSValue f = m_js->globalObject().property("NebulaCore").property(QString::fromLatin1(fn));
@@ -62,6 +73,7 @@ QJsonObject ViewEngine::check(const QString &source, const QString &baseDir) {
     QString error;
     m_host->baseDir = baseDir;
     if (!load(&error)) return {{"fatal", error}};
+    const QuietLint quiet;
     const QJSValue host = m_js->globalObject().property("nebulaHost");
     const QJSValue r = m_js->globalObject().property("NebulaCore").property("checkJson").call({QJSValue(source), host});
     if (r.isError()) return {{"fatal", QString("view checker error: %1 (line %2)").arg(r.toString()).arg(r.property("lineNumber").toInt())}};
