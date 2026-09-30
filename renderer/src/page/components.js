@@ -82,9 +82,12 @@ function html(p, ctx, block) {
 // uses them, so a plain report never pays for charting, math or molecule libraries.
 const lazy = (load, name) => async (p, ctx, block) => (await load())[name](p, ctx, block);
 const charts = () => import('./lazy/charts.js');
+const mathChunk = () => import('./lazy/math.js');
 
 export const renderers = {
   callout, stats, table, checklist, code, image, html,
   chart: lazy(charts, 'chart'),
   chart3d: lazy(charts, 'chart3d'),
+  plot: lazy(charts, 'plot'),
+  math: lazy(mathChunk, 'math'),
 };

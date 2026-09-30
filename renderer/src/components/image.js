@@ -26,6 +26,7 @@ export default {
     if (!st.ok) return ctx.error('/src', st.error);
     if (st.size > MAX_BYTES) return ctx.error('/src', `image is too large (${Math.round(st.size / 1048576)} MB, max 20 MB)`);
     ctx.ref(props.src);
+    if (props.caption) ctx.markdown('/caption', props.caption);
     return props;
   },
 };

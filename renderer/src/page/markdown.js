@@ -1,11 +1,12 @@
 // Markdown -> HTML with raw HTML disabled (markdown-it escapes it) and safe links only.
 import MarkdownIt from 'markdown-it';
+import { mathPlugin } from '../core/mdmath.js';
 import { highlight } from './highlight.js';
 
 const isRemote = (p) => /^[a-z][a-z0-9+.-]*:/i.test(p);
 
 export function createMarkdown(ctx) {
-  const md = new MarkdownIt({ html: false, linkify: true, typographer: false, highlight: (code, lang) => highlight(code, lang) });
+  const md = new MarkdownIt({ html: false, linkify: true, typographer: false, highlight: (code, lang) => highlight(code, lang) }).use(mathPlugin);
   const image = md.renderer.rules.image;
   md.renderer.rules.image = (tokens, idx, opts, env, self) => {
     const t = tokens[idx];

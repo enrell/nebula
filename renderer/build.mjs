@@ -53,4 +53,16 @@ await esbuild.build({ ...common, minify: false, minifySyntax: true, minifyWhites
 for (const f of ['page.js', ...readdirSync('dist/chunks').map((c) => `chunks/${c}`)])
   if ((await readFile(`dist/${f}`, 'utf8')).match(/new Function\(|\beval\(/)) throw new Error(`dist/${f} contains eval / new Function, which the page CSP blocks`);
 await esbuild.build({ ...common, entryPoints: ['src/page/page.css'], outfile: 'dist/page.css', target: 'chrome108' });
+// KaTeX's stylesheet and fonts for the math chunk; only WOFF2 (Chromium never fetches the woff/ttf fallbacks)
+const woff2Only = {
+  name: 'katex-woff2-only',
+  setup(build) {
+    build.onLoad({ filter: /katex[\\/]dist[\\/]katex\.css$/ }, async (args) => ({
+      contents: (await readFile(args.path, 'utf8')).replace(/,\s*url\([^)]*\.(woff|ttf)\)\s*format\("(woff|truetype)"\)/g, ''),
+      loader: 'css',
+    }));
+  },
+};
+await esbuild.build({ ...common, entryPoints: { katex: 'node_modules/katex/dist/katex.css' }, outdir: 'dist', assetNames: 'assets/[name]-[hash]',
+  loader: { '.woff2': 'file' }, target: 'chrome108', plugins: [woff2Only] });
 copyFileSync('src/page/page.html', 'dist/page.html');

@@ -78,7 +78,7 @@ test('limits: huge documents are refused with a hint', () => {
 
 test('component catalogue', () => {
   const list = JSON.parse(core.componentsJson());
-  assert.deepEqual(list.map((c) => c.name), ['callout', 'stats', 'table', 'chart', 'chart3d', 'checklist', 'code', 'image', 'html']);
+  assert.deepEqual(list.map((c) => c.name), ['callout', 'stats', 'table', 'chart', 'chart3d', 'plot', 'math', 'checklist', 'code', 'image', 'html']);
   for (const { name } of list) {
     const d = JSON.parse(core.describeJson(name));
     assert.ok(d.schema && d.example.startsWith(`\`\`\`nebula:${name}\n`));

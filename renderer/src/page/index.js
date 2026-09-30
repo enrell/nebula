@@ -67,6 +67,10 @@ function render(doc) {
       ctx.issue(`block at line ${block.line}: ${e.message}`);
       el = errorCard({ ...block, errors: [{ line: block.line, message: `failed to draw: ${e.message}` }] });
     }
+    // math inside Markdown (of any block) is typeset by the KaTeX chunk, loaded only when there is some
+    if (el.querySelector?.('.math[data-tex]')) {
+      try { (await import('./lazy/math.js')).typeset(el); } catch (e) { ctx.issue(`math: ${e.message}`); }
+    }
     if (seq !== renderSeq) return;   // a newer document replaced this one while a chunk was loading
     el.dataset.block = block.index;
     if (block.id) el.id = `block-${block.id}`;

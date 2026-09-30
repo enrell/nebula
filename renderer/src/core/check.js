@@ -9,13 +9,15 @@ import * as validators from './validators.generated.js';
 import { splitDocument } from './document.js';
 import { offsetOf, pointerSegments } from './locate.js';
 import { isRemote } from './paths.js';
+import { mathPlugin } from './mdmath.js';
 import { closest } from './suggest.js';
+import { checkTex } from './tex.js';
 
 export const LIMITS = { sourceBytes: 1024 * 1024, blocks: 200 };
 
 let md;
 function init() {
-  md ??= new MarkdownIt({ html: false });
+  md ??= new MarkdownIt({ html: false }).use(mathPlugin);
 }
 
 function describeType(v) {
@@ -102,6 +104,9 @@ export function check(source, host) {
     } else block.ok = true;
     out.blocks.push(block);
   });
+  // equation numbers follow document order
+  let n = 0;
+  for (const b of out.blocks) if (b.ok && b.component === 'math' && b.props.number) b.props.n = ++n;
   out.refs = [...refs];
   diagnostics.sort((a, b) => a.line - b.line);
   return out;
@@ -180,16 +185,23 @@ function checkComponent(b, block, host, refs, diagnostics, index, ids) {
     error(path, message, hint) { diagnostics.push({ severity: 'error', line: at(path), block: index, component: tag, path: path || '/', message, hint }); return undefined; },
     warn(path, message, hint) { diagnostics.push({ severity: 'warning', line: at(path), block: index, component: tag, path: path || '/', message, hint }); },
     readText: (p) => host.readText(p),
+    // Markdown in a component field: checks its math (and images) like a Markdown block
+    markdown: (path, text) => checkMarkdown({ text, line: at(path) }, host, refs, diagnostics, index, tag),
     stat: (p) => host.stat(p),
     ref: (p) => refs.add(p),
   };
   block.props = def.resolve(data, ctx);
 }
 
-function checkMarkdown(b, host, refs, diagnostics, index) {
+function checkMarkdown(b, host, refs, diagnostics, index, component) {
   const visit = (tokens, line) => {
     for (const t of tokens) {
       const l = t.map ? b.line + t.map[0] : line;
+      if (t.type === 'math_inline' || t.type === 'math_block') {
+        const bad = checkTex(t.content, t.type === 'math_block');
+        if (bad) diagnostics.push({ severity: 'error', line: l, block: index, component, message: `${bad.message} in ${t.markup}${t.content.length > 40 ? `${t.content.slice(0, 40)}…` : t.content}${t.markup}`,
+          hint: 'KaTeX supports most of LaTeX math; a literal dollar sign is written \\$' });
+      }
       if (t.type === 'image') {
         const src = t.attrGet('src');
         if (isRemote(src)) diagnostics.push({ severity: 'warning', line: l, block: index, message: `remote image ${src} is not loaded (views have no network access)`, hint: 'download it into the project and use a relative path' });

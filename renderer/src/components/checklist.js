@@ -28,12 +28,13 @@ export default {
     },
   },
   example: '- "[x] Extract the session store"\n- "[~] Port callers to the new API"\n- {text: Remove the old cache, status: todo, note: after the release}',
-  resolve(props) {
+  resolve(props, ctx) {
     const items = props.items.map((it) => {
       if (typeof it !== 'string') return it;
       const m = /^\[(.)\]\s+(.*)$/s.exec(it);
       return m && MARKS[m[1]] ? { text: m[2], status: MARKS[m[1]] } : { text: it, status: 'todo' };
     });
+    items.forEach((it, i) => ctx.markdown(Array.isArray(props.items) ? `/items/${i}` : '/items', it.text));
     const count = (s) => items.filter((i) => i.status === s).length;
     return { ...props, items, done: count('done'), total: items.length - count('skipped') };
   },
