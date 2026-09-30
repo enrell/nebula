@@ -37,53 +37,7 @@ ctl pane.send_text pane="$R" text="PS1='\$ '; cd ~/proj; clear; $HOME/agentbin/c
 sleep 2; ctl pane.focus pane="$P" >/dev/null; sleep 0.5
 # docs/screenshots/main.png is a screenshot of a real session, kept by hand: this script does not overwrite it
 
-# 1b) a view next to the agent: what an agent shows with view_show
-printf 'suite,passed,failed,ms\nauth,42,0,812\nbilling,17,2,1290\nsessions,33,0,640\nviews,28,1,455\n' > "$HOME/proj/results.csv"
-python3 -c 'import math; print("run,before_ms,after_ms"); [print(f"r{i},{60+8*math.sin(i)+i*0.8:.1f},{34+3*math.cos(i*1.3):.1f}") for i in range(1, 13)]' > "$HOME/proj/bench.csv"
-cat > "$HOME/proj/report.md" <<'MD'
----
-title: Session store refactor
----
-The session store now sits behind one interface and **every caller** was ported.
-
-```nebula:stats
-- {label: Tests, value: 120, delta: +18, tone: good}
-- {label: Failing, value: 3, delta: -5, tone: good}
-- {label: p95 latency, value: 38ms, delta: -41%, tone: good}
-```
-
-```nebula:chart
-type: line
-title: Latency per run
-data: bench.csv
-x: run
-y: [before_ms, after_ms]
-unit: ms
-```
-
-```nebula:checklist #plan
-- "[x] Extract the session store"
-- "[x] Port callers to the new API"
-- "[~] Migrate stored sessions"
-- {text: Benchmark on the CI runner, status: failed, note: runner out of memory}
-```
-
-```nebula:table
-title: Test suites
-data: results.csv
-sort: {by: failed, desc: true}
-```
-
-```nebula:callout
-tone: warning
-text: Run `just migrate` before deploying.
-```
-MD
-(cd "$HOME/proj" && "$BIN" ctl view.show file=report.md pane="$R" >/dev/null)   # opens as a modal (the default)
-ctl window.resize width=1600 height=900 >/dev/null
-sleep 1.5; ctl pane.focus pane="$R" >/dev/null; sleep 0.5
-ctl window.screenshot path="$OUT/view.png" >/dev/null
-ctl window.resize width=1200 height=760 >/dev/null
+# views (with real WebGL) are recorded by tests/media.sh into docs/media/
 
 # 2) the operator chat
 ctl operator.ask prompt="please launch a shell" approve=all >/dev/null

@@ -12266,7 +12266,8 @@ ${end.comment}` : end.comment;
         y: { type: "string" },
         z: { type: "string" },
         color: { type: "string", description: "numeric column mapped to a colour scale (default: z)" },
-        height: { type: "integer", minimum: 200, maximum: 1200, default: 440 }
+        height: { type: "integer", minimum: 200, maximum: 1200, default: 440 },
+        rotate: { type: "boolean", default: false, description: "turn slowly until the user drags it" }
       })
     },
     example: "type: surface\ndata: grid.csv\nx: lr\ny: batch\nz: loss",
@@ -12297,7 +12298,7 @@ ${end.comment}` : end.comment;
         points.sort((a, b) => a[1] - b[1] || a[0] - b[0]);
       }
       const range = (i) => points.reduce(([lo, hi], p) => [Math.min(lo, p[i]), Math.max(hi, p[i])], [Infinity, -Infinity]);
-      return { type: props.type, title: props.title, names: { x: props.x, y: props.y, z: props.z, color: (_a2 = props.color) != null ? _a2 : props.z }, points, colorRange: points.length ? range(3) : [0, 1], height: props.height };
+      return { type: props.type, title: props.title, names: { x: props.x, y: props.y, z: props.z, color: (_a2 = props.color) != null ? _a2 : props.z }, points, colorRange: points.length ? range(3) : [0, 1], height: props.height, rotate: props.rotate };
     }
   };
 
@@ -13417,13 +13418,16 @@ ${end.comment}` : end.comment;
     return errors2 === 0;
   }
   var chart3d = validate14;
-  var schema15 = { "type": "object", "additionalProperties": false, "required": ["type", "x", "y", "z"], "properties": { "type": { "enum": ["scatter", "bar", "line", "surface"] }, "title": { "type": "string" }, "data": { "type": "string", "description": "relative path to a .csv, .tsv or .json (array of objects) file" }, "rows": { "type": "array", "items": { "type": ["array", "object"] }, "description": "inline rows: objects, or lists named by columns" }, "columns": { "type": "array", "items": { "type": "string" }, "minItems": 1, "description": "names for list rows" }, "x": { "type": "string" }, "y": { "type": "string" }, "z": { "type": "string" }, "color": { "type": "string", "description": "numeric column mapped to a colour scale (default: z)" }, "height": { "type": "integer", "minimum": 200, "maximum": 1200, "default": 440 } } };
+  var schema15 = { "type": "object", "additionalProperties": false, "required": ["type", "x", "y", "z"], "properties": { "type": { "enum": ["scatter", "bar", "line", "surface"] }, "title": { "type": "string" }, "data": { "type": "string", "description": "relative path to a .csv, .tsv or .json (array of objects) file" }, "rows": { "type": "array", "items": { "type": ["array", "object"] }, "description": "inline rows: objects, or lists named by columns" }, "columns": { "type": "array", "items": { "type": "string" }, "minItems": 1, "description": "names for list rows" }, "x": { "type": "string" }, "y": { "type": "string" }, "z": { "type": "string" }, "color": { "type": "string", "description": "numeric column mapped to a colour scale (default: z)" }, "height": { "type": "integer", "minimum": 200, "maximum": 1200, "default": 440 }, "rotate": { "type": "boolean", "default": false, "description": "turn slowly until the user drags it" } } };
   function validate14(data, { instancePath = "", parentData, parentDataProperty, rootData = data } = {}) {
     let vErrors = null;
     let errors2 = 0;
     if (data && typeof data == "object" && !Array.isArray(data)) {
       if (data.height === void 0) {
         data.height = 440;
+      }
+      if (data.rotate === void 0) {
+        data.rotate = false;
       }
       if (data.type === void 0) {
         const err0 = { instancePath, schemaPath: "#/required", keyword: "required", params: { missingProperty: "type" }, message: "must have required property 'type'", schema: schema15.required, parentSchema: schema15, data };
@@ -13647,12 +13651,22 @@ ${end.comment}` : end.comment;
           errors2++;
         }
       }
+      let data12 = data.rotate;
+      if (typeof data12 !== "boolean") {
+        const err20 = { instancePath: instancePath + "/rotate", schemaPath: "#/properties/rotate/type", keyword: "type", params: { type: "boolean" }, message: "must be boolean", schema: schema15.properties.rotate.type, parentSchema: schema15.properties.rotate, data: data12 };
+        if (vErrors === null) {
+          vErrors = [err20];
+        } else {
+          vErrors.push(err20);
+        }
+        errors2++;
+      }
     } else {
-      const err20 = { instancePath, schemaPath: "#/type", keyword: "type", params: { type: "object" }, message: "must be object", schema: schema15.type, parentSchema: schema15, data };
+      const err21 = { instancePath, schemaPath: "#/type", keyword: "type", params: { type: "object" }, message: "must be object", schema: schema15.type, parentSchema: schema15, data };
       if (vErrors === null) {
-        vErrors = [err20];
+        vErrors = [err21];
       } else {
-        vErrors.push(err20);
+        vErrors.push(err21);
       }
       errors2++;
     }

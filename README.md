@@ -10,6 +10,10 @@
   <a href="LICENSE"><img alt="license: MIT" src="https://img.shields.io/badge/license-MIT-blue"></a>
 </p>
 
+<p align="center">
+  <img src="docs/media/hero.gif" alt="an agent finishes a sweep and shows its results as a view: stats, a rotating WebGL loss surface and a chart" width="900">
+</p>
+
 ## Introduction
 
 nebula runs Claude Code, Codex, opencode, Gemini, aider or any other CLI in
@@ -73,7 +77,8 @@ Releases are built by CI when a `vX.Y.Z` tag matching the version in `CMakeLists
 | `just renderer` / `just e2e-views` | rebuild and test the views renderer (needs node) / views end-to-end test |
 | `just ctl <args>` / `just dctl <args>` | talk to the running / dev instance |
 | `just events` | stream agent events |
-| `just screenshots` / `just pkg` | regenerate README screenshots / build the Arch package from the checkout |
+| `just screenshots` / `just media` | regenerate README screenshots (headless) / the GIF and view images (needs Xvfb, Mesa, ffmpeg) |
+| `just pkg` | build the Arch package from the checkout |
 | `just release-local` | build every release artifact in docker containers into `dist/` |
 | `just install` / `just clean` / `just fmt` / `just lint` | misc |
 
@@ -119,7 +124,10 @@ Actions: split-right split-down close-pane zoom-pane focus-left/right/up/down ne
 
 ## Views
 
-![an agent's view in the modal](docs/screenshots/view.png)
+| An agent's view, in the modal (default) | Docked next to the agent |
+|---|---|
+| ![a view in the modal: stats, a WebGL surface, a line chart](docs/media/views-modal.png) | ![the same view docked to the right of the agent's pane](docs/media/views-docked.png) |
+
 
 A view shows a document instead of a terminal. Agents create one with the `view_show` MCP tool (or anything else with `nebula ctl view.show`). By default it opens as a **modal** over the workspace, so small split panes are not squeezed; its header docks it next to the agent that made it (right or below), a docked view's pop-out button brings it back to the modal, and Settings > General > *Agent views open* makes docking (or a new tab) the default. `Esc`, `Ctrl+Shift+O` or a click outside hides the modal without losing it (the status bar shows `N views`; click it or press `Ctrl+Shift+O` again); *close* discards it. Docked views are saved with the session, modal ones are not.
 
@@ -155,6 +163,8 @@ sort: {by: failed, desc: true}
 | `html` | escape hatch: the agent's own HTML/CSS/JS (canvas, WebGL, SVG) in a sandbox, with the theme as CSS variables |
 
 `view_components name=table` (or `nebula ctl view.components name=table`) returns a component's fields, shorthand and a valid example.
+
+![what the checker tells the agent (left) and what the user sees meanwhile (right)](docs/media/views-errors.png)
 
 **Checked before it is drawn.** Every document goes through one checker: YAML syntax, each component's schema, then semantic checks (a table column that is not in the CSV, a line range past the end of the file). `view_show` returns every problem with its line and a fix hint, e.g. `error line 12 [nebula:table] /colums: unknown field "colums" (did you mean "columns"?)`. Blocks with errors are drawn as error cards and the rest of the view still shows; the agent fixes the document and calls `view_show` again with `view=<id>` to update the same pane. Problems found while drawing (an image that does not decode) are reported too (`view_get`).
 
@@ -223,7 +233,7 @@ Agent = foreground process (claude, opencode, codex, gemini, aider, ...). State 
 | `~/.local/state/nebula/views/` | Inline content of open views |
 | `$XDG_RUNTIME_DIR/nebula.sock` | Automation socket (`NEBULA_SOCKET` overrides; `NEBULA_STATE_DIR` moves the state dir) |
 
-The operator, settings and wizard screenshots are regenerated with `tests/screenshots.sh` (throw-away HOME, fake agents); the main one is a real session.
+The operator, settings and wizard screenshots are regenerated with `tests/screenshots.sh`, the GIF and view images with `tests/media.sh` (throw-away HOME, scripted stand-in agents); the main one is a real session.
 
 ## IME
 
@@ -235,7 +245,7 @@ nebula can type into terminals and launch agents, so treat access to it like acc
 
 ## Contributing
 
-Issues and pull requests are welcome. Build with `just build`, run `just test` and `just lint` before opening a PR (see [Development](#development-just)).
+Issues and pull requests are welcome. [CONTRIBUTING.md](CONTRIBUTING.md) explains how to build and test nebula and what a good pull request looks like: the reasoning behind the change, what it changes for users, agents and developers, and screenshots for anything visible.
 
 ## License
 

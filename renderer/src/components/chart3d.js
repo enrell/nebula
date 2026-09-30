@@ -17,6 +17,7 @@ export default {
       z: { type: 'string' },
       color: { type: 'string', description: 'numeric column mapped to a colour scale (default: z)' },
       height: { type: 'integer', minimum: 200, maximum: 1200, default: 440 },
+      rotate: { type: 'boolean', default: false, description: 'turn slowly until the user drags it' },
     },
   },
   example: 'type: surface\ndata: grid.csv\nx: lr\ny: batch\nz: loss',
@@ -44,6 +45,6 @@ export default {
       points.sort((a, b) => a[1] - b[1] || a[0] - b[0]);
     }
     const range = (i) => points.reduce(([lo, hi], p) => [Math.min(lo, p[i]), Math.max(hi, p[i])], [Infinity, -Infinity]);
-    return { type: props.type, title: props.title, names: { x: props.x, y: props.y, z: props.z, color: props.color ?? props.z }, points, colorRange: points.length ? range(3) : [0, 1], height: props.height };
+    return { type: props.type, title: props.title, names: { x: props.x, y: props.y, z: props.z, color: props.color ?? props.z }, points, colorRange: points.length ? range(3) : [0, 1], height: props.height, rotate: props.rotate };
   },
 };

@@ -90,7 +90,7 @@ export function render3d(el, p) {
       text: [p.names.color, ''], textStyle: { color: b.muted }, inRange: { color: [css('blue'), css('green'), css('yellow'), css('red')] } },
     xAxis3D: axis(p.names.x), yAxis3D: axis(p.names.y), zAxis3D: axis(p.names.z),
     grid3D: { boxWidth: 100, boxDepth: 100, boxHeight: 70, environment: 'none',
-      viewControl: { autoRotate: false, distance: 185, alpha: 24, beta: 38 },
+      viewControl: { autoRotate: !!p.rotate, autoRotateSpeed: 18, autoRotateAfterStill: 6, distance: 185, alpha: 24, beta: 38 },
       light: { main: { intensity: 1.1, shadow: false, alpha: 40, beta: 30 }, ambient: { intensity: 0.35 } },
       axisLine: { lineStyle: { color: b.muted } }, splitLine: { lineStyle: { color: b.border } }, axisPointer: { lineStyle: { color: css('accent') } } },
     series: [series],

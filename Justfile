@@ -75,6 +75,10 @@ shot OUT="/tmp/nebula.png": build
 screenshots: build
     ./tests/screenshots.sh ./{{build_dir}}/nebula
 
+# README/PR media with real WebGL: docs/media/hero.gif and view images (needs Xvfb, Mesa, ffmpeg)
+media: build
+    ./tests/media.sh ./{{build_dir}}/nebula
+
 # Build an Arch package from this checkout (packaging/arch/PKGBUILD)
 pkg:
     cd packaging/arch && makepkg -f
