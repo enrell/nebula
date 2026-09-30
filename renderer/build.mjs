@@ -3,7 +3,7 @@
 import Ajv from 'ajv';
 import standalone from 'ajv/dist/standalone/index.js';
 import * as esbuild from 'esbuild';
-import { copyFileSync, mkdirSync, writeFileSync } from 'node:fs';
+import { copyFileSync, mkdirSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { dirname, relative, resolve } from 'node:path';
 import { FRONT_MATTER } from './src/core/front.js';
@@ -45,7 +45,12 @@ const noEval = {
 // No identifier minification: with these plugins esbuild renames symbols differently from run to run, and CI
 // checks that dist/ is reproducible. Syntax and whitespace minification are deterministic; the size cost is small
 // for a bundle that is loaded from the binary, never over a network.
-await esbuild.build({ ...common, minify: false, minifySyntax: true, minifyWhitespace: true, entryPoints: ['src/page/index.js'], outfile: 'dist/page.js', format: 'iife', target: 'chrome108', plugins: [deepImports, noEval] });
-if ((await readFile('dist/page.js', 'utf8')).match(/new Function\(|\beval\(/)) throw new Error('dist/page.js contains eval / new Function, which the page CSP blocks');
+// An ES module with lazily loaded chunks (src/page/lazy/*): nebula serves every file under dist/ from the binary.
+rmSync('dist/chunks', { recursive: true, force: true });
+rmSync('dist/assets', { recursive: true, force: true });
+await esbuild.build({ ...common, minify: false, minifySyntax: true, minifyWhitespace: true, entryPoints: { page: 'src/page/index.js' }, outdir: 'dist',
+  format: 'esm', splitting: true, chunkNames: 'chunks/[name]-[hash]', assetNames: 'assets/[name]-[hash]', target: 'chrome108', plugins: [deepImports, noEval] });
+for (const f of ['page.js', ...readdirSync('dist/chunks').map((c) => `chunks/${c}`)])
+  if ((await readFile(`dist/${f}`, 'utf8')).match(/new Function\(|\beval\(/)) throw new Error(`dist/${f} contains eval / new Function, which the page CSP blocks`);
 await esbuild.build({ ...common, entryPoints: ['src/page/page.css'], outfile: 'dist/page.css', target: 'chrome108' });
 copyFileSync('src/page/page.html', 'dist/page.html');

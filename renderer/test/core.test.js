@@ -90,9 +90,8 @@ test('component catalogue', () => {
 });
 
 test('the page has a renderer for every component', async () => {
-  const src = readFileSync(join(here, '../src/page/components.js'), 'utf8');
-  const names = /export const renderers = \{([^}]*)\}/.exec(src)[1].split(',').map((s) => s.trim());
-  assert.deepEqual(names.sort(), JSON.parse(core.componentsJson()).map((c) => c.name).sort());
+  const { renderers } = await import('../src/page/components.js');
+  assert.deepEqual(Object.keys(renderers).sort(), JSON.parse(core.componentsJson()).map((c) => c.name).sort());
 });
 
 test('an empty body reports the missing fields, not the colon pitfall', () => {

@@ -4,6 +4,7 @@ import { BarChart, LineChart, PieChart, ScatterChart } from 'echarts/charts';
 import { DataZoomComponent, GridComponent, LegendComponent, TitleComponent, TooltipComponent, VisualMapComponent } from 'echarts/components';
 import * as echarts from 'echarts/core';
 import { CanvasRenderer } from 'echarts/renderers';
+import { card, h } from '../dom.js';
 import { Bar3DChart, Line3DChart, Scatter3DChart, SurfaceChart } from 'echarts-gl/charts';
 import { Grid3DComponent } from 'echarts-gl/components';
 
@@ -37,7 +38,7 @@ function mount(el, option) {
   return chart;
 }
 
-export const webglAvailable = () => { try { return !!document.createElement('canvas').getContext('webgl'); } catch { return false; } };
+const webglAvailable = () => { try { return !!document.createElement('canvas').getContext('webgl'); } catch { return false; } };
 
 export function renderChart(el, p) {
   const b = base();
@@ -96,3 +97,20 @@ export function render3d(el, p) {
     series: [series],
   });
 }
+
+export function chart(p, ctx) {
+  const box = h('div.chart-box', { style: { height: `${p.height}px` } });
+  ctx.afterMount(() => renderChart(box, p));
+  return card('chart-card', p.title, box);
+}
+
+export function chart3d(p, ctx) {
+  if (!webglAvailable()) {
+    ctx.issue('chart3d: WebGL is not available in this view (no GPU / GL support)');
+    return card('chart-card', p.title, h('div.unavailable', 'WebGL is not available here, so this 3D chart cannot be drawn.'));
+  }
+  const box = h('div.chart-box', { style: { height: `${p.height}px` } });
+  ctx.afterMount(() => render3d(box, p));
+  return card('chart-card', p.title, box, h('footer.card-foot', 'drag to rotate · scroll to zoom'));
+}
+

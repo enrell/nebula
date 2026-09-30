@@ -82,10 +82,12 @@ qt_add_qml_module(nebula
 
 # Views: the document checker and the page renderer, built from renderer/ (see renderer/package.json).
 # renderer/dist is committed, so building nebula needs no node.
+# Chunk and asset names carry content hashes, so the list is globbed (CONFIGURE_DEPENDS re-globs on every build).
+file(GLOB_RECURSE NEBULA_RENDERER_FILES CONFIGURE_DEPENDS RELATIVE ${CMAKE_SOURCE_DIR} ${CMAKE_SOURCE_DIR}/renderer/dist/*)
 qt_add_resources(nebula renderer
   PREFIX /nebula/renderer
   BASE renderer/dist
-  FILES renderer/dist/core.js renderer/dist/page.html renderer/dist/page.js renderer/dist/page.css
+  FILES ${NEBULA_RENDERER_FILES}
 )
 
 target_link_libraries(nebula PRIVATE Qt6::Quick Qt6::Network Qt6::Qml Qt6::WebEngineQuick Qt6::WebChannel PkgConfig::VTERM util)

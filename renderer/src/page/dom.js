@@ -1,4 +1,9 @@
 // Tiny DOM builder: h('div.card', {title: 'x'}, child, 'text', ...). Text is always set as text, never parsed as HTML.
+// A titled card, the common frame of most components.
+export function card(kind, title, ...body) {
+  return h(`section.card.${kind}`, title ? h('header.card-title', title) : null, ...body);
+}
+
 export function h(tag, attrs, ...children) {
   const [name, ...classes] = tag.split('.');
   const el = document.createElement(name || 'div');
