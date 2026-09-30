@@ -28,7 +28,7 @@ current Omarchy theme and terminal font live.
 
 Stack: C++20, Qt 6 Quick, libvterm, forkpty. MIT licensed.
 
-![nebula: two panes, an agent in the sidebar](docs/screenshots/main.png)
+![nebula: Claude Code and another agent side by side, with live status in the sidebar](docs/screenshots/main.png)
 
 | Operator chat | Settings |
 |---|---|
@@ -163,7 +163,7 @@ Agent = foreground process (claude, opencode, codex, gemini, aider, ...). State 
 | `~/.local/state/nebula/operator-history.json` | Operator chat history (display only) |
 | `$XDG_RUNTIME_DIR/nebula.sock` | Automation socket (`NEBULA_SOCKET` overrides; `NEBULA_STATE_DIR` moves the state dir) |
 
-Screenshots in this README are regenerated with `tests/screenshots.sh` (throw-away HOME, fake agents).
+The operator, settings and wizard screenshots are regenerated with `tests/screenshots.sh` (throw-away HOME, fake agents); the main one is a real session.
 
 ## IME
 

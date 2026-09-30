@@ -35,7 +35,7 @@ ctl pane.send_text pane="$P" text="PS1='\$ '; cd ~/proj; clear; git log --onelin
 R=$(ctl pane.split pane="$P" direction=right | python3 -c 'import json,sys;print(json.load(sys.stdin)["pane"])')
 ctl pane.send_text pane="$R" text="PS1='\$ '; cd ~/proj; clear; $HOME/agentbin/claude" enter=true >/dev/null
 sleep 2; ctl pane.focus pane="$P" >/dev/null; sleep 0.5
-ctl window.screenshot path="$OUT/main.png" >/dev/null
+# docs/screenshots/main.png is a screenshot of a real session, kept by hand: this script does not overwrite it
 
 # 2) the operator chat
 ctl operator.ask prompt="please launch a shell" approve=all >/dev/null
