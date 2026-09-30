@@ -37,6 +37,8 @@ ctl pane.send_text pane="$R" text="PS1='\$ '; cd ~/proj; clear; $HOME/agentbin/c
 sleep 2; ctl pane.focus pane="$P" >/dev/null; sleep 0.5
 # docs/screenshots/main.png is a screenshot of a real session, kept by hand: this script does not overwrite it
 
+# views (with real WebGL) are recorded by tests/media.sh into docs/media/
+
 # 2) the operator chat
 ctl operator.ask prompt="please launch a shell" approve=all >/dev/null
 ctl action.run action=operator >/dev/null; sleep 4

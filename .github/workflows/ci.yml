@@ -15,8 +15,13 @@ jobs:
       QT_QUICK_BACKEND: software
     steps:
       - name: Install dependencies
-        run: pacman -Syu --noconfirm base-devel git cmake ninja qt6-base qt6-declarative libvterm python
+        run: pacman -Syu --noconfirm base-devel git cmake ninja qt6-base qt6-declarative qt6-webengine qt6-webchannel libvterm python nodejs npm
       - uses: actions/checkout@v4
+      - name: Views renderer (checker tests; the committed dist/ must match the sources)
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          cd renderer && npm ci && npm test
+          git diff --exit-code -- dist || { echo "renderer/dist is stale: run 'just renderer' and commit it"; exit 1; }
       - name: Configure and build (Debug)
         run: |
           cmake -S . -B build-dev -G Ninja -DCMAKE_BUILD_TYPE=Debug
@@ -31,6 +36,7 @@ jobs:
           ./tests/e2e.sh ./build-dev/nebula
           ./tests/e2e_persist.sh ./build-dev/nebula
           ./tests/e2e_agents.sh ./build-dev/nebula
+          ./tests/e2e_views.sh ./build-dev/nebula
       - name: QML sanity (release build, AOT-compiled QML)
         run: |
           cmake -S . -B build-rel -G Ninja -DCMAKE_BUILD_TYPE=Release

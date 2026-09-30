@@ -62,6 +62,7 @@ bool Settings::set(const QString &key, const QVariant &value) {
     if (!v.canConvert(p.metaType()) || !v.convert(p.metaType())) return false;
     if (key == "scrollback") v = qBound(0, v.toInt(), 1000000);
     if (key == "sidebarWidth") v = qBound(140, v.toInt(), 600);
+    if (key == "viewPlacement" && !viewPlacements().contains(v.toString())) return false;
     return p.write(this, v);
 }
 
@@ -81,5 +82,6 @@ void Settings::resetAll() {
     m_operatorAgent.clear();
     m_operatorModel.clear();
     m_operatorApproveAll = true;
+    m_viewPlacement = "modal";
     emit changed();
 }

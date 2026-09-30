@@ -186,6 +186,17 @@ FocusScope {
                     Toggle { checked: settings.focusFollowsMouse; onToggled: (v) => settings.focusFollowsMouse = v }
                 }
                 SettingRow {
+                    label: "Agent views open"
+                    description: "Where a view from view_show appears. Esc or Ctrl+Shift+O hides the modal; its header docks it next to the agent"
+                    Choice {
+                        readonly property var values: ["modal", "right", "down", "tab"]
+                        width: 220
+                        model: ["as a modal", "docked right", "docked below", "in a new tab"]
+                        index: Math.max(0, values.indexOf(settings.viewPlacement))
+                        onPicked: (i) => settings.viewPlacement = values[i]
+                    }
+                }
+                SettingRow {
                     label: "Desktop notifications"
                     description: "When an unfocused agent finishes or needs input"
                     Toggle { checked: settings.notifications; onToggled: (v) => settings.notifications = v }

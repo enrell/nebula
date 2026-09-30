@@ -10,6 +10,10 @@
   <a href="LICENSE"><img alt="license: MIT" src="https://img.shields.io/badge/license-MIT-blue"></a>
 </p>
 
+<p align="center">
+  <img src="docs/media/hero.gif" alt="an agent finishes a sweep and shows its results as a view: stats, a rotating WebGL loss surface and a chart" width="900">
+</p>
+
 ## Introduction
 
 nebula runs Claude Code, Codex, opencode, Gemini, aider or any other CLI in
@@ -23,10 +27,11 @@ current Omarchy theme and terminal font live.
 - **Agent status**: exact state through hooks, or screen heuristics as a fallback, in the sidebar, status bar and desktop notifications.
 - **Launcher**: any agent CLI, with API-key profiles and an optional git worktree per agent so parallel work doesn't collide.
 - **Operator**: a built-in agent that drives nebula through MCP; subscriptions (Codex, Claude Code) work without an API key.
+- **Views**: agents show results as rich documents (stats, tables, charts, 3D WebGL plots, checklists, code, images, sandboxed HTML) in a modal or docked next to them, validated before they are drawn and styled by your theme.
 - **Persistent sessions**: a background host owns the panes, so closing or crashing the window never kills your shells or agents.
 - **Scriptable**: a Unix-socket JSON API, `nebula ctl` and an MCP server.
 
-Stack: C++20, Qt 6 Quick, libvterm, forkpty. MIT licensed.
+Stack: C++20, Qt 6 Quick, libvterm, forkpty; views use Qt WebEngine. MIT licensed.
 
 ![nebula: Claude Code and another agent side by side, with live status in the sidebar](docs/screenshots/main.png)
 
@@ -47,9 +52,9 @@ Every release has native packages (small, use your distro's Qt) and a portable b
 
 The installer puts the portable build in `~/.local/lib/nebula` (no root, checksum verified) and links `~/.local/bin/nebula`; `... | sh -s -- --uninstall` removes it. The x86_64 build is made on Ubuntu 22.04 (glibc 2.35 or newer), the aarch64 one on Ubuntu 24.04 (glibc 2.39 or newer); both only expect the usual desktop libraries (OpenGL/EGL, fontconfig, X11 or Wayland).
 
-**From source** (Qt >= 6.5 with Quick, libvterm >= 0.3, CMake, Ninja):
+**From source** (Qt >= 6.5 with Quick, WebEngine and WebChannel, libvterm >= 0.3, CMake, Ninja):
 
-    sudo pacman -S qt6-base qt6-declarative qt6-wayland libvterm cmake ninja   # or your distro's equivalents
+    sudo pacman -S qt6-base qt6-declarative qt6-wayland qt6-webengine qt6-webchannel libvterm cmake ninja   # or your distro's equivalents
     just build && sudo just install
 
 Releases are built by CI when a `vX.Y.Z` tag matching the version in `CMakeLists.txt` is pushed (`.github/workflows/release.yml`).
@@ -69,9 +74,11 @@ Releases are built by CI when a `vX.Y.Z` tag matching the version in `CMakeLists
 | `just dev` | debug build, isolated instance (own socket + state) |
 | `just watch` | rebuild + restart dev instance on change (watchexec) |
 | `just test` / `just e2e` | unit tests / API end-to-end test |
+| `just renderer` / `just e2e-views` | rebuild and test the views renderer (needs node) / views end-to-end test |
 | `just ctl <args>` / `just dctl <args>` | talk to the running / dev instance |
 | `just events` | stream agent events |
-| `just screenshots` / `just pkg` | regenerate README screenshots / build the Arch package from the checkout |
+| `just screenshots` / `just media` | regenerate README screenshots (headless) / the GIF and view images (needs Xvfb, Mesa, ffmpeg) |
+| `just pkg` | build the Arch package from the checkout |
 | `just release-local` | build every release artifact in docker containers into `dist/` |
 | `just install` / `just clean` / `just fmt` / `just lint` | misc |
 
@@ -88,6 +95,7 @@ Releases are built by CI when a `vX.Y.Z` tag matching the version in `CMakeLists
 | `Ctrl+Shift+A` | jump to the agent that is blocked / done |
 | `Ctrl+Shift+L` / `Ctrl+Shift+M` | launch an agent / broadcast a prompt |
 | `Ctrl+Shift+I` | operator (built-in AI that runs nebula) |
+| `Ctrl+Shift+O` | show / hide agent views (the modal) |
 | `Ctrl+Shift+B` / `Ctrl+,` | toggle sidebar / settings |
 | `Ctrl++` `Ctrl+-` `Ctrl+0` / `Ctrl+wheel` | font size |
 | `Ctrl+Shift+C/V`, `Shift+PgUp/PgDn` | copy/paste, scrollback |
@@ -98,7 +106,7 @@ All `Ctrl+Shift+…` combos are unused by terminal programs, so nothing is stole
     Alt+Left = focus-left
     Ctrl+Shift+Q = none
 
-Actions: split-right split-down close-pane zoom-pane focus-left/right/up/down new-tab close-tab next-tab prev-tab goto-tab:N new-space rename-space close-space next-space prev-space goto-space:N next-attention toggle-sidebar open-settings launch-agent operator broadcast toggle-help font-larger font-smaller font-reset.
+Actions: split-right split-down close-pane zoom-pane focus-left/right/up/down new-tab close-tab next-tab prev-tab goto-tab:N new-space rename-space close-space next-space prev-space goto-space:N next-attention toggle-views toggle-sidebar open-settings launch-agent operator broadcast toggle-help font-larger font-smaller font-reset.
 
 ## Agents: profiles, launcher, hooks, MCP, operator
 
@@ -108,11 +116,72 @@ Actions: split-right split-down close-pane zoom-pane focus-left/right/up/down ne
 
 **Hooks** (Settings > Agent integrations): exact `working / blocked / done` state instead of screen heuristics. Claude Code (`~/.claude/settings.json`), opencode (plugin) and codex (`notify`, turn completion only). Your files are merged, never overwritten, and backed up as `*.nebula-bak`; Remove restores them. Hooks run `nebula ctl pane.report_state` and are silent no-ops outside nebula.
 
-**MCP server**: `nebula mcp` (stdio). Install it for claude/opencode/codex/gemini from the same settings section, or add it yourself: `claude mcp add --scope user nebula -- /path/to/nebula mcp`. Tools: `whoami`, `list_panes`, `list_agents`, `list_spaces`, `list_profiles` (never secrets), `read_pane`, `send_text`, `send_keys`, `launch_agent`, `wait_for_state`, `broadcast`, `close_pane`, `create_space`. This lets one agent delegate to and supervise others. It is real terminal control: only install it in agents you trust.
+**MCP server**: `nebula mcp` (stdio). Install it for claude/opencode/codex/gemini from the same settings section, or add it yourself: `claude mcp add --scope user nebula -- /path/to/nebula mcp`. Tools: `whoami`, `list_panes`, `list_agents`, `list_spaces`, `list_profiles` (never secrets), `read_pane`, `send_text`, `send_keys`, `launch_agent`, `wait_for_state`, `broadcast`, `close_pane`, `create_space`, `view_show`, `view_components`, `view_get` (see [Views](#views)). This lets one agent delegate to and supervise others. It is real terminal control: only install it in agents you trust.
 
 **Operator** (`Ctrl+Shift+I`, Settings > Agents & AI): a built-in agent that operates *nebula itself*. It is a real agent CLI: nebula spawns it, gives it a `nebula` MCP server (the same tools external agents get, `src/tools.cpp`), and streams its turns into a panel. Because the agent authenticates itself, **subscriptions work out of the box** — Codex (ChatGPT) and Claude Code (subscription) are driven **natively**, with no adapter and no npm: Claude through `claude -p --input-format stream-json`, Codex through `codex app-server` (`src/nativeagents.cpp`). `opencode acp`, `gemini --acp` or any other [ACP](https://agentclientprotocol.com) command set under Settings > Agents & AI use ACP. Empty auto-detects codex → claude → opencode → gemini, and the chat has agent and model dropdowns (the model choice is remembered as `operatorModel`); when a configured model is unavailable, a stale model in the agent's own CLI config is healed automatically through `session/set_config_option` (or the native equivalent) using the account's real model list. Tell it things like "launch claude and codex on the flaky auth test, each in a worktree" or "which agents are blocked? approve the first one"; it lists/reads panes, launches and prompts agents, answers permission prompts, and reorganizes spaces/tabs/splits. Tool calls are **auto-approved by default** (the "auto-approve on" badge in the chat header toggles it); turn it off and every tool call shows an Allow/Deny prompt in the chat. The chat is restored after a restart as display history only (the agent starts fresh), idle agents that vanish are reconnected, and error cards have a *Copy log* button that copies the agent state, stderr and the last protocol lines for bug reports (`NEBULA_ACP_TRACE=1` also prints the wire log). Pane text is marked untrusted in the instructions sent to the agent. Non-interactive use: `nebula ctl operator.ask prompt="..." approve=all` (`approve=none` rejects every permission request).
 
 **Summaries** (optional, off by default because it sends terminal output to your provider): a one-line "what it did" when an unfocused agent finishes, shown in the sidebar and the desktop notification. Toggle under Settings > Agents & AI. `nebula ctl llm.ask prompt="..."` is a plain one-shot chat request against a profile.
+
+## Views
+
+| An agent's view, in the modal (default) | Docked next to the agent |
+|---|---|
+| ![a view in the modal: stats, a WebGL surface, a line chart](docs/media/views-modal.png) | ![the same view docked to the right of the agent's pane](docs/media/views-docked.png) |
+
+
+A view shows a document instead of a terminal. Agents create one with the `view_show` MCP tool (or anything else with `nebula ctl view.show`). By default it opens as a **modal** over the workspace, so small split panes are not squeezed; its header docks it next to the agent that made it (right or below), a docked view's pop-out button brings it back to the modal, and Settings > General > *Agent views open* makes docking (or a new tab) the default. `Esc`, `Ctrl+Shift+O` or a click outside hides the modal without losing it (the status bar shows `N views`; click it or press `Ctrl+Shift+O` again); *close* discards it. Docked views are saved with the session, modal ones are not.
+
+The document is Markdown plus **components**, fenced blocks whose body is YAML:
+
+````markdown
+---
+title: Session store refactor
+---
+The store now sits behind one interface.
+
+```nebula:stats
+- {label: Tests, value: 120, delta: +18, tone: good}
+- {label: p95 latency, value: 38ms, delta: -41%, tone: good}
+```
+
+```nebula:table
+data: results.csv          # read from disk: big data never goes through the model
+sort: {by: failed, desc: true}
+```
+````
+
+| Component | Shows |
+|---|---|
+| `callout` | info / success / warning / danger / note box |
+| `stats` | a row of key numbers with change and tone |
+| `table` | sortable table from inline rows or a `.csv` / `.tsv` / `.json` file |
+| `chart` | line / bar / area / scatter / pie from the same data sources, one series per `y` column |
+| `chart3d` | 3D scatter / bar / line / surface drawn with WebGL, rotatable, coloured by a column |
+| `checklist` | plan with a status per item (`[x]` done, `[~]` running, `[!]` failed, `[-]` skipped) and progress |
+| `code` | highlighted code, inline or from a file and line range |
+| `image` | a png / jpg / gif / webp / svg from the project |
+| `html` | escape hatch: the agent's own HTML/CSS/JS (canvas, WebGL, SVG) in a sandbox, with the theme as CSS variables |
+
+`view_components name=table` (or `nebula ctl view.components name=table`) returns a component's fields, shorthand and a valid example.
+
+![what the checker tells the agent (left) and what the user sees meanwhile (right)](docs/media/views-errors.png)
+
+**Checked before it is drawn.** Every document goes through one checker: YAML syntax, each component's schema, then semantic checks (a table column that is not in the CSV, a line range past the end of the file). `view_show` returns every problem with its line and a fix hint, e.g. `error line 12 [nebula:table] /colums: unknown field "colums" (did you mean "columns"?)`. Blocks with errors are drawn as error cards and the rest of the view still shows; the agent fixes the document and calls `view_show` again with `view=<id>` to update the same pane. Problems found while drawing (an image that does not decode) are reported too (`view_get`).
+
+**Files.** `view.show file=report.md` watches the file (and the files it references) and re-checks and redraws on every save. Paths in a document are relative to its directory (for inline content: the agent's working directory) and cannot leave it: no absolute paths, no `..` escapes, no symlinks pointing outside.
+
+**Isolation.** Views are drawn by Qt WebEngine in a private, off-the-record profile. A page gets only the checked document, can load only the files that document references, has no network access, cannot navigate, runs no `eval`, and raw HTML in Markdown is not rendered. Links open in your browser. An `html` block runs in its own sandboxed frame (opaque origin, no access to the view, nebula or storage, a CSP without any network source); its script errors are reported to the agent like any other render issue.
+
+```sh
+nebula ctl view.show file=report.md [where=modal|right|down|tab] [title=STR]
+nebula ctl view.show content=@- < report.md          # inline content, stored with the session
+nebula ctl view.show view=7 file=report.md            # update view 7 in place
+nebula ctl view.dock view=7 where=right|down|tab|modal       # move between the modal and the layout
+nebula ctl view.toggle                                        # hide / show the modal
+nebula ctl view.get view=7 | view.list | view.close view=7 | view.components [name=table]
+```
+
+The checker and the page live in `renderer/` (JavaScript, bundled into `renderer/dist/`, which is committed so building nebula needs no node): the checker runs inside nebula in Qt's JS engine, the page in the web engine. `just renderer` rebuilds and tests it.
 
 ## Sessions (zellij-style persistence)
 
@@ -161,9 +230,10 @@ Agent = foreground process (claude, opencode, codex, gemini, aider, ...). State 
 | `~/.config/nebula/secrets.json` | API keys, only when no system keyring is available (mode 0600) |
 | `~/.local/state/nebula/session.json` | Layout of spaces, tabs and splits |
 | `~/.local/state/nebula/operator-history.json` | Operator chat history (display only) |
+| `~/.local/state/nebula/views/` | Inline content of open views |
 | `$XDG_RUNTIME_DIR/nebula.sock` | Automation socket (`NEBULA_SOCKET` overrides; `NEBULA_STATE_DIR` moves the state dir) |
 
-The operator, settings and wizard screenshots are regenerated with `tests/screenshots.sh` (throw-away HOME, fake agents); the main one is a real session.
+The operator, settings and wizard screenshots are regenerated with `tests/screenshots.sh`, the GIF and view images with `tests/media.sh` (throw-away HOME, scripted stand-in agents); the main one is a real session.
 
 ## IME
 
@@ -175,7 +245,7 @@ nebula can type into terminals and launch agents, so treat access to it like acc
 
 ## Contributing
 
-Issues and pull requests are welcome. Build with `just build`, run `just test` and `just lint` before opening a PR (see [Development](#development-just)).
+Issues and pull requests are welcome. [CONTRIBUTING.md](CONTRIBUTING.md) explains how to build and test nebula and what a good pull request looks like: the reasoning behind the change, what it changes for users, agents and developers, and screenshots for anything visible.
 
 ## License
 

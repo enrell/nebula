@@ -8,6 +8,7 @@ class Launcher;
 class Operator;
 class QLocalSocket;
 class TerminalSession;
+class ViewPane;
 
 // Newline-delimited JSON over a unix socket.
 //   request : {"id": 1, "method": "pane.list", "params": {...}}
@@ -32,6 +33,8 @@ private:
     QJsonValue call(const QString &method, const QJsonObject &p, QLocalSocket *sock);
     TerminalSession *pane(const QJsonObject &p) const;
     QJsonObject paneInfo(TerminalSession *s) const;
+    QJsonObject showView(const QJsonObject &p, ViewPane **out);
+    bool waitForRender(ViewPane *v, const QJsonObject &req, QLocalSocket *sock, const QJsonObject &report);
     void broadcast(const QJsonObject &ev);
 
     void startAsync(const QJsonObject &req, QLocalSocket *sock);

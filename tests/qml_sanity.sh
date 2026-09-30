@@ -19,6 +19,8 @@ for _ in $(seq 60); do ctl ping >/dev/null 2>&1 && break; sleep 0.1; done
 ctl ping >/dev/null || { cat "$LOG"; echo "qml sanity: gui did not start" >&2; exit 1; }
 sleep 1   # first-run wizard is up
 for a in setup-wizard open-settings operator launch-agent toggle-help; do ctl action.run action=$a >/dev/null; sleep 0.4; done
+# a view pane (web engine page + QWebChannel bridge)
+ctl view.show content='# sanity' >/dev/null
 if grep -E "TypeError|ReferenceError|is not a function|is not defined|Unable to assign|overrides a member|qt\.qml\." "$LOG"; then
   echo "qml sanity: QML warnings above" >&2; exit 1
 fi

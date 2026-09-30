@@ -24,7 +24,6 @@ class TerminalSession : public QObject {
 public:
     // fixedId/attach: reuse a pane that already lives in the host (session restore). prefill is typed at the prompt (not executed).
     TerminalSession(const QString &cwd, QObject *parent = nullptr, int fixedId = 0, bool attach = false, const QString &prefill = QString(), const QString &profile = QString());
-    static void reserveId(int id);
     ~TerminalSession() override;
 
     int id() const { return m_id; }
@@ -100,6 +99,8 @@ private:
     VTermScreen *m_screen = nullptr;
     qint64 m_pid = -1;
     bool m_replaying = false;
+    QByteArray m_sgrCarry;
+    QByteArray translateFaint(const QByteArray &d);
     int m_wantRows = 0, m_wantCols = 0;
     QString m_prefill, m_cmdline, m_profile, m_summary;
     int m_rows = 24, m_cols = 80;

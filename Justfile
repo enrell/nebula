@@ -42,6 +42,14 @@ test:
 e2e: build
     ./tests/e2e.sh ./{{build_dir}}/nebula
 
+# Views: rebuild the renderer bundles (renderer/dist, committed) and run the checker tests; needs node
+renderer:
+    cd renderer && npm ci && npm test
+
+# Views end to end: checker report, drawing, updates, live reload, persistence
+e2e-views: build
+    ./tests/e2e_views.sh ./{{build_dir}}/nebula
+
 # Session persistence: shells survive the GUI, layout survives the host
 e2e-persist: build
     ./tests/e2e_persist.sh ./{{build_dir}}/nebula
@@ -66,6 +74,10 @@ shot OUT="/tmp/nebula.png": build
 # Regenerate the README screenshots (headless, throw-away HOME, fake agents)
 screenshots: build
     ./tests/screenshots.sh ./{{build_dir}}/nebula
+
+# README/PR media with real WebGL: docs/media/hero.gif and view images (needs Xvfb, Mesa, ffmpeg)
+media: build
+    ./tests/media.sh ./{{build_dir}}/nebula
 
 # Build an Arch package from this checkout (packaging/arch/PKGBUILD)
 pkg:

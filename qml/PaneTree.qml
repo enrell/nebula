@@ -29,7 +29,7 @@ Item {
     Loader {
         anchors.fill: parent
         active: root.isLeaf
-        sourceComponent: PaneFrame { tab: root.tab; paneId: root.node.pane }
+        sourceComponent: PaneFrame { tab: root.tab; paneId: root.node.pane; kind: root.node.kind || "terminal" }
     }
 
     Loader {

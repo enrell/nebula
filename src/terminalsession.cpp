@@ -1,5 +1,6 @@
 #include "terminalsession.h"
 #include "agentdetect.h"
+#include "paneids.h"
 #include "paths.h"
 #include "settings.h"
 #include "hostclient.h"
@@ -17,13 +18,9 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
-static int s_nextId = 1;
-
-void TerminalSession::reserveId(int id) { if (id >= s_nextId) s_nextId = id + 1; }
-
 TerminalSession::TerminalSession(const QString &cwd, QObject *parent, int fixedId, bool attach, const QString &prefill, const QString &profile)
-    : QObject(parent), m_id(fixedId > 0 ? fixedId : s_nextId++), m_cwd(cwd), m_prefill(prefill), m_profile(profile) {
-    reserveId(m_id);
+    : QObject(parent), m_id(fixedId > 0 ? fixedId : PaneIds::next()), m_cwd(cwd), m_prefill(prefill), m_profile(profile) {
+    PaneIds::reserve(m_id);
     m_vt = vterm_new(m_rows, m_cols);
     vterm_set_utf8(m_vt, 1);
     vterm_output_set_callback(m_vt, cbOutput, this);
@@ -78,7 +75,55 @@ void TerminalSession::start(const QString &cwd, bool attach) {
     }
 }
 
-void TerminalSession::hostOutput(const QByteArray &d) {
+// libvterm drops SGR 2 (faint/dim), which TUIs use for placeholders and suggestions (Claude Code's
+// prompt suggestion then looks like real, undeletable input). Carry it through as alternate font 1
+// (SGR 11, otherwise unused) and render that as dim. SGR 22 clears faint too, so it also resets the font.
+static QByteArray rewriteSgr(const QByteArray &params) {
+    const QList<QByteArray> in = params.split(';');
+    QList<QByteArray> out;
+    bool changed = false;
+    for (int i = 0; i < in.size(); ++i) {
+        const QByteArray &a = in[i];
+        if ((a == "38" || a == "48" || a == "58") && i + 1 < in.size()) {    // extended colour: copy its arguments as is
+            const int n = in[i + 1] == "5" ? 2 : in[i + 1] == "2" ? 4 : 0;
+            for (int k = 0; k <= n && i < in.size(); ++k) out << in[i++];
+            --i;
+            continue;
+        }
+        if (a == "2") { out << "11"; changed = true; }
+        else if (a == "22") { out << "22" << "10"; changed = true; }
+        else out << a;
+    }
+    return changed ? out.join(';') : params;
+}
+
+QByteArray TerminalSession::translateFaint(const QByteArray &d) {
+    QByteArray s = m_sgrCarry + d, r;
+    m_sgrCarry.clear();
+    r.reserve(s.size());
+    qsizetype i = 0;
+    for (;;) {
+        const qsizetype e = s.indexOf('\x1b', i);
+        if (e < 0) { r.append(s.constData() + i, s.size() - i); break; }
+        r.append(s.constData() + i, e - i);
+        if (e + 1 >= s.size()) { m_sgrCarry = s.mid(e); break; }
+        if (s[e + 1] != '[') { r += '\x1b'; i = e + 1; continue; }
+        qsizetype j = e + 2;
+        while (j < s.size() && ((s[j] >= '0' && s[j] <= '9') || s[j] == ';' || s[j] == ':')) ++j;
+        if (j >= s.size()) {
+            if (s.size() - e < 64) m_sgrCarry = s.mid(e);
+            else r.append(s.constData() + e, s.size() - e);
+            break;
+        }
+        if (s[j] == 'm') r += "\x1b[" + rewriteSgr(s.mid(e + 2, j - e - 2)) + 'm';
+        else r.append(s.constData() + e, j + 1 - e);
+        i = j + 1;
+    }
+    return r;
+}
+
+void TerminalSession::hostOutput(const QByteArray &raw) {
+    const QByteArray d = translateFaint(raw);
     vterm_input_write(m_vt, d.constData(), size_t(d.size()));
     if (!m_replaying) m_lastOutput.restart();
     vterm_screen_flush_damage(m_screen);
