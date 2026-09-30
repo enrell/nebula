@@ -95,6 +95,9 @@ void TerminalSession::hostSize(int rows, int cols) {
 void TerminalSession::hostReplayDone() {
     m_replaying = false;
     m_lastOutput.restart();
+    // The host's Size reply to our attach can arrive after the view already resized us (a fresh
+    // split): it reports the stale spawn size and would leave the emulator narrower than the pty.
+    if (m_wantRows > 0) resize(m_wantRows, m_wantCols);
     emit updated();
 }
 
@@ -115,6 +118,8 @@ void TerminalSession::writeOut(const char *s, size_t len) {
 void TerminalSession::resize(int rows, int cols) {
     rows = qMax(1, rows);
     cols = qMax(2, cols);
+    m_wantRows = rows;
+    m_wantCols = cols;
     if (rows == m_rows && cols == m_cols) return;
     m_rows = rows;
     m_cols = cols;

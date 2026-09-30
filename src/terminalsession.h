@@ -100,6 +100,7 @@ private:
     VTermScreen *m_screen = nullptr;
     qint64 m_pid = -1;
     bool m_replaying = false;
+    int m_wantRows = 0, m_wantCols = 0;
     QString m_prefill, m_cmdline, m_profile, m_summary;
     int m_rows = 24, m_cols = 80;
     std::deque<std::vector<VTermScreenCell>> m_sb;
