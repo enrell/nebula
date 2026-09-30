@@ -10,6 +10,7 @@
 #include "paneids.h"
 #include "views/viewengine.h"
 #include "views/viewpane.h"
+#include <QBuffer>
 #include <QCoreApplication>
 #include <QDir>
 #include <QFile>
@@ -127,6 +128,9 @@ QJsonObject ApiServer::handle(const QJsonObject &req, QLocalSocket *sock) {
             const QJsonObject r = showView(req["params"].toObject(), &v);
             if (v && waitForRender(v, req, sock, r)) return {{"__deferred", true}};
             resp["result"] = r;
+        } else if (m == "view.export" || m == "view.snapshot") {
+            startViewTask(req, sock);
+            return {{"__deferred", true}};
         } else {
             resp["result"] = call(req["method"].toString(), req["params"].toObject(), sock);
         }
@@ -269,6 +273,84 @@ bool ApiServer::waitForRender(ViewPane *v, const QJsonObject &req, QLocalSocket 
     // the first page of a session starts the web engine; after that a render takes milliseconds
     QTimer::singleShot(v->pageAttached() ? 2000 : 8000, wait, finish);
     return true;
+}
+
+// view.export (html | pdf to a file) and view.snapshot (PNG of the view, optionally scrolled to a block). The page
+// and the web view do the work; the reply is sent when the view reports back.
+void ApiServer::startViewTask(const QJsonObject &req, QLocalSocket *sock) {
+    const QJsonObject p = req["params"].toObject();
+    const bool snapshot = req["method"].toString() == "view.snapshot";
+    ViewPane *v = m_ws->findView(p["view"].toInt());
+    if (!v) throw ApiError("no such view");
+    int si = -1, ti = -1;
+    Tab *t = nullptr;
+    m_ws->findView(v->id(), &si, &ti, &t);
+    const bool onScreen = m_ws->isModal(v) ? m_ws->modalVisible() && m_ws->modalView() == v
+                                           : si == m_ws->currentIndex() && t && t == m_ws->currentSpace()->currentTab();
+    if (!v->pageAttached()) throw ApiError("the view has not been drawn yet; show it first");
+    if (snapshot && !onScreen) throw ApiError("the view is not on screen (hidden, behind another view or in another tab); bring it up with view.dock or view.toggle");
+
+    // files: relative to the caller's directory, else next to the document
+    const auto target = [&](const QString &given, const QString &ext) {
+        QString base = p["cwd"].toString();
+        if (base.isEmpty()) base = v->baseDir();
+        QString name = given;
+        if (name.isEmpty()) {
+            name = v->title().toLower().replace(QRegularExpression("[^a-z0-9]+"), "-").remove(QRegularExpression("^-+|-+$"));
+            name = (name.isEmpty() ? QString("view") : name) + '.' + ext;
+        }
+        return QFileInfo(QDir(base).absoluteFilePath(name)).absoluteFilePath();
+    };
+    int request;
+    QString path;
+    if (snapshot) {
+        const int block = p.contains("block") ? p["block"].toInt() : -1;
+        if (p.contains("path")) path = target(p["path"].toString(), "png");
+        request = v->startSnapshot(block);
+    } else {
+        const QString format = p["format"].toString("html");
+        if (format != "html" && format != "pdf") throw ApiError("format must be html or pdf");
+        path = target(p["path"].toString(), format);
+        if (!QFileInfo(QFileInfo(path).path()).isDir()) throw ApiError(("no such directory: " + QFileInfo(path).path()).toStdString());
+        request = v->startExport(format, path);
+    }
+
+    QPointer<QLocalSocket> guard(sock);
+    QPointer<ViewPane> view(v);
+    const QJsonValue rid = req["id"];
+    auto *wait = new QObject(this);
+    auto sent = std::make_shared<bool>(false);
+    auto reply = [guard, rid, wait, sent](const QJsonObject &result) {
+        if (std::exchange(*sent, true)) return;
+        if (guard) {
+            QJsonObject r;
+            if (!rid.isUndefined()) r["id"] = rid;
+            r["ok"] = result["ok"].toBool();
+            if (r["ok"].toBool()) { QJsonObject out = result; out.remove("ok"); r["result"] = out; }
+            else r["error"] = result["error"].toString();
+            guard->write(QJsonDocument(r).toJson(QJsonDocument::Compact) + '\n');
+        }
+        wait->deleteLater();
+    };
+    connect(v, &ViewPane::taskFinished, wait, [reply, view, request, snapshot, path](int id, const QJsonObject &result) {
+        if (id != request) return;
+        if (!snapshot || !result["ok"].toBool() || !view) { reply(result); return; }
+        const QImage img = view->takeSnapshot(request);
+        QJsonObject r{{"ok", true}, {"width", img.width()}, {"height", img.height()}};
+        if (!path.isEmpty()) {
+            if (!img.save(path, "PNG")) { reply({{"ok", false}, {"error", "cannot write " + path}}); return; }
+            r["path"] = path;
+        } else {
+            QByteArray png;
+            QBuffer buf(&png);
+            buf.open(QIODevice::WriteOnly);
+            img.save(&buf, "PNG");
+            r["png"] = QString::fromLatin1(png.toBase64());
+        }
+        reply(r);
+    });
+    connect(v, &QObject::destroyed, wait, [reply] { reply({{"ok", false}, {"error", "the view was closed"}}); });
+    QTimer::singleShot(snapshot ? 10000 : 60000, wait, [reply] { reply({{"ok", false}, {"error", "the view did not respond in time"}}); });
 }
 
 TerminalSession *ApiServer::pane(const QJsonObject &p) const {

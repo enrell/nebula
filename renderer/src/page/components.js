@@ -1,15 +1,13 @@
 // One renderer per registry component. Each gets the props produced by the checker (already validated and
 // resolved) and returns a DOM node. They never see raw YAML or unchecked input.
-import { h } from './dom.js';
-import { render3d, renderChart, webglAvailable } from './charts.js';
+import { card, h } from './dom.js';
 import { highlight } from './highlight.js';
+import { image } from './image.js';
+import { provenance, references } from './research.js';
 import { sandboxFrame } from './sandbox.js';
 
 const tones = { good: 'good', bad: 'bad', neutral: 'neutral' };
 
-function card(kind, title, ...body) {
-  return h(`section.card.${kind}`, title ? h('header.card-title', title) : null, ...body);
-}
 
 function callout(p, ctx) {
   const icon = { info: 'i', success: '✓', warning: '!', danger: '✗', note: '✎' }[p.tone];
@@ -36,7 +34,7 @@ function table(p) {
   }, c.label, h('span.sort-mark')));
   const cmp = (col) => (a, b) => {
     const x = a[col], y = b[col];
-    if (p.columns[col].numeric) return (x === '' ? -Infinity : Number(x)) - (y === '' ? -Infinity : Number(y));
+    if (p.columns[col].numeric) return (x === '' ? -Infinity : parseFloat(x)) - (y === '' ? -Infinity : parseFloat(y));   // parseFloat: "3.21 ± 0.12"
     return String(x).localeCompare(String(y), undefined, { numeric: true });
   };
   function draw() {
@@ -72,30 +70,41 @@ function code(p) {
   return card('code-card', p.title ? `${p.title}${range}` : null, h('div.code-scroll', gutter, body));
 }
 
-function image(p, ctx) {
-  const img = h('img', { src: ctx.fileUrl(p.src), alt: p.alt ?? '', loading: 'lazy', style: p.width ? { maxWidth: `${p.width}px` } : null });
-  img.addEventListener('error', () => ctx.issue(`image ${p.src} could not be displayed`));
-  return h('figure.image', img, p.caption ? h('figcaption', ctx.inline(p.caption)) : null);
-}
-
-function chart(p, ctx) {
-  const box = h('div.chart-box', { style: { height: `${p.height}px` } });
-  ctx.afterMount(() => renderChart(box, p));
-  return card('chart-card', p.title, box);
-}
-
-function chart3d(p, ctx) {
-  if (!webglAvailable()) {
-    ctx.issue('chart3d: WebGL is not available in this view (no GPU / GL support)');
-    return card('chart-card', p.title, h('div.unavailable', 'WebGL is not available here, so this 3D chart cannot be drawn.'));
-  }
-  const box = h('div.chart-box', { style: { height: `${p.height}px` } });
-  ctx.afterMount(() => render3d(box, p));
-  return card('chart-card', p.title, box, h('footer.card-foot', 'drag to rotate · scroll to zoom'));
-}
-
 function html(p, ctx, block) {
   return card('html-card', p.title, sandboxFrame(ctx.sandboxUrl(block.index), p.height));
 }
 
-export const renderers = { callout, stats, table, chart, chart3d, checklist, code, image, html };
+// Heavy renderers live in their own chunks (src/page/lazy/*), fetched from nebula-view:// the first time a document
+// uses them, so a plain report never pays for charting, math or molecule libraries.
+const lazy = (load, name) => async (p, ctx, block) => (await load())[name](p, ctx, block);
+const charts = () => import('./lazy/charts.js');
+const mathChunk = () => import('./lazy/math.js');
+const chem = () => import('./lazy/chem.js');
+const bio = () => import('./lazy/bio.js');
+const physics = () => import('./lazy/physics.js');
+const diagrams = () => import('./lazy/diagram.js');
+const maps = () => import('./lazy/map.js');
+const volumes = () => import('./lazy/volume.js');
+
+export const renderers = {
+  callout, stats, table, checklist, code, image, html,
+  chart: lazy(charts, 'chart'),
+  chart3d: lazy(charts, 'chart3d'),
+  plot: lazy(charts, 'plot'),
+  matrix: lazy(charts, 'matrix'),
+  math: lazy(mathChunk, 'math'),
+  molecule: lazy(chem, 'molecule'),
+  reaction: lazy(chem, 'reaction'),
+  structure: lazy(chem, 'structure'),
+  sequence: lazy(bio, 'sequence'),
+  tree: lazy(bio, 'tree'),
+  field: lazy(physics, 'field'),
+  animation: lazy(physics, 'animation'),
+  graph: lazy(charts, 'graph'),
+  diagram: lazy(diagrams, 'diagram'),
+  map: lazy(maps, 'map'),
+  references,
+  provenance,
+  volume: lazy(volumes, 'volume'),
+  tracks: lazy(bio, 'tracks'),
+};

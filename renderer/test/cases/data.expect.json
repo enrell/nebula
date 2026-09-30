@@ -1,0 +1,8 @@
+{ "ok": [true, true, true, true, false, false, true, true, false, true, false],
+  "errors": [
+    [38, "give one error column per y column (1)"],
+    [45, "a log y axis needs positive values"],
+    [61, "row has 1 values, the first row has 2"],
+    [70, "\"nope\" is not a column"]
+  ],
+  "warnings": [] }

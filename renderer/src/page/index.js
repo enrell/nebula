@@ -2,6 +2,8 @@
 // It never parses the source itself; problems found while drawing are reported back as render issues.
 import { renderers } from './components.js';
 import { h } from './dom.js';
+import { endPrint, exportHtml, preparePrint, prepareSnapshot } from './export.js';
+import { referenceList } from './research.js';
 import { createMarkdown } from './markdown.js';
 
 let bridge;
@@ -9,11 +11,13 @@ let fileBase = '';
 let sandboxBase = '';
 let renderSeq = 0;   // sandbox URLs change on every render, so a redraw (new document or theme) reloads them
 let files = new Set();   // files the checker verified; anything else would be refused by nebula anyway
+let citations = new Map();   // citation key -> number (the checker numbers them)
 const issues = [];
-let mounted = [];     // callbacks that need the node in the document (charts measure their box)
 const ctx = {
-  afterMount(fn) { mounted.push(fn); },
+  afterMount() { throw new Error('afterMount is per block'); },
   hasFile: (path) => files.has(path),
+  citation: (key) => citations.get(key),
+  bibliography: [],
   sandboxUrl: (index) => `${sandboxBase}${index}.html?r=${renderSeq}`,
   fileUrl: (path) => fileBase + path.split('/').map(encodeURIComponent).join('/'),
   markdown(text) { const el = h('div.md'); el.innerHTML = md.render(text); return el; },
@@ -36,41 +40,58 @@ function errorCard(block) {
     h('ul', block.errors.map((e) => h('li', h('span.error-line', `line ${e.line}`), ' ', e.message, e.hint ? h('div.error-hint', e.hint) : null))));
 }
 
-function renderBlock(block) {
+async function renderBlock(block, bctx) {
   if (!block.ok) return errorCard(block);
-  if (block.type === 'markdown') return ctx.markdown(block.text);
-  const render = renderers[block.component];
-  if (!render) return errorCard({ ...block, errors: [{ line: block.line, message: `this nebula build cannot draw "${block.component}"` }] });
-  return render(block.props, ctx, block);
+  if (block.type === 'markdown') return bctx.markdown(block.text);
+  const draw = renderers[block.component];
+  if (!draw) return errorCard({ ...block, errors: [{ line: block.line, message: `this nebula build cannot draw "${block.component}"` }] });
+  return draw(block.props, bctx, block);
 }
 
 let lastDoc;
+// Blocks are drawn into placeholders in document order; a block whose renderer lives in a lazy chunk fills its
+// placeholder when the chunk arrives. nebula gets the render report once every block is drawn.
 function render(doc) {
   lastDoc = doc;
-  renderSeq++;
+  const seq = ++renderSeq;
   issues.length = 0;
-  mounted = [];
   files = new Set(doc?.refs ?? []);
+  ctx.bibliography = doc?.bibliography ?? [];
+  citations = new Map(ctx.bibliography.map((e) => [e.key, e.n]));
   const root = document.getElementById('doc');
-  root.querySelectorAll('.chart-box').forEach((el) => el.nebulaDispose?.());
-  const nodes = [];
+  // charts, 3D viewers and animations hold observers, timers and GL contexts: release them before redrawing
+  root.querySelectorAll('.live').forEach((el) => el.nebulaDispose?.());
+  const blocks = doc?.blocks ?? [];
   // the title belongs to the chrome around the page (pane title bar or modal header), not to the page itself
-  for (const block of doc?.blocks ?? []) {
+  const slots = blocks.map((b) => h('div.slot', { 'data-block': b.index }));
+  root.replaceChildren(...slots);
+  // cited works are listed where nebula:references stands, or else at the end
+  if (ctx.bibliography.length && !blocks.some((b) => b.ok && b.component === 'references')) root.append(referenceList(ctx.bibliography));
+  const jobs = blocks.map(async (block, i) => {
+    const mounted = [];
+    const bctx = { ...ctx, afterMount: (fn) => mounted.push(fn) };
+    let el;
     try {
-      const el = renderBlock(block);
-      el.dataset.block = block.index;
-      if (block.id) el.id = `block-${block.id}`;
-      nodes.push(el);
+      el = await renderBlock(block, bctx);
     } catch (e) {
       ctx.issue(`block at line ${block.line}: ${e.message}`);
-      nodes.push(errorCard({ ...block, errors: [{ line: block.line, message: `failed to draw: ${e.message}` }] }));
+      el = errorCard({ ...block, errors: [{ line: block.line, message: `failed to draw: ${e.message}` }] });
     }
-  }
-  root.replaceChildren(...nodes);
-  for (const fn of mounted) {
-    try { fn(); } catch (e) { ctx.issue(`drawing failed: ${e.message}`); }
-  }
-  bridge?.rendered(JSON.stringify({ blocks: nodes.length, issues }));
+    // math inside Markdown (of any block) is typeset by the KaTeX chunk, loaded only when there is some
+    if (el.querySelector?.('.math[data-tex]')) {
+      try { (await import('./lazy/math.js')).typeset(el); } catch (e) { ctx.issue(`math: ${e.message}`); }
+    }
+    if (seq !== renderSeq) return;   // a newer document replaced this one while a chunk was loading
+    el.dataset.block = block.index;
+    if (block.id) el.id = `block-${block.id}`;
+    slots[i].replaceWith(el);
+    for (const fn of mounted) {
+      try { await fn(); } catch (e) { ctx.issue(`drawing failed: ${e.message}`); }
+    }
+  });
+  Promise.allSettled(jobs).then(() => {
+    if (seq === renderSeq) bridge?.rendered(JSON.stringify({ blocks: blocks.length, issues }));
+  });
 }
 
 // Links open in the system browser (nebula decides); the view itself never navigates.
@@ -101,5 +122,15 @@ window.addEventListener('DOMContentLoaded', () => {
     // charts and sandboxes read the theme when they are drawn: redraw everything on a theme change
     bridge.themeChanged.connect(() => { applyTheme(bridge.theme); render(lastDoc); });
     bridge.documentChanged.connect(() => render(bridge.document));
+    // nebula asks for a standalone HTML copy (PDF is printed by the web view itself) or for a block to be in view
+    const failed = (request) => (e) => bridge.exportFailed(request, String(e?.message ?? e));
+    bridge.exportRequested.connect((request, format) => {
+      if (format === 'html') exportHtml(lastDoc?.title).then((html) => bridge.exportHtml(request, html), failed(request));
+      else preparePrint().then(() => bridge.readyToPrint(request), failed(request));
+    });
+    bridge.printFinished.connect(endPrint);
+    bridge.snapshotRequested.connect((request, block) => {
+      prepareSnapshot(block).then(() => bridge.readyForSnapshot(request), (e) => bridge.exportFailed(request, String(e?.message ?? e)));
+    });
   });
 });

@@ -5,9 +5,12 @@ import { check, describeComponent, listComponents } from './check.js';
 
 export { check, describeComponent, listComponents };
 
-// host: { readText(path) -> JSON {ok, text|error}, stat(path) -> JSON {ok, size|error} }
+// host: { readText(path) -> JSON {ok, text|error}, stat(path) -> JSON {ok, size|error}, readBase64(path) -> JSON {ok, base64|error},
+//         hash(path) -> JSON {ok, sha256, size, modified}, git() -> JSON {commit, branch} or {} }
 export function checkJson(source, host) {
-  const h = { readText: (p) => JSON.parse(host.readText(p)), stat: (p) => JSON.parse(host.stat(p)) };
+  const h = { readText: (p) => JSON.parse(host.readText(p)), stat: (p) => JSON.parse(host.stat(p)), readBase64: (p) => JSON.parse(host.readBase64(p)) };
+  if (host.hash) h.hash = (p) => JSON.parse(host.hash(p));
+  if (host.git) h.git = () => JSON.parse(host.git());
   return JSON.stringify(check(source, h));
 }
 export const componentsJson = () => JSON.stringify(listComponents());

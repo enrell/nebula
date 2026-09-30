@@ -85,7 +85,9 @@ int runMcp() {
             const Tools::Spec *tool = Tools::find(tn);
             if (!tool) { replyError(id, -32602, "unknown tool: " + tn); continue; }
             try {
-                reply(id, {{"content", QJsonArray{QJsonObject{{"type", "text"}, {"text", tool->run(p["arguments"].toObject(), bridgeApi())}}}}});
+                const QJsonObject args = p["arguments"].toObject();
+                reply(id, {{"content", tool->content ? tool->content(args, bridgeApi())
+                                                     : QJsonArray{QJsonObject{{"type", "text"}, {"text", tool->run(args, bridgeApi())}}}}});
             } catch (const Tools::ToolError &e) {
                 reply(id, {{"content", QJsonArray{QJsonObject{{"type", "text"}, {"text", e.msg}}}}, {"isError", true}});
             }

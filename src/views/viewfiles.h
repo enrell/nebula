@@ -19,5 +19,14 @@ constexpr qint64 kMaxTextBytes = 5 * 1024 * 1024;
 // JSON strings handed to the checker: {"ok":true,"text":...} / {"ok":true,"size":N} / {"ok":false,"error":...}
 QString readTextJson(const QString &baseDir, const QString &relative);
 QString statJson(const QString &baseDir, const QString &relative);
+QString readBase64Json(const QString &baseDir, const QString &relative);   // binary files (e.g. .npy): {"ok":true,"base64":...}
+
+constexpr qint64 kMaxBinaryBytes = 16 * 1024 * 1024;
+
+// Provenance: {"ok":true,"sha256":...,"size":N,"modified":ISO-8601} for a file the document read (streamed, any size).
+QString hashJson(const QString &baseDir, const QString &relative);
+// The git commit checked out where the document lives, read from .git without running git:
+// {"commit":..., "branch":...} (branch absent when detached), or {} outside a repository.
+QString gitJson(const QString &baseDir);
 
 } // namespace ViewFiles

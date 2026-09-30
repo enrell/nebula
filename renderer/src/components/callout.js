@@ -12,5 +12,6 @@ export default {
       text: { type: 'string', description: 'Markdown' },
     },
   },
+  resolve(props, ctx) { ctx.markdown('/text', props.text); return props; },
   example: 'tone: warning\ntitle: Migration needed\ntext: Run `just migrate` before deploying.',
 };

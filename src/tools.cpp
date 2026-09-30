@@ -40,11 +40,13 @@ QString viewShowDescription() {
         list += QString("\n- nebula:%1: %2").arg(c["name"].toString(), c["summary"].toString());
     return "Show the user a rich view (by default a large window over the workspace): Markdown plus nebula components, validated before it is drawn. "
            "Use it to present results, plans, tables, code and images instead of long terminal output.\n"
-           "Format: Markdown; a component is a fenced block ```nebula:<name> [#id] with a YAML body; an optional front matter "
-           "block (--- lines) may set title:. Reference big data and code by relative file path (table data:, code file:) instead of pasting it."
+           "Format: Markdown with $TeX$ math; a component is a fenced block ```nebula:<name> [#id] with a YAML body, and a ```mermaid fence is a diagram. "
+           "An optional front matter block (--- lines) may set title: and bibliography: refs.bib (BibTeX), then cite with [@key] or [@a; @b, p. 3]. "
+           "Reference big data and code by relative file path (table data:, code file:) instead of pasting it."
            "\nComponents:" + list +
            "\nCall view_components with a name for its fields and an example. The result lists errors with line numbers: fix them "
-           "and call view_show again with view=<id> to update the same pane (never open a new one for a correction).";
+           "and call view_show again with view=<id> to update the same pane (never open a new one for a correction). "
+           "view_snapshot shows you what the user sees; view_export saves the view as HTML or PDF.";
 }
 
 // Checker report -> text an agent can act on.
@@ -76,6 +78,26 @@ void addCaller(QJsonObject &params) {
     if (!ok) return;
     if (!params.contains("pane")) params["pane"] = pane;
     if (!params.contains("cwd")) params["cwd"] = QDir::currentPath();
+}
+
+// view_snapshot: the agent sees the view as the user does, as an image. MCP only (the operator reads text).
+Spec viewSnapshot() {
+    Spec s = make("view_snapshot",
+                  "A picture of a view as the user sees it (PNG), to check that charts, molecules and layouts look right. "
+                  "block=N scrolls to that block first (blocks count from 0 in document order, Markdown included). The view must be on screen.",
+                  schema({{"view", num("view id")}, {"block", num("block index to scroll to (default: the current scroll position)")}}, {"view"}),
+                  nullptr, false, false, true);
+    s.content = [](const QJsonObject &a, const Api &api) {
+        QJsonObject p{{"view", a["view"]}};
+        if (a.contains("block")) p["block"] = a["block"];
+        const QJsonObject r = api("view.snapshot", p).toObject();
+        return QJsonArray{QJsonObject{{"type", "image"}, {"data", r["png"].toString()}, {"mimeType", "image/png"}},
+                          QJsonObject{{"type", "text"}, {"text", QString("view %1%2: %3×%4 px").arg(a["view"].toInt())
+                                                                    .arg(a.contains("block") ? QString(", block %1").arg(a["block"].toInt()) : QString())
+                                                                    .arg(r["width"].toInt()).arg(r["height"].toInt())}}};
+    };
+    s.run = [c = s.content](const QJsonObject &a, const Api &api) { return c(a, api).last()["text"].toString(); };
+    return s;
 }
 
 } // namespace
@@ -177,6 +199,16 @@ const QList<Spec> &all() {
         make("view_get", "Current state of a view: errors, warnings and issues found while drawing (views backed by a file reload when it changes).",
              schema({{"view", num("view id")}}, {"view"}),
              [](const QJsonObject &a, const Api &api) { return formatViewReport(api("view.get", a).toObject()); }),
+        make("view_export", "Save a view as a standalone HTML file (charts and 3D frozen as images, fonts and images inlined) or as a PDF.",
+             schema({{"view", num("view id")}, {"format", str("html (default) or pdf")},
+                     {"path", str("file to write; relative to your directory (default: the document's title next to the document)")}}, {"view"}),
+             [](const QJsonObject &a, const Api &api) {
+                 QJsonObject p = a;
+                 addCaller(p);
+                 const QJsonObject r = api("view.export", p).toObject();
+                 return QString("wrote %1 (%2 bytes)").arg(r["path"].toString()).arg(r["bytes"].toInteger());
+             }, true),
+        viewSnapshot(),
     };
     return t;
 }

@@ -1,4 +1,5 @@
 #pragma once
+#include <QJsonArray>
 #include <QJsonObject>
 #include <QList>
 #include <QString>
@@ -19,6 +20,8 @@ struct Spec {
     bool destructive = false;   // needs explicit user approval in the operator
     bool mcpOnly = false;       // blocking / environment-specific, not offered to the operator
     std::function<QString(const QJsonObject &args, const Api &api)> run;
+    // MCP content blocks (e.g. an image) for tools whose result is not only text; the MCP bridge prefers it to run
+    std::function<QJsonArray(const QJsonObject &args, const Api &api)> content;
 };
 
 const QList<Spec> &all();

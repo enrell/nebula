@@ -1,0 +1,1 @@
+import{__name}from"./chunk-EJOC5VXF.js";var ImperativeState=class{constructor(init){this.init=init,this.records=this.init()}static{__name(this,"ImperativeState")}reset(){this.records=this.init()}};export{ImperativeState};

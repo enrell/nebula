@@ -82,10 +82,13 @@ qt_add_qml_module(nebula
 
 # Views: the document checker and the page renderer, built from renderer/ (see renderer/package.json).
 # renderer/dist is committed, so building nebula needs no node.
+# Chunk and asset names carry content hashes, so the list is globbed (CONFIGURE_DEPENDS re-globs on every build).
+file(GLOB_RECURSE NEBULA_RENDERER_FILES CONFIGURE_DEPENDS RELATIVE ${CMAKE_SOURCE_DIR} ${CMAKE_SOURCE_DIR}/renderer/dist/*)
+list(FILTER NEBULA_RENDERER_FILES EXCLUDE REGEX "THIRD_PARTY_LICENSES\\.txt$")   # installed as a file, not served
 qt_add_resources(nebula renderer
   PREFIX /nebula/renderer
   BASE renderer/dist
-  FILES renderer/dist/core.js renderer/dist/page.html renderer/dist/page.js renderer/dist/page.css
+  FILES ${NEBULA_RENDERER_FILES}
 )
 
 target_link_libraries(nebula PRIVATE Qt6::Quick Qt6::Network Qt6::Qml Qt6::WebEngineQuick Qt6::WebChannel PkgConfig::VTERM util)
@@ -112,7 +115,7 @@ add_test(NAME views COMMAND test_views ${CMAKE_SOURCE_DIR}/renderer/test)
 install(TARGETS nebula RUNTIME DESTINATION bin)
 install(FILES data/nebula.desktop DESTINATION share/applications)
 install(FILES data/nebula.svg DESTINATION share/icons/hicolor/scalable/apps)
-install(FILES LICENSE DESTINATION share/licenses/nebula)
+install(FILES LICENSE renderer/dist/THIRD_PARTY_LICENSES.txt DESTINATION share/licenses/nebula)
 
 # Native .deb / .rpm packages (`cpack -G DEB` / `cpack -G RPM` in the build dir). Library dependencies are computed
 # from the binary (dpkg-shlibdeps / rpm autoreq); QML and Wayland runtime modules are not linked, so list them here.

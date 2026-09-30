@@ -1,0 +1,11 @@
+{ "ok": [true, true, false, true, false, true, false, true, false, true, false, true, false],
+  "errors": [
+    [10, "SMILES C1CC(C: The number of opening parentheses does not match the number of closing parentheses."],
+    [19, "a reaction needs at least one reactant and one product"],
+    [27, "unsupported structure file \".csv\""],
+    [37, "\"X\" at position 5 is not a valid dna letter"],
+    [47, "Newick: missing \")\" (column 9)"],
+    [58, "\"chr7\" is not a region"]
+  ],
+  "warnings": [[43, "not leaves of the tree: gorilla"]],
+  "refs": ["1a8o.pdb"] }

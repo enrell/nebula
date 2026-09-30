@@ -1,0 +1,9 @@
+{ "ok": [false, true, false, true],
+  "errors": [
+    [6, "unknown citation key \"watsn1953\""],
+    [17, "file not found: missing.py"]
+  ],
+  "warnings": [
+    [3, "refs.bib line 35: expected \",\" or \"}\" in broken"]
+  ],
+  "refs": [] }

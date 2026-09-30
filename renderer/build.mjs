@@ -3,7 +3,7 @@
 import Ajv from 'ajv';
 import standalone from 'ajv/dist/standalone/index.js';
 import * as esbuild from 'esbuild';
-import { copyFileSync, mkdirSync, writeFileSync } from 'node:fs';
+import { copyFileSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { dirname, relative, resolve } from 'node:path';
 import { FRONT_MATTER } from './src/core/front.js';
@@ -20,7 +20,8 @@ mkdirSync('dist', { recursive: true });
 const common = { bundle: true, minify: true, legalComments: 'none', logLevel: 'warning', charset: 'utf8' };
 // QJSEngine (Qt's V4) implements ES2016 plus parts of later editions; lower everything newer.
 // core stays unminified and ASCII-only: V4's parser rejects some raw non-ASCII string data, and readable stack traces help.
-await esbuild.build({ ...common, minify: false, charset: 'ascii', entryPoints: ['src/core/index.js'], outfile: 'dist/core.js', format: 'iife', globalName: 'NebulaCore', target: 'es2016', platform: 'neutral', mainFields: ['module', 'main'] });
+const bundled = [];   // metafiles: which packages ended up in what nebula ships (for THIRD_PARTY_LICENSES.txt)
+bundled.push(await esbuild.build({ ...common, metafile: true, minify: false, charset: 'ascii', entryPoints: ['src/core/index.js'], outfile: 'dist/core.js', format: 'iife', globalName: 'NebulaCore', target: 'es2016', platform: 'neutral', mainFields: ['module', 'main'] }));
 // echarts-gl imports echarts/zrender internals without extensions, which their package export maps do not allow
 const deepImports = {
   name: 'echarts-deep-imports',
@@ -28,6 +29,19 @@ const deepImports = {
     build.onResolve({ filter: /^(echarts|zrender)\/lib\// }, (args) => ({ path: resolve('node_modules', `${args.path.replace(/\.js$/, '')}.js`) }));
   },
 };
+// 3Dmol evaluates string callbacks (a py3Dmol convenience nebula never uses); the page CSP forbids eval
+const noEval3dmol = {
+  name: '3dmol-no-eval',
+  setup(build) {
+    build.onLoad({ filter: /3dmol[\\/]build[\\/]3Dmol\.es6\.js$/ }, async (args) => {
+      const code = await readFile(args.path, 'utf8');
+      const call = 'callback = eval("(" + callback + ")");';
+      if (!code.includes(call)) throw new Error('3Dmol changed: update the 3dmol-no-eval plugin in build.mjs');
+      return { contents: code.replace(call, 'throw new Error("string callbacks are not supported");'), loader: 'js' };
+    });
+  },
+};
+
 // claygl compiles size expressions with `new Function`; the page CSP has no 'unsafe-eval', so use an evaluator
 const noEval = {
   name: 'claygl-no-eval',
@@ -45,7 +59,41 @@ const noEval = {
 // No identifier minification: with these plugins esbuild renames symbols differently from run to run, and CI
 // checks that dist/ is reproducible. Syntax and whitespace minification are deterministic; the size cost is small
 // for a bundle that is loaded from the binary, never over a network.
-await esbuild.build({ ...common, minify: false, minifySyntax: true, minifyWhitespace: true, entryPoints: ['src/page/index.js'], outfile: 'dist/page.js', format: 'iife', target: 'chrome108', plugins: [deepImports, noEval] });
-if ((await readFile('dist/page.js', 'utf8')).match(/new Function\(|\beval\(/)) throw new Error('dist/page.js contains eval / new Function, which the page CSP blocks');
+// An ES module with lazily loaded chunks (src/page/lazy/*): nebula serves every file under dist/ from the binary.
+rmSync('dist/chunks', { recursive: true, force: true });
+rmSync('dist/assets', { recursive: true, force: true });
+bundled.push(await esbuild.build({ ...common, metafile: true, minify: false, minifySyntax: true, minifyWhitespace: true, entryPoints: { page: 'src/page/index.js' }, outdir: 'dist',
+  format: 'esm', splitting: true, chunkNames: 'chunks/[name]-[hash]', assetNames: 'assets/[name]-[hash]', target: 'chrome108', plugins: [deepImports, noEval, noEval3dmol] }));
+for (const f of ['page.js', ...readdirSync('dist/chunks').map((c) => `chunks/${c}`)])
+  if ((await readFile(`dist/${f}`, 'utf8')).match(/new Function\(|\beval\(/)) throw new Error(`dist/${f} contains eval / new Function, which the page CSP blocks`);
 await esbuild.build({ ...common, entryPoints: ['src/page/page.css'], outfile: 'dist/page.css', target: 'chrome108' });
+// KaTeX's stylesheet and fonts for the math chunk; only WOFF2 (Chromium never fetches the woff/ttf fallbacks)
+const woff2Only = {
+  name: 'katex-woff2-only',
+  setup(build) {
+    build.onLoad({ filter: /katex[\\/]dist[\\/]katex\.css$/ }, async (args) => ({
+      contents: (await readFile(args.path, 'utf8')).replace(/,\s*url\([^)]*\.(woff|ttf)\)\s*format\("(woff|truetype)"\)/g, ''),
+      loader: 'css',
+    }));
+  },
+};
+await esbuild.build({ ...common, entryPoints: { katex: 'node_modules/katex/dist/katex.css' }, outdir: 'dist', assetNames: 'assets/[name]-[hash]',
+  loader: { '.woff2': 'file' }, target: 'chrome108', plugins: [woff2Only] });
 copyFileSync('src/page/page.html', 'dist/page.html');
+
+// The bundles drop license comments, so the notices of every package inside them go into one file next to them
+// (installed to share/licenses/nebula, see CMakeLists.txt). Only packages the bundles actually contain are listed.
+const packages = new Set();
+for (const { metafile } of bundled)
+  for (const input of Object.keys(metafile.inputs)) {
+    const m = /node_modules\/((?:@[^/]+\/)?[^/]+)\//.exec(input.replace(/\\/g, '/'));
+    if (m) packages.add(m[1]);
+  }
+const notices = [...packages].sort().map((name) => {
+  const dir = `node_modules/${name}`;
+  const pkg = JSON.parse(readFileSync(`${dir}/package.json`, 'utf8'));
+  const file = readdirSync(dir).find((f) => /^(licen[cs]e|copying)(\.|$)/i.test(f));
+  const text = file ? readFileSync(`${dir}/${file}`, 'utf8').trim() : `License: ${pkg.license ?? 'see the package'} (no license file in the package)`;
+  return `${name} ${pkg.version} (${pkg.license ?? 'unknown'})\n${'-'.repeat(72)}\n${text}\n`;
+});
+writeFileSync('dist/THIRD_PARTY_LICENSES.txt', `Third-party software bundled in nebula's view renderer (renderer/dist), generated by build.mjs.\n\n${notices.join('\n\n')}`);

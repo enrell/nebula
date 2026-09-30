@@ -4,6 +4,7 @@
 #include <QBuffer>
 #include <QFile>
 #include <QMimeDatabase>
+#include <QRegularExpression>
 #include <QWebEngineUrlRequestInterceptor>
 #include <QWebEngineUrlRequestJob>
 #include <QWebEngineUrlScheme>
@@ -22,13 +23,13 @@ public:
         const QUrl url = job->requestUrl();
         if (url.host() != "app" || job->requestMethod() != "GET") return job->fail(QWebEngineUrlRequestJob::RequestDenied);
         const QString path = url.path(QUrl::FullyDecoded);
-        static const QHash<QString, QPair<QString, QByteArray>> assets = {
-            {"/page.html", {":/nebula/renderer/page.html", "text/html"}},
-            {"/page.js", {":/nebula/renderer/page.js", "text/javascript"}},
-            {"/page.css", {":/nebula/renderer/page.css", "text/css"}},
-            {"/qwebchannel.js", {":/qtwebchannel/qwebchannel.js", "text/javascript"}},
-        };
-        if (assets.contains(path)) return serve(job, assets[path].first, assets[path].second);
+        if (path == "/qwebchannel.js") return serve(job, ":/qtwebchannel/qwebchannel.js", "text/javascript");
+        // renderer files compiled into the binary: the page, its lazily loaded chunks and their assets
+        static const QRegularExpression asset("^/(?!files/|sandbox/)[A-Za-z0-9_-]+(/[A-Za-z0-9_.-]+)*\\.(html|js|css|woff2|woff|ttf|wasm|json)$");
+        static const QHash<QString, QByteArray> mime = {{"html", "text/html"}, {"js", "text/javascript"}, {"css", "text/css"}, {"woff2", "font/woff2"},
+                                                        {"woff", "font/woff"}, {"ttf", "font/ttf"}, {"wasm", "application/wasm"}, {"json", "application/json"}};
+        if (asset.match(path).hasMatch() && !path.contains(".."))
+            return serve(job, ":/nebula/renderer" + path, mime.value(path.section('.', -1)));
         // /sandbox/<view>/<block>.html: the document an `html` block runs in
         static const QString sandbox = "/sandbox/";
         if (path.startsWith(sandbox)) {

@@ -31,6 +31,8 @@ methods:
   view.show file=PATH | content=STR (content=@- reads stdin) [view=ID] [title=STR] [where=modal|right|down|tab]
   view.get view=ID | view.list | view.close view=ID | view.dock view=ID where=modal|right|down|tab | view.toggle
   view.components [name=NAME]
+  view.export view=ID [format=html|pdf] [path=FILE]   (a standalone HTML file, or a PDF)
+  view.snapshot view=ID [block=N] [path=FILE.png]     (a PNG of the view, scrolled to block N; default view-ID.png)
 
 Panes default to the focused pane; inside a pane $NEBULA_PANE is set and used when pane= is omitted for report_state
 and view.show (a view opens next to the calling pane; relative paths start from the current directory).
@@ -65,7 +67,9 @@ int runCtl(const QStringList &args) {
         const int id = qEnvironmentVariable("NEBULA_PANE").toInt(&ok);
         if (ok) params["pane"] = id;
     }
-    if (method == "view.show" && !params.contains("cwd")) params["cwd"] = QDir::currentPath();
+    if ((method == "view.show" || method == "view.export" || method == "view.snapshot") && !params.contains("cwd")) params["cwd"] = QDir::currentPath();
+    // the socket reply would otherwise carry the image as base64
+    if (method == "view.snapshot" && !params.contains("path")) params["path"] = QString("view-%1.png").arg(params["view"].toInt());
 
     QLocalSocket sock;
     sock.connectToServer(Paths::socket());

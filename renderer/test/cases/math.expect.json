@@ -1,0 +1,9 @@
+{ "ok": [false, true, false, true, false, true, true, false, false],
+  "errors": [
+    [7, "Undefined control sequence: \\fracc"],
+    [15, "Expected group after '^'"],
+    [28, "unknown name \"a\""],
+    [47, "\"x\" is already a variable name"],
+    [51, "Expected group after '^' in $\\beta^$"]
+  ],
+  "warnings": [] }
