@@ -128,6 +128,7 @@ void TerminalView::paint(QPainter *p) {
         for (int c = 0; c < cols; ++c) {
             m_s->cellAt(abs, c, cell);
             QColor f = resolve(cell.fg, true), b = resolve(cell.bg, false);
+            if (cell.attrs.font == 1) f = QColor::fromRgbF(f.redF() * 0.5 + b.redF() * 0.5, f.greenF() * 0.5 + b.greenF() * 0.5, f.blueF() * 0.5 + b.blueF() * 0.5);   // SGR 2 (faint), see TerminalSession::translateFaint
             if (cell.attrs.reverse) std::swap(f, b);
             bool selected = false;
             if (sel) {
