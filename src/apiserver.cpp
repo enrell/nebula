@@ -7,8 +7,15 @@
 #include "settings.h"
 #include "terminalsession.h"
 #include "workspace.h"
+#include "paneids.h"
+#include "views/viewengine.h"
+#include "views/viewpane.h"
 #include <QCoreApplication>
+#include <QDir>
 #include <QFile>
+#include <QFileInfo>
+#include <QRegularExpression>
+#include <QTimer>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QKeySequence>
@@ -16,6 +23,7 @@
 #include <QLocalSocket>
 #include <QPointer>
 #include <memory>
+#include <utility>
 #include <QQuickWindow>
 #include <stdexcept>
 
@@ -114,7 +122,14 @@ QJsonObject ApiServer::handle(const QJsonObject &req, QLocalSocket *sock) {
         return {{"__deferred", true}};
     }
     try {
-        resp["result"] = call(req["method"].toString(), req["params"].toObject(), sock);
+        if (m == "view.show") {
+            ViewPane *v = nullptr;
+            const QJsonObject r = showView(req["params"].toObject(), &v);
+            if (v && waitForRender(v, req, sock, r)) return {{"__deferred", true}};
+            resp["result"] = r;
+        } else {
+            resp["result"] = call(req["method"].toString(), req["params"].toObject(), sock);
+        }
         resp["ok"] = true;
     } catch (const std::exception &e) {
         resp["ok"] = false;
@@ -169,6 +184,89 @@ void ApiServer::replyLater(QLocalSocket *sock, const QJsonValue &reqId, int llmI
         else r["error"] = error;
         guard->write(QJsonDocument(r).toJson(QJsonDocument::Compact) + '\n');
     });
+}
+
+// view.show: create a view (or replace the source of an existing one) and return its checker report.
+QJsonObject ApiServer::showView(const QJsonObject &p, ViewPane **out) {
+    const bool hasFile = p.contains("file"), hasContent = p.contains("content");
+    if (hasFile == hasContent) throw ApiError("give exactly one of file= or content=");
+    // the caller's pane: where the view goes and whose directory relative paths start from
+    int anchor = p["pane"].toInt(-1);
+    if (anchor > 0 && !m_ws->tabOfPane(anchor)) throw ApiError("no such pane");
+    if (anchor <= 0) {
+        Space *s = m_ws->currentSpace();
+        Tab *t = s ? s->currentTab() : nullptr;
+        if (!t) throw ApiError("no focused pane");
+        anchor = t->focusedId();
+    }
+    QString cwd = p["cwd"].toString();
+    if (cwd.isEmpty()) {
+        if (TerminalSession *t = m_ws->findPane(anchor)) cwd = t->cwd();
+        else if (ViewPane *av = m_ws->findView(anchor)) cwd = av->baseDir();
+        if (cwd.isEmpty()) cwd = QDir::homePath();
+    }
+    if (!QFileInfo(cwd).isDir()) throw ApiError("cwd is not a directory");
+
+    ViewPane::Source src;
+    src.title = p["title"].toString();
+    if (hasFile) {
+        const QFileInfo fi(QDir(cwd).absoluteFilePath(p["file"].toString()));
+        if (!fi.isFile()) throw ApiError(("file not found: " + p["file"].toString()).toStdString());
+        src.file = fi.canonicalFilePath();
+        src.baseDir = fi.canonicalPath();
+    } else {
+        src.content = p["content"].toString();
+        src.baseDir = QFileInfo(cwd).canonicalFilePath();
+    }
+
+    ViewPane *v = nullptr;
+    if (p.contains("view")) {
+        v = m_ws->findView(p["view"].toInt());
+        if (!v) throw ApiError("no such view (it may have been closed; omit view= to open a new one)");
+        if (!p.contains("title")) src.title = v->paneTitle();
+        const QJsonObject r = v->setSource(src);
+        *out = v;
+        return r;
+    }
+    const QString where = p["where"].toString("right");
+    if (where != "right" && where != "down" && where != "tab") throw ApiError("where must be right, down or tab");
+    v = new ViewPane(PaneIds::next());
+    const QJsonObject r = v->setSource(src);
+    if (!m_ws->placeView(v, anchor, where)) { delete v; throw ApiError("cannot place the view"); }
+    *out = v;
+    return r;
+}
+
+// A view that is on screen reports back after drawing; include that in the reply (page-side issues such as an
+// image that failed to decode). Returns false when there is nothing to wait for.
+bool ApiServer::waitForRender(ViewPane *v, const QJsonObject &req, QLocalSocket *sock, const QJsonObject &report) {
+    int si = -1, ti = -1;
+    Tab *t = nullptr;
+    m_ws->findView(v->id(), &si, &ti, &t);
+    const bool onScreen = si == m_ws->currentIndex() && t && t == m_ws->currentSpace()->currentTab();
+    if (!v->pageAttached() && !onScreen) return false;
+    QPointer<QLocalSocket> guard(sock);
+    QPointer<ViewPane> view(v);
+    const QJsonValue rid = req["id"];
+    const int gen = v->generation();
+    auto *wait = new QObject(this);   // owns the connections and the timeout; gone once the reply is sent
+    auto sent = std::make_shared<bool>(false);
+    auto finish = [guard, view, rid, report, wait, sent] {
+        if (std::exchange(*sent, true)) return;
+        if (guard) {
+            QJsonObject r;
+            if (!rid.isUndefined()) r["id"] = rid;
+            r["ok"] = true;
+            r["result"] = view ? view->report() : report;
+            guard->write(QJsonDocument(r).toJson(QJsonDocument::Compact) + '\n');
+        }
+        wait->deleteLater();
+    };
+    connect(v, &ViewPane::renderFinished, wait, [finish, gen](int g) { if (g >= gen) finish(); });
+    connect(v, &QObject::destroyed, wait, finish);
+    // the first page of a session starts the web engine; after that a render takes milliseconds
+    QTimer::singleShot(v->pageAttached() ? 2000 : 8000, wait, finish);
+    return true;
 }
 
 TerminalSession *ApiServer::pane(const QJsonObject &p) const {
@@ -294,10 +392,9 @@ QJsonValue ApiServer::call(const QString &method, const QJsonObject &p, QLocalSo
     if (method == "pane.get") return paneInfo(pane(p));
     if (method == "pane.focus") {
         int si, ti;
-        Tab *t;
-        TerminalSession *s = pane(p);
-        m_ws->findPane(s->id(), &si, &ti, &t);
-        m_ws->focusAgent(si, ti, s->id());
+        const int id = p.contains("pane") ? p["pane"].toInt() : pane(p)->id();
+        if (!m_ws->tabOfPane(id, &si, &ti)) throw ApiError("no such pane");
+        m_ws->focusAgent(si, ti, id);
         return true;
     }
     if (method == "pane.split") {
@@ -310,13 +407,38 @@ QJsonValue ApiServer::call(const QString &method, const QJsonObject &p, QLocalSo
         if (dir != "right" && dir != "down") throw ApiError("direction must be 'right' or 'down'");
         return QJsonObject{{"pane", t->split(dir == "right")}};
     }
-    if (method == "pane.close") {
-        int si, ti;
-        Tab *t;
-        TerminalSession *s = pane(p);
-        m_ws->findPane(s->id(), &si, &ti, &t);
-        t->closePane(s->id());
+    if (method == "pane.close" || method == "view.close") {
+        const int id = method == "view.close" ? p["view"].toInt() : p.contains("pane") ? p["pane"].toInt() : pane(p)->id();
+        Tab *t = m_ws->tabOfPane(id);
+        if (!t || (method == "view.close" && !t->viewById(id))) throw ApiError(method == "view.close" ? "no such view" : "no such pane");
+        t->closePane(id);
         return true;
+    }
+    if (method == "view.show") {   // in-process callers (the operator) get the checker report without waiting for the page
+        ViewPane *v = nullptr;
+        return showView(p, &v);
+    }
+    if (method == "view.get") {
+        ViewPane *v = m_ws->findView(p["view"].toInt());
+        if (!v) throw ApiError("no such view");
+        return v->report();
+    }
+    if (method == "view.list") {
+        QJsonArray out;
+        for (int si = 0; si < spaces.size(); ++si)
+            for (int ti = 0; ti < spaces[si]->tabList().size(); ++ti)
+                for (ViewPane *v : spaces[si]->tabList()[ti]->views()) {
+                    const QJsonObject r = v->report();
+                    out << QJsonObject{{"view", v->id()}, {"title", v->title()}, {"source", r["source"]}, {"space", si}, {"tab", ti},
+                                       {"errors", r["errors"].toArray().size()}, {"warnings", r["warnings"].toArray().size()}};
+                }
+        return out;
+    }
+    if (method == "view.components") {
+        if (p["name"].toString().isEmpty()) return ViewEngine::instance().components();
+        const QJsonObject d = ViewEngine::instance().describe(p["name"].toString().remove(QRegularExpression("^nebula:")));
+        if (d.isEmpty()) throw ApiError("unknown component; list them with view.components");
+        return d;
     }
     if (method == "pane.send_text") {
         TerminalSession *s = pane(p);

@@ -17,7 +17,7 @@ deb)
   export DEBIAN_FRONTEND=noninteractive
   apt-get update -qq
   apt-get install -y -qq --no-install-recommends build-essential cmake ninja-build pkg-config git file dpkg-dev \
-    qt6-base-dev qt6-declarative-dev qt6-base-private-dev libvterm-dev libgl-dev >/dev/null
+    qt6-base-dev qt6-declarative-dev qt6-base-private-dev qt6-webengine-dev qt6-webchannel-dev libvterm-dev libgl-dev >/dev/null
   cmake -S "$WORK/src" -B "$WORK/build" -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr
   cmake --build "$WORK/build"
   (cd "$WORK/build" && cpack -G DEB >/dev/null)
@@ -26,7 +26,7 @@ deb)
   ;;
 rpm)
   dnf install -y -q gcc-c++ cmake ninja-build pkgconf git file rpm-build \
-    qt6-qtbase-devel qt6-qtdeclarative-devel qt6-qtbase-private-devel libvterm-devel >/dev/null
+    qt6-qtbase-devel qt6-qtdeclarative-devel qt6-qtbase-private-devel qt6-qtwebengine-devel qt6-qtwebchannel-devel libvterm-devel >/dev/null
   cmake -S "$WORK/src" -B "$WORK/build" -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr
   cmake --build "$WORK/build"
   (cd "$WORK/build" && cpack -G RPM >/dev/null)
@@ -34,7 +34,7 @@ rpm)
   dnf install -y -q "$PKG" >/dev/null
   ;;
 arch)
-  pacman -Syu --noconfirm --needed base-devel git cmake ninja qt6-base qt6-declarative qt6-wayland libvterm >/dev/null
+  pacman -Syu --noconfirm --needed base-devel git cmake ninja qt6-base qt6-declarative qt6-wayland qt6-webengine qt6-webchannel libvterm >/dev/null
   useradd -m builder 2>/dev/null || true
   chown -R builder "$WORK"
   su builder -c "cd '$WORK/src/packaging/arch' && NEBULA_RELEASE=1 makepkg -f --nocheck --noconfirm >/dev/null"

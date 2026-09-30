@@ -1,5 +1,6 @@
 #include "terminalsession.h"
 #include "agentdetect.h"
+#include "paneids.h"
 #include "paths.h"
 #include "settings.h"
 #include "hostclient.h"
@@ -17,13 +18,9 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
-static int s_nextId = 1;
-
-void TerminalSession::reserveId(int id) { if (id >= s_nextId) s_nextId = id + 1; }
-
 TerminalSession::TerminalSession(const QString &cwd, QObject *parent, int fixedId, bool attach, const QString &prefill, const QString &profile)
-    : QObject(parent), m_id(fixedId > 0 ? fixedId : s_nextId++), m_cwd(cwd), m_prefill(prefill), m_profile(profile) {
-    reserveId(m_id);
+    : QObject(parent), m_id(fixedId > 0 ? fixedId : PaneIds::next()), m_cwd(cwd), m_prefill(prefill), m_profile(profile) {
+    PaneIds::reserve(m_id);
     m_vt = vterm_new(m_rows, m_cols);
     vterm_set_utf8(m_vt, 1);
     vterm_output_set_callback(m_vt, cbOutput, this);

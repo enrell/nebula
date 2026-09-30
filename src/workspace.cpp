@@ -1,9 +1,11 @@
 #include "workspace.h"
+#include "paneids.h"
 #include "paths.h"
 #include "hostclient.h"
 #include "llm.h"
 #include "settings.h"
 #include "theme.h"
+#include "views/viewpane.h"
 #include <QClipboard>
 #include <QCoreApplication>
 #include <QGuiApplication>
@@ -47,25 +49,81 @@ TerminalSession *Tab::makeSession(const QString &cwd, int id, bool attach, const
 
 void Tab::terminateAll() {
     for (TerminalSession *s : std::as_const(m_sessions)) s->terminate();
+    for (ViewPane *v : std::as_const(m_views)) v->discard();
+}
+
+QList<ViewPane *> Tab::views() const {
+    auto l = m_views.values();
+    std::sort(l.begin(), l.end(), [](auto *a, auto *b) { return a->id() < b->id(); });
+    return l;
+}
+
+QObject *Tab::view(int id) const { return m_views.value(id); }
+
+void Tab::adoptView(ViewPane *v) {
+    v->setParent(this);
+    m_views.insert(v->id(), v);
+    connect(v, &ViewPane::changed, this, &Tab::activity);
+}
+
+bool Tab::addView(ViewPane *v, int anchorPane, bool sideBySide) {
+    Node *n = find(m_root, anchorPane);
+    if (!n) return false;
+    adoptView(v);
+    auto *a = new Node, *b = new Node;
+    a->id = m_nodeSeq++;
+    a->pane = n->pane;
+    a->parent = n;
+    b->id = m_nodeSeq++;
+    b->pane = v->id();
+    b->parent = n;
+    n->pane = -1;
+    n->horizontal = sideBySide;
+    n->ratio = 0.5;
+    n->a = a;
+    n->b = b;
+    m_zoom = false;
+    emit layoutChanged();
+    emit activity();
+    return true;
+}
+
+Tab *Tab::withView(ViewPane *v, QObject *parent) {
+    auto *t = new Tab(RestoreTag{}, parent);
+    t->adoptView(v);
+    t->m_root = new Node;
+    t->m_root->id = t->m_nodeSeq++;
+    t->m_root->pane = v->id();
+    t->m_focus = v->id();
+    return t;
 }
 
 QJsonObject Tab::toJson() const {
     QJsonObject panes;
     for (TerminalSession *s : m_sessions) panes[QString::number(s->id())] = QJsonObject{{"cwd", s->cwd()}, {"cmd", s->resumeCommand()}, {"profile", s->profile()}};
+    QJsonObject views;
+    for (ViewPane *v : m_views) views[QString::number(v->id())] = v->toJson();
     return {{"layout", m_root ? QJsonObject::fromVariantMap(toVariant(m_root)) : QJsonObject()},
-            {"focus", m_focus}, {"zoom", m_zoom}, {"panes", panes}};
+            {"focus", m_focus}, {"zoom", m_zoom}, {"panes", panes}, {"views", views}};
 }
 
 Tab *Tab::restore(const QJsonObject &o, const QSet<int> &live, QObject *parent) {
     auto *t = new Tab(RestoreTag{}, parent);
     const QJsonObject panes = o["panes"].toObject();
+    const QJsonObject views = o["views"].toObject();
     std::function<Node *(const QJsonObject &)> build = [&](const QJsonObject &n) -> Node * {
         if (n.isEmpty()) return nullptr;
         auto *node = new Node;
         node->id = t->m_nodeSeq++;
         if (n["leaf"].toBool()) {
             const int id = n["pane"].toInt();
-            if (id <= 0 || t->m_sessions.contains(id)) { delete node; return nullptr; }
+            if (id <= 0 || t->hasPane(id)) { delete node; return nullptr; }
+            if (views.contains(QString::number(id))) {
+                PaneIds::reserve(id);
+                t->adoptView(ViewPane::restore(id, views[QString::number(id)].toObject(), t));
+                node->pane = id;
+                return node;
+            }
             const QJsonObject info = panes[QString::number(id)].toObject();
             t->makeSession(info["cwd"].toString(), id, live.contains(id), info["cmd"].toString(), info["profile"].toString());
             node->pane = id;
@@ -90,7 +148,7 @@ Tab *Tab::restore(const QJsonObject &o, const QSet<int> &live, QObject *parent) 
     t->m_root->parent = nullptr;
     QList<int> order;
     t->leaves(t->m_root, order);
-    t->m_focus = t->m_sessions.contains(o["focus"].toInt()) ? o["focus"].toInt() : order.first();
+    t->m_focus = t->hasPane(o["focus"].toInt()) ? o["focus"].toInt() : order.first();
     t->m_zoom = o["zoom"].toBool() && order.size() > 1;
     return t;
 }
@@ -107,6 +165,7 @@ QVariantMap Tab::toVariant(const Node *n) const {
     if (n->leaf()) {
         m["leaf"] = true;
         m["pane"] = n->pane;
+        m["kind"] = m_views.contains(n->pane) ? "view" : "terminal";
         return m;
     }
     m["leaf"] = false;
@@ -120,11 +179,12 @@ QVariantMap Tab::toVariant(const Node *n) const {
 
 QVariantMap Tab::layout() const {
     if (!m_root) return {};
-    if (m_zoom) return {{"leaf", true}, {"pane", m_focus}};
+    if (m_zoom) return {{"leaf", true}, {"pane", m_focus}, {"kind", m_views.contains(m_focus) ? "view" : "terminal"}};
     return toVariant(m_root);
 }
 
 QString Tab::title() const {
+    if (ViewPane *v = m_views.value(m_focus)) return v->title();
     auto *s = focusedSession();
     if (!s) return "shell";
     if (!s->label().isEmpty()) return s->label();
@@ -137,7 +197,9 @@ int Tab::splitWith(bool sideBySide, const QString &cwd, const QString &profile) 
     Node *n = find(m_root, m_focus);
     if (!n) return -1;
     auto *cur = focusedSession();
-    auto *s = makeSession(cwd.isEmpty() ? (cur ? cur->cwd() : QString()) : cwd, 0, false, QString(),
+    QString dir = cwd;
+    if (dir.isEmpty()) dir = cur ? cur->cwd() : m_views.contains(m_focus) ? m_views[m_focus]->baseDir() : QString();
+    auto *s = makeSession(dir, 0, false, QString(),
                           profile.isEmpty() ? (cur ? cur->profile() : m_profile) : profile);
     auto *a = new Node, *b = new Node;
     a->id = m_nodeSeq++;
@@ -161,15 +223,19 @@ int Tab::splitWith(bool sideBySide, const QString &cwd, const QString &profile) 
 
 void Tab::closePane(int id) {
     Node *n = find(m_root, id);
-    TerminalSession *s = m_sessions.value(id);
-    if (!n || !s) return;
+    if (!n || !hasPane(id)) return;
     QList<int> order;
     leaves(m_root, order);
     const int idx = order.indexOf(id);
-    m_sessions.remove(id);
-    s->disconnect(this);
-    s->terminate();
-    s->deleteLater();
+    if (TerminalSession *s = m_sessions.take(id)) {
+        s->disconnect(this);
+        s->terminate();
+        s->deleteLater();
+    } else if (ViewPane *v = m_views.take(id)) {
+        v->disconnect(this);
+        v->discard();
+        v->deleteLater();
+    }
 
     if (!n->parent) {
         delete m_root;
@@ -202,7 +268,7 @@ void Tab::closePane(int id) {
 }
 
 void Tab::focusPane(int id) {
-    if (id == m_focus || !m_sessions.contains(id)) return;
+    if (id == m_focus || !hasPane(id)) return;
     m_focus = id;
     emit focusChanged();
     emit activity();
@@ -441,6 +507,42 @@ TerminalSession *Workspace::findPane(int id, int *spaceIdx, int *tabIdx, Tab **t
     return nullptr;
 }
 
+ViewPane *Workspace::findView(int id, int *spaceIdx, int *tabIdx, Tab **tab) const {
+    Tab *t = tabOfPane(id, spaceIdx, tabIdx);
+    if (tab) *tab = t;
+    return t ? t->viewById(id) : nullptr;
+}
+
+Tab *Workspace::tabOfPane(int id, int *spaceIdx, int *tabIdx) const {
+    for (int si = 0; si < m_spaces.size(); ++si) {
+        const auto &tabs = m_spaces[si]->tabList();
+        for (int ti = 0; ti < tabs.size(); ++ti)
+            if (tabs[ti]->hasPane(id)) {
+                if (spaceIdx) *spaceIdx = si;
+                if (tabIdx) *tabIdx = ti;
+                return tabs[ti];
+            }
+    }
+    return nullptr;
+}
+
+bool Workspace::placeView(ViewPane *v, int anchorPane, const QString &where) {
+    int si = -1;
+    Tab *t = tabOfPane(anchorPane, &si);
+    if (!t) return false;
+    if (where == "tab") {
+        Space *s = m_spaces[si];
+        s->adopt(Tab::withView(v, s));
+        emit s->tabsChanged();
+        emit s->activity();
+        scheduleSave();
+        return true;
+    }
+    if (!t->addView(v, anchorPane, where != "down")) return false;
+    scheduleSave();
+    return true;
+}
+
 TerminalSession *Workspace::focusedPane() const {
     Space *s = currentSpace();
     Tab *t = s ? s->currentTab() : nullptr;
@@ -456,7 +558,7 @@ void Workspace::restore() {
     }
     QSet<int> live, all;
     for (const auto &p : host->list()) {
-        TerminalSession::reserveId(p.id);
+        PaneIds::reserve(p.id);
         all.insert(p.id);
         if (!p.exited) live.insert(p.id);
     }

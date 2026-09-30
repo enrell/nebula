@@ -1,0 +1,38 @@
+{
+ "ok": [
+  false,
+  true,
+  false,
+  true,
+  false,
+  false
+ ],
+ "errors": [
+  [
+   3,
+   "unknown field \"author\""
+  ],
+  [
+   5,
+   "did you mean \"nebula:table\"?"
+  ],
+  [
+   13,
+   "duplicate block id \"#a\" (also on line 9)"
+  ],
+  [
+   22,
+   "YAML:"
+  ],
+  [
+   25,
+   "nebula:callout block is never closed"
+  ]
+ ],
+ "warnings": [
+  [
+   17,
+   "ignored \"extra\""
+  ]
+ ]
+}

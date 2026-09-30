@@ -40,6 +40,10 @@ is and is not a vulnerability follows from that:
   to `settings.json` or `session.json`, and `list_profiles` never returns them.
 - **Hooks** edit agent config files (`~/.claude/settings.json`, ...) by
   merging, with `*.nebula-bak` backups, and are no-ops outside nebula.
+- **Views** render agent-written documents in Qt WebEngine with an off-the-record profile that blocks all network
+  requests and serves only the files a document references, resolved inside the document's directory (no absolute
+  paths, `..` or symlink escapes). Raw HTML in Markdown is not rendered and pages cannot navigate. A way for a view
+  document to read other files, reach the network or run script outside the page is a vulnerability.
 - **Summaries** are off by default because they send terminal output to your
   configured provider.
 - **Installer** (`install.sh`) verifies a checksum and installs into your home

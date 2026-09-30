@@ -1,0 +1,52 @@
+{
+ "ok": [
+  false,
+  false,
+  false,
+  false,
+  false,
+  false,
+  false,
+  true
+ ],
+ "errors": [
+  [
+   3,
+   "did you mean \"passed\"?"
+  ],
+  [
+   7,
+   "file not found: src/missing.py"
+  ],
+  [
+   12,
+   "range starts after the end of the file (6 lines)"
+  ],
+  [
+   16,
+   "outside the document's directory"
+  ],
+  [
+   20,
+   "must be relative to the document's directory"
+  ],
+  [
+   24,
+   "remote images are blocked"
+  ],
+  [
+   28,
+   "row has 2 cells but there are 1 columns"
+  ]
+ ],
+ "warnings": [
+  [
+   32,
+   "image img/nope.png: file not found: img/nope.png"
+  ],
+  [
+   32,
+   "remote image https://example.com/x.png is not loaded"
+  ]
+ ]
+}

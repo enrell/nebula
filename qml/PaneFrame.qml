@@ -6,7 +6,10 @@ Item {
     clip: true
     property var tab
     property int paneId: -1
-    readonly property var session: tab ? tab.session(paneId) : null
+    property string kind: "terminal"          // "terminal" | "view"
+    readonly property bool isView: kind === "view"
+    // the pane object: a TerminalSession, or a ViewPane for views (both have label and agentState)
+    readonly property var session: tab ? (isView ? tab.view(paneId) : tab.session(paneId)) : null
     readonly property bool focused: tab && tab.focusedId === paneId && win.tab === tab && win.active
     readonly property int fs: Math.round(theme.fontSize * 1.33)
 
@@ -38,15 +41,16 @@ Item {
         Text {
             id: title
             anchors { verticalCenter: parent.verticalCenter; right: parent.right; rightMargin: 5 }
-            text: root.session ? (root.session.label || "shell") : ""
-            color: root.focused ? theme.accent : theme.muted
+            text: (root.session ? (root.session.label || "shell") : "")
+                  + (root.isView && root.session && root.session.errorCount > 0 ? "  ·  " + root.session.errorCount + (root.session.errorCount === 1 ? " error" : " errors") : "")
+            color: root.isView && root.session && root.session.errorCount > 0 ? theme.red : root.focused ? theme.accent : theme.muted
             font.family: theme.fontFamily; font.pixelSize: root.fs - 1; font.bold: root.focused
         }
     }
 
     Connections {
         target: app
-        function onFocusRequested() { if (root.focused) view.forceActiveFocus() }
+        function onFocusRequested() { if (root.focused && content.item) content.item.forceActiveFocus() }
     }
 
     Rectangle {
@@ -66,12 +70,29 @@ Item {
         }
     }
 
-    TerminalView {
-        id: view
+    Loader {
+        id: content
         anchors { fill: parent; leftMargin: 6; rightMargin: 6; topMargin: 8 + 5; bottomMargin: 5 }
-        session: root.session
-        paneFocused: root.focused
-        onActivated: if (root.tab) root.tab.focusPane(root.paneId)
-        onContextMenuRequested: (x, y, sel, url) => win.openMenu(view, x, y, sel, url)
+        sourceComponent: root.isView ? viewContent : terminalContent
+    }
+
+    Component {
+        id: terminalContent
+        TerminalView {
+            id: view
+            session: root.session
+            paneFocused: root.focused
+            onActivated: if (root.tab) root.tab.focusPane(root.paneId)
+            onContextMenuRequested: (x, y, sel, url) => win.openMenu(view, x, y, sel, url)
+        }
+    }
+
+    Component {
+        id: viewContent
+        ViewContent {
+            pane: root.session
+            paneFocused: root.focused
+            onActivated: if (root.tab) root.tab.focusPane(root.paneId)
+        }
     }
 }

@@ -1,0 +1,41 @@
+{
+ "ok": [
+  false,
+  false,
+  false,
+  false,
+  false,
+  false
+ ],
+ "errors": [
+  [
+   2,
+   "must be one of: good, bad, neutral (got string \"great\")"
+  ],
+  [
+   3,
+   "missing required field \"value\""
+  ],
+  [
+   7,
+   "unknown field \"colums\""
+  ],
+  [
+   12,
+   "missing required field \"text\""
+  ],
+  [
+   16,
+   "must be a list, got string \"nope\""
+  ],
+  [
+   21,
+   "must be >= 16"
+  ],
+  [
+   25,
+   "the body was read as a YAML mapping because it contains \": \""
+  ]
+ ],
+ "warnings": []
+}

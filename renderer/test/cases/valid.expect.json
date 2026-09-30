@@ -1,0 +1,21 @@
+{
+ "title": "Everything valid",
+ "ok": [
+  true,
+  true,
+  true,
+  true,
+  true,
+  true,
+  true,
+  true,
+  true,
+  true,
+  true
+ ],
+ "errors": [],
+ "warnings": [],
+ "refs": [
+  "img/pixel.png"
+ ]
+}

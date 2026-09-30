@@ -42,6 +42,14 @@ test:
 e2e: build
     ./tests/e2e.sh ./{{build_dir}}/nebula
 
+# Views: rebuild the renderer bundles (renderer/dist, committed) and run the checker tests; needs node
+renderer:
+    cd renderer && npm ci && npm test
+
+# Views end to end: checker report, drawing, updates, live reload, persistence
+e2e-views: build
+    ./tests/e2e_views.sh ./{{build_dir}}/nebula
+
 # Session persistence: shells survive the GUI, layout survives the host
 e2e-persist: build
     ./tests/e2e_persist.sh ./{{build_dir}}/nebula

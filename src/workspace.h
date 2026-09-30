@@ -14,6 +14,7 @@
 
 class Space;
 class Workspace;
+class ViewPane;
 
 class Tab : public QObject {
     Q_OBJECT
@@ -36,10 +37,18 @@ public:
         std::sort(l.begin(), l.end(), [](auto *a, auto *b) { return a->id() < b->id(); });
         return l;
     }
-    TerminalSession *focusedSession() const { return m_sessions.value(m_focus); }
+    TerminalSession *focusedSession() const { return m_sessions.value(m_focus); }   // null when a view is focused
+    QList<ViewPane *> views() const;
+    bool hasPane(int id) const { return m_sessions.contains(id) || m_views.contains(id); }
 
     Q_INVOKABLE QObject *session(int id) const { return m_sessions.value(id); }
+    Q_INVOKABLE QObject *view(int id) const;
     TerminalSession *sessionById(int id) const { return m_sessions.value(id); }
+    ViewPane *viewById(int id) const { return m_views.value(id); }
+    // Puts a view next to `anchorPane` (right or below). Focus stays where it is: a view must not take the
+    // keyboard away from the agent that produced it.
+    bool addView(ViewPane *v, int anchorPane, bool sideBySide);
+    static Tab *withView(ViewPane *v, QObject *parent);   // a new tab holding only this view
     Q_INVOKABLE int split(bool sideBySide);
     int splitWith(bool sideBySide, const QString &cwd, const QString &profile);
     Q_INVOKABLE void closePane(int id);
@@ -68,6 +77,7 @@ private:
     struct RestoreTag {};
     explicit Tab(RestoreTag, QObject *parent) : QObject(parent) {}
     TerminalSession *makeSession(const QString &cwd, int id = 0, bool attach = false, const QString &prefill = QString(), const QString &profile = QString());
+    void adoptView(ViewPane *v);
     Node *find(Node *n, int pane) const;
     QVariantMap toVariant(const Node *n) const;
     void rects(const Node *n, QRectF r, QHash<int, QRectF> &out) const;
@@ -75,6 +85,7 @@ private:
 
     Node *m_root = nullptr;
     QHash<int, TerminalSession *> m_sessions;
+    QHash<int, ViewPane *> m_views;
     int m_focus = -1;
     bool m_zoom = false;
     int m_nodeSeq = 1;
@@ -185,6 +196,10 @@ public:
 
     // locate a pane by its global id; returns null if it does not exist
     TerminalSession *findPane(int id, int *spaceIdx = nullptr, int *tabIdx = nullptr, Tab **tab = nullptr) const;
+    ViewPane *findView(int id, int *spaceIdx = nullptr, int *tabIdx = nullptr, Tab **tab = nullptr) const;
+    Tab *tabOfPane(int id, int *spaceIdx = nullptr, int *tabIdx = nullptr) const;   // any pane kind
+    // Shows a view next to `anchorPane` ("right" / "down") or in a new tab of that pane's space ("tab").
+    bool placeView(ViewPane *v, int anchorPane, const QString &where);
     TerminalSession *focusedPane() const;
 
 signals:

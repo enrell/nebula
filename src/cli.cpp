@@ -1,6 +1,7 @@
 #include "cli.h"
 #include "paths.h"
 #include <QCoreApplication>
+#include <QDir>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -27,8 +28,11 @@ methods:
   pane.send_keys [pane=ID] keys='["Ctrl+C","Enter"]'
   pane.read [pane=ID] [lines=N] [scrollback=true]
   pane.report_state [pane=ID] state=working|blocked|done|idle [ttl=SECONDS]
+  view.show file=PATH | content=STR (content=@- reads stdin) [view=ID] [title=STR] [where=right|down|tab]
+  view.get view=ID | view.list | view.close view=ID | view.components [name=NAME]
 
-Panes default to the focused pane; inside a pane $NEBULA_PANE is set and used when pane= is omitted for report_state.
+Panes default to the focused pane; inside a pane $NEBULA_PANE is set and used when pane= is omitted for report_state
+and view.show (a view opens next to the calling pane; relative paths start from the current directory).
 )";
 
 static QJsonValue parseValue(const QString &v) {
@@ -55,11 +59,12 @@ int runCtl(const QStringList &args) {
         if (eq <= 0) { std::fprintf(stderr, "nebula: expected key=value, got '%s'\n", qPrintable(args[i])); return 2; }
         params[args[i].left(eq)] = parseValue(args[i].mid(eq + 1));
     }
-    if (!params.contains("pane") && method == "pane.report_state") {
+    if (!params.contains("pane") && (method == "pane.report_state" || method == "view.show")) {
         bool ok = false;
         const int id = qEnvironmentVariable("NEBULA_PANE").toInt(&ok);
         if (ok) params["pane"] = id;
     }
+    if (method == "view.show" && !params.contains("cwd")) params["cwd"] = QDir::currentPath();
 
     QLocalSocket sock;
     sock.connectToServer(Paths::socket());

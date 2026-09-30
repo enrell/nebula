@@ -71,7 +71,8 @@ int runMcp() {
             reply(id, {{"protocolVersion", req["params"].toObject()["protocolVersion"].toString("2024-11-05")},
                        {"capabilities", QJsonObject{{"tools", QJsonObject()}}},
                        {"serverInfo", QJsonObject{{"name", "nebula"}, {"version", "0.1.0"}}},
-                       {"instructions", "Control the nebula terminal workspace: inspect panes, read output, prompt other agents and launch new ones."}});
+                       {"instructions", "Control the nebula terminal workspace: inspect panes, read output, prompt other agents and launch new ones. "
+                                        "Show results to the user as rich views (tables, stats, checklists, code, images) with view_show."}});
         } else if (method == "ping") {
             reply(id, {});
         } else if (method == "tools/list") {

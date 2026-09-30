@@ -1,6 +1,8 @@
 #include "tools.h"
+#include "views/viewengine.h"
 #include <QDeadlineTimer>
 #include <QJsonArray>
+#include <QDir>
 #include <QJsonDocument>
 #include <QThread>
 
@@ -28,6 +30,52 @@ Spec make(const QString &name, const QString &desc, const QJsonObject &sch, std:
     s.name = name; s.description = desc; s.schema = sch; s.run = std::move(run);
     s.mutating = mutating; s.destructive = destructive; s.mcpOnly = mcpOnly;
     return s;
+}
+
+// The format primer in view_show's description. The component list comes from the checker's registry, so the
+// tool never advertises something the checker does not know.
+QString viewShowDescription() {
+    QString list;
+    for (const QJsonValue &c : ViewEngine::instance().components())
+        list += QString("\n- nebula:%1: %2").arg(c["name"].toString(), c["summary"].toString());
+    return "Show the user a rich view (a pane next to yours): Markdown plus nebula components, validated before it is drawn. "
+           "Use it to present results, plans, tables, code and images instead of long terminal output.\n"
+           "Format: Markdown; a component is a fenced block ```nebula:<name> [#id] with a YAML body; an optional front matter "
+           "block (--- lines) may set title:. Reference big data and code by relative file path (table data:, code file:) instead of pasting it."
+           "\nComponents:" + list +
+           "\nCall view_components with a name for its fields and an example. The result lists errors with line numbers: fix them "
+           "and call view_show again with view=<id> to update the same pane (never open a new one for a correction).";
+}
+
+// Checker report -> text an agent can act on.
+QString formatViewReport(const QJsonObject &r) {
+    const QJsonArray errors = r["errors"].toArray(), warnings = r["warnings"].toArray(), issues = r["renderIssues"].toArray();
+    QString out = QString("view %1 \"%2\": %3 block%4, %5 error%6, %7 warning%8")
+                      .arg(r["view"].toInt()).arg(r["title"].toString()).arg(r["blocks"].toInt()).arg(r["blocks"].toInt() == 1 ? "" : "s")
+                      .arg(errors.size()).arg(errors.size() == 1 ? "" : "s").arg(warnings.size()).arg(warnings.size() == 1 ? "" : "s");
+    if (r["rendered"].toBool()) out += ", drawn";
+    const auto line = [](const QString &kind, const QJsonValue &d) {
+        QString s = QString("\n%1 line %2").arg(kind).arg(d["line"].toInt());
+        if (!d["component"].toString().isEmpty()) s += " [" + d["component"].toString() + "]";
+        if (!d["path"].toString().isEmpty() && d["path"].toString() != "/") s += " " + d["path"].toString();
+        s += ": " + d["message"].toString();
+        if (!d["hint"].toString().isEmpty()) s += "\n  hint: " + QString(d["hint"].toString()).replace("\n", "\n  ");
+        return s;
+    };
+    for (const QJsonValue &d : errors) out += line("error", d);
+    for (const QJsonValue &d : warnings) out += line("warning", d);
+    for (const QJsonValue &i : issues) out += "\nrender issue: " + i.toString();
+    if (!errors.isEmpty()) out += QString("\nBlocks with errors show as error cards. Fix them and call view_show again with view=%1.").arg(r["view"].toInt());
+    return out;
+}
+
+// The pane this tool call comes from (set in every shell nebula starts), so the view opens next to the agent.
+void addCaller(QJsonObject &params) {
+    bool ok = false;
+    const int pane = qEnvironmentVariable("NEBULA_PANE").toInt(&ok);
+    if (!ok) return;
+    if (!params.contains("pane")) params["pane"] = pane;
+    if (!params.contains("cwd")) params["cwd"] = QDir::currentPath();
 }
 
 } // namespace
@@ -114,6 +162,21 @@ const QList<Spec> &all() {
                  }
                  return pretty(QJsonObject{{"state", last}, {"timedOut", true}});
              }, false, false, true),
+        make("view_show", viewShowDescription(),
+             schema({{"content", str("the document (Markdown + nebula components)")}, {"file", str("path of a document file instead of content; the view reloads when it changes")},
+                     {"view", num("id of a view to update instead of opening a new one")}, {"title", str("pane title (default: the document's)")},
+                     {"where", str("right | down | tab (default right, next to your pane)")}}),
+             [](const QJsonObject &a, const Api &api) {
+                 QJsonObject p = a;
+                 addCaller(p);
+                 return formatViewReport(api("view.show", p).toObject());
+             }, true),
+        make("view_components", "Fields (JSON schema), shorthand and an example for a view component; without name, the list of components.",
+             schema({{"name", str("component name, e.g. table")}}),
+             [](const QJsonObject &a, const Api &api) { return pretty(api("view.components", a)); }),
+        make("view_get", "Current state of a view: errors, warnings and issues found while drawing (views backed by a file reload when it changes).",
+             schema({{"view", num("view id")}}, {"view"}),
+             [](const QJsonObject &a, const Api &api) { return formatViewReport(api("view.get", a).toObject()); }),
     };
     return t;
 }

@@ -11,6 +11,8 @@
 #include "settings.h"
 #include "terminalview.h"
 #include "theme.h"
+#include "views/viewpane.h"
+#include "views/viewweb.h"
 #include "workspace.h"
 #include <QCoreApplication>
 #include <QDir>
@@ -20,6 +22,7 @@
 #include <QLocalSocket>
 #include <QQmlApplicationEngine>
 #include <QQmlContext>
+#include <QtWebEngineQuick/qtwebenginequickglobal.h>
 
 int main(int argc, char *argv[]) {
     if (argc > 1 && QByteArray(argv[1]) == "ctl") {
@@ -35,6 +38,9 @@ int main(int argc, char *argv[]) {
 
     Paths::migrateOldDirs();
 
+    // views: the scheme must be known before the web engine starts, and the engine before the application
+    ViewWeb::prepare();
+    QtWebEngineQuick::initialize();
     QGuiApplication app(argc, argv);
     app.setApplicationName("nebula");
     app.setApplicationVersion(NEBULA_VERSION);
@@ -52,6 +58,7 @@ int main(int argc, char *argv[]) {
     Settings settings;
     Theme theme(&settings);
     TerminalView::setTheme(&theme);
+    ViewPane::setTheme(&theme);
     Profiles profiles;
     Llm llm;
     Integrations integrations;
@@ -71,6 +78,8 @@ int main(int argc, char *argv[]) {
     engine.rootContext()->setContextProperty("integrations", &integrations);
     engine.rootContext()->setContextProperty("launcher", &launcher);
     engine.rootContext()->setContextProperty("operatorAgent", &op);
+    ViewWeb::Provider viewWeb;
+    engine.rootContext()->setContextProperty("viewWeb", &viewWeb);
     // Dev mode: NEBULA_QML_DIR=/path/to/qml loads the UI from disk and reloads it whenever a .qml file changes,
     // so UI iteration needs no rebuild at all.
     const QString qmlDir = qEnvironmentVariable("NEBULA_QML_DIR");

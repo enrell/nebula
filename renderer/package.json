@@ -1,0 +1,19 @@
+{
+  "name": "nebula-renderer",
+  "private": true,
+  "description": "nebula views: document checker (core) and renderer (page). dist/ is committed so C++ builds need no node.",
+  "type": "module",
+  "scripts": {
+    "build": "node build.mjs",
+    "test": "node build.mjs && node --test test/*.test.js"
+  },
+  "dependencies": {
+    "ajv": "^8.17.1",
+    "highlight.js": "^11.11.1",
+    "markdown-it": "^14.1.0",
+    "yaml": "^2.8.1"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.10"
+  }
+}
