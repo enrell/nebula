@@ -3,6 +3,7 @@ import QtQuick
 
 Item {
     id: root
+    clip: true
     property var tab
     property int paneId: -1
     readonly property var session: tab ? tab.session(paneId) : null
