@@ -1,6 +1,8 @@
 import QtQuick
 
-// The operator as a real chat window: connection + model controls on top, message list, composer at the bottom.
+// The operator: a keyboard-first transcript over the workspace, in the same language as the rest of nebula
+// (the view modal's frame and header, pane-title typography, the terminal's prompt). One header line carries the
+// agent, model, connection and approval mode; messages read like a terminal session, not chat bubbles.
 FocusScope {
     id: root
     readonly property int fs: Math.round(theme.fontSize * 1.33)
@@ -9,6 +11,8 @@ FocusScope {
     readonly property string conn: operatorAgent.connection
     readonly property bool busy: operatorAgent.busy
     readonly property var log: operatorAgent.transcript
+    readonly property bool asking: operatorAgent.pendingConfirm.tool !== undefined
+    readonly property int pad: 18   // left edge of every transcript line
 
     readonly property var suggestions: [
         "Which agents are blocked? Approve the first one.",
@@ -21,11 +25,11 @@ FocusScope {
         return conn === "ready" ? theme.green : conn === "connecting" ? theme.yellow : conn === "error" ? theme.red : theme.muted
     }
     function connText() {
-        if (!operatorAgent.available) return "No agent installed"
-        if (conn === "ready") return "Connected · " + operatorAgent.agentName
-        if (conn === "connecting") return operatorAgent.status || "Connecting…"
-        if (conn === "error") return "Connection failed"
-        return "Not connected"
+        if (!operatorAgent.available) return "no agent installed"
+        if (conn === "ready") return "ready"
+        if (conn === "connecting") return (operatorAgent.status || "connecting").toLowerCase().replace(/…$/, "") + "…"
+        if (conn === "error") return "connection failed"
+        return "idle"
     }
     function modelName() {
         const cur = operatorAgent.currentModel
@@ -49,6 +53,8 @@ FocusScope {
         Qt.callLater(() => { operatorAgent.connectNow(); edit.forceActiveFocus() })
     }
     function toBottom() { Qt.callLater(() => msgs.positionViewAtEnd()) }
+    // "Claude Code (subscription sign-in)" -> "claude code": the header is a status line, not a title
+    function brief(s) { return (s || "").replace(/\s*\(.*\)\s*$/, "").toLowerCase() }
 
     Connections { target: operatorAgent; function onTranscriptChanged() { root.toBottom() } }
     Component.onCompleted: {
@@ -57,132 +63,114 @@ FocusScope {
         toBottom()
     }
 
-    Rectangle { anchors.fill: parent; color: Qt.rgba(0, 0, 0, 0.88) }
+    // a braille spinner, like a terminal program's
+    property int spin: 0
+    readonly property var frames: ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"]
+    Timer { interval: 80; repeat: true; running: root.busy || root.conn === "connecting"; onTriggered: root.spin = (root.spin + 1) % root.frames.length }
+
+    Rectangle { anchors.fill: parent; color: Qt.rgba(0, 0, 0, 0.72) }
     MouseArea { anchors.fill: parent; onClicked: app.hideOverlay() }
 
+    // sized to the conversation, like a command palette: starts compact under the top edge and grows downwards
     Rectangle {
         id: box
-        anchors.centerIn: parent
-        width: Math.min(root.width - 48, 860)
-        height: Math.min(root.height - 48, 720)
-        radius: 12
+        readonly property real body: root.log.length === 0 ? empty.implicitHeight + 36 : msgs.contentHeight + msgs.topMargin + msgs.bottomMargin
+        anchors.horizontalCenter: parent.horizontalCenter
+        y: Math.max(16, Math.min(root.height * 0.1, root.height - height - 16))
+        width: Math.min(root.width - 32, 900)
+        height: Math.min(root.height - 32, Math.max(300, header.height + body + composer.height))
+        Behavior on height { NumberAnimation { duration: 120; easing.type: Easing.OutCubic } }
+        radius: 6
         color: theme.bg
         border.width: 1
-        border.color: theme.border
+        border.color: theme.accent
         MouseArea { anchors.fill: parent }
 
-        // ── header ────────────────────────────────────────────
+        component HeaderButton: Rectangle {
+            property string label
+            property color tone: theme.muted
+            signal clicked
+            width: hbText.implicitWidth + 14; height: root.fs + 8; radius: 4
+            color: hbHover.hovered ? theme.panel : "transparent"
+            Text { id: hbText; anchors.centerIn: parent; text: parent.label; color: hbHover.hovered ? theme.fg : parent.tone; font.family: theme.fontFamily; font.pixelSize: root.fs - 2 }
+            HoverHandler { id: hbHover; cursorShape: Qt.PointingHandCursor }
+            TapHandler { onTapped: parent.clicked() }
+        }
+
+        // ── one header line: name · agent · model · state            approvals  new  close ──
         Item {
             id: header
             anchors { left: parent.left; right: parent.right; top: parent.top }
-            height: 56
-            Rectangle {
-                id: avatar
-                x: 18; anchors.verticalCenter: parent.verticalCenter
-                width: 32; height: 32; radius: 16
-                color: Qt.rgba(theme.accent.r, theme.accent.g, theme.accent.b, 0.18)
-                border.width: 1; border.color: theme.accent
-                Icon { anchors.centerIn: parent; name: "operator"; size: 16; color: theme.accent }
-            }
-            Column {
-                anchors { left: avatar.right; leftMargin: 12; verticalCenter: parent.verticalCenter }
-                spacing: 2
-                Text { text: "Operator"; color: theme.fg; font.bold: true; font.family: theme.fontFamily; font.pixelSize: root.fs + 1 }
-                Row {
-                    spacing: 6
-                    Rectangle {
-                        id: dot
-                        anchors.verticalCenter: parent.verticalCenter
-                        width: 8; height: 8; radius: 4; color: root.connColor()
-                        SequentialAnimation on opacity {
-                            running: root.conn === "connecting"; loops: Animation.Infinite
-                            NumberAnimation { to: 0.25; duration: 500 }
-                            NumberAnimation { to: 1; duration: 500 }
-                            onRunningChanged: if (!running) dot.opacity = 1
-                        }
-                    }
-                    Text { text: root.connText(); color: root.connColor(); font.family: theme.fontFamily; font.pixelSize: root.fs - 2 }
-                }
-            }
-            Row {
-                anchors { right: parent.right; rightMargin: 12; verticalCenter: parent.verticalCenter }
-                spacing: 6
-                Button {
-                    visible: root.conn === "off" || root.conn === "error"
-                    enabled: operatorAgent.available
-                    label: root.conn === "error" ? "Retry" : "Connect"
-                    primary: true
-                    onClicked: operatorAgent.connectNow()
-                }
-                Button { label: "New chat"; visible: root.log.length > 0; onClicked: root.newChat() }
-                IconButton { anchors.verticalCenter: parent.verticalCenter; icon: "close"; size: 12; onClicked: app.hideOverlay() }
-            }
-            Rectangle { anchors { left: parent.left; right: parent.right; bottom: parent.bottom } height: 1; color: theme.border }
-        }
-
-        // ── agent / model bar ─────────────────────────────────
-        Item {
-            id: bar
-            anchors { left: parent.left; right: parent.right; top: header.bottom }
-            height: 46
+            height: root.fs + 22
             z: 5
             Row {
-                x: 18; anchors.verticalCenter: parent.verticalCenter
-                spacing: 8
+                anchors { left: parent.left; leftMargin: 16; verticalCenter: parent.verticalCenter }
+                spacing: 2
+                Text {
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: "operator"; color: theme.accent; font.bold: true
+                    font.family: theme.fontFamily; font.pixelSize: root.fs + 1
+                    rightPadding: 8
+                }
                 Dropdown {
-                    scope: box
-                    prefix: "Agent"
-                    width: 260
-                    text: operatorAgent.agentName
-                    placeholder: "none"
-                    items: operatorAgent.agentPresets().map(p => ({ label: p.label, hint: p.available ? p.hint : "not installed", value: p.command, enabled: p.available, name: p.label }))
+                    anchors.verticalCenter: parent.verticalCenter
+                    flat: true; scope: box
+                    width: Math.min(implicitWidth, 220)
+                    text: root.brief(operatorAgent.agentName)
+                    placeholder: "no agent"
+                    items: operatorAgent.agentPresets().map(p => ({ label: p.label, hint: p.available ? p.hint : "not installed", value: p.command, enabled: p.available }))
+                    currentValue: { const p = operatorAgent.agentPresets().find(p => p.label === operatorAgent.agentName); return p ? p.command : "" }
                     onPicked: (cmd) => {
                         settings.operatorAgent = cmd
                         operatorAgent.reset()
                         root.contextSent = true
                         Qt.callLater(() => operatorAgent.connectNow())
                     }
-                    currentValue: { const p = operatorAgent.agentPresets().find(p => p.label === operatorAgent.agentName); return p ? p.command : "" }
                 }
                 Dropdown {
-                    scope: box
-                    prefix: "Model"
-                    width: 280
+                    anchors.verticalCenter: parent.verticalCenter
+                    flat: true; scope: box
+                    width: Math.min(implicitWidth, 220)
                     enabled: !root.busy && operatorAgent.models.length > 0
-                    text: operatorAgent.models.length > 0 ? root.modelName() : ""
-                    placeholder: root.conn === "ready" ? "agent default" : "connect to choose"
+                    text: operatorAgent.models.length > 0 ? root.brief(root.modelName()) : ""
+                    placeholder: root.conn === "ready" ? "default model" : "model"
                     currentValue: operatorAgent.currentModel
                     items: operatorAgent.models.map(m => ({ label: m.name, hint: m.description, value: m.value }))
                     onPicked: (v) => operatorAgent.setModel(v)
                 }
-            }
-            Rectangle {
-                anchors { right: parent.right; rightMargin: 18; verticalCenter: parent.verticalCenter }
-                height: root.fs + 8
-                width: yoloText.implicitWidth + 20
-                radius: height / 2
-                color: settings.operatorApproveAll ? Qt.rgba(theme.yellow.r, theme.yellow.g, theme.yellow.b, 0.16) : "transparent"
-                border.width: 1
-                border.color: settings.operatorApproveAll ? theme.yellow : theme.border
                 Text {
-                    id: yoloText
-                    anchors.centerIn: parent
-                    text: settings.operatorApproveAll ? "auto-approve on" : "asks before acting"
-                    color: settings.operatorApproveAll ? theme.yellow : theme.muted
-                    font.family: theme.fontFamily; font.pixelSize: root.fs - 2
+                    anchors.verticalCenter: parent.verticalCenter
+                    leftPadding: 6
+                    text: (root.conn === "connecting" ? root.frames[root.spin] : "●") + " " + root.connText()
+                    color: root.connColor(); font.family: theme.fontFamily; font.pixelSize: root.fs - 2
                 }
-                MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: settings.operatorApproveAll = !settings.operatorApproveAll }
             }
-            Rectangle { anchors { left: parent.left; right: parent.right; bottom: parent.bottom } height: 1; color: theme.border; opacity: 0.6 }
+            Row {
+                anchors { right: parent.right; rightMargin: 10; verticalCenter: parent.verticalCenter }
+                spacing: 2
+                HeaderButton {
+                    visible: root.conn === "off" || root.conn === "error"
+                    label: root.conn === "error" ? "retry" : "connect"; tone: theme.accent
+                    onClicked: operatorAgent.connectNow()
+                }
+                HeaderButton {
+                    label: settings.operatorApproveAll ? "auto-approve" : "asks first"
+                    tone: settings.operatorApproveAll ? theme.yellow : theme.muted
+                    onClicked: settings.operatorApproveAll = !settings.operatorApproveAll
+                }
+                HeaderButton { visible: root.log.length > 0; label: "new"; onClicked: root.newChat() }
+                HeaderButton { label: "close  esc"; onClicked: app.hideOverlay() }
+            }
+            Rectangle { anchors { left: parent.left; right: parent.right; bottom: parent.bottom } height: 1; color: theme.border }
         }
 
-        // ── messages ──────────────────────────────────────────
+        // ── transcript ──
         ListView {
             id: msgs
-            anchors { left: parent.left; right: parent.right; top: bar.bottom; bottom: composer.top }
+            anchors { left: parent.left; right: parent.right; top: header.bottom; bottom: composer.top; leftMargin: 1; rightMargin: 1 }
             clip: true
-            topMargin: 16; bottomMargin: 8
-            spacing: 12
+            topMargin: 14; bottomMargin: 6
+            spacing: 10
             model: root.log
             boundsBehavior: Flickable.StopAtBounds
             cacheBuffer: 4000
@@ -192,175 +180,120 @@ FocusScope {
                 required property var modelData
                 required property int index
                 readonly property string kind: modelData.kind
+                // a user turn after an answer starts a new exchange: a little more air above it
+                readonly property bool newTurn: kind === "user" && index > 0
                 width: msgs.width
-                height: col.implicitHeight
+                height: col.implicitHeight + (newTurn ? 8 : 0)
 
                 Column {
                     id: col
+                    y: msg.newTurn ? 8 : 0
                     width: parent.width
 
-                    // user: right-aligned bubble
-                    Item {
+                    // you: a prompt line
+                    Row {
                         visible: msg.kind === "user"
-                        width: parent.width; height: visible ? ub.height : 0
-                        Rectangle {
-                            id: ub
-                            anchors { right: parent.right; rightMargin: 20 }
-                            width: Math.min(msgs.width * 0.78, uText.implicitWidth + 28)
-                            height: uText.implicitHeight + 20
-                            radius: 12
-                            color: Qt.rgba(theme.accent.r, theme.accent.g, theme.accent.b, 0.20)
-                            border.width: 1; border.color: Qt.rgba(theme.accent.r, theme.accent.g, theme.accent.b, 0.5)
-                            TextEdit {
-                                id: uText
-                                x: 14; y: 10; width: parent.width - 28
-                                readOnly: true; selectByMouse: true; wrapMode: TextEdit.Wrap
-                                text: msg.kind === "user" ? msg.modelData.text : ""
-                                color: theme.fg; selectionColor: theme.accent; selectedTextColor: theme.bg
-                                font.family: theme.fontFamily; font.pixelSize: root.fs
-                            }
+                        x: root.pad; spacing: 10
+                        Text { text: "›"; color: theme.accent; font.bold: true; font.family: theme.fontFamily; font.pixelSize: root.fs }
+                        TextEdit {
+                            width: msgs.width - root.pad * 2 - 20
+                            readOnly: true; selectByMouse: true; wrapMode: TextEdit.Wrap
+                            text: msg.kind === "user" ? msg.modelData.text : ""
+                            color: theme.fg; font.bold: true
+                            selectionColor: theme.accent; selectedTextColor: theme.bg
+                            font.family: theme.fontFamily; font.pixelSize: root.fs
                         }
                     }
 
-                    // assistant: avatar + markdown bubble
-                    Item {
+                    // the operator: plain text under your prompt
+                    TextEdit {
                         visible: msg.kind === "assistant"
-                        width: parent.width; height: visible ? ab.height : 0
-                        Rectangle {
-                            x: 20; width: 26; height: 26; radius: 13
-                            color: Qt.rgba(theme.accent.r, theme.accent.g, theme.accent.b, 0.18)
-                            Icon { anchors.centerIn: parent; name: "operator"; size: 13; color: theme.accent }
-                        }
-                        Rectangle {
-                            id: ab
-                            x: 56
-                            width: Math.min(msgs.width - 56 - 20, aText.implicitWidth + 28)
-                            height: aText.implicitHeight + 20
-                            radius: 12
-                            color: theme.panel
-                            border.width: 1; border.color: theme.border
-                            TextEdit {
-                                id: aText
-                                x: 14; y: 10; width: msgs.width - 56 - 20 - 28
-                                readOnly: true; selectByMouse: true; wrapMode: TextEdit.Wrap
-                                textFormat: TextEdit.MarkdownText
-                                text: msg.kind === "assistant" ? msg.modelData.text : ""
-                                color: theme.fg; selectionColor: theme.accent; selectedTextColor: theme.bg
-                                font.family: theme.fontFamily; font.pixelSize: root.fs
-                                onLinkActivated: (l) => Qt.openUrlExternally(l)
-                            }
-                        }
+                        x: root.pad + 20; width: msgs.width - root.pad * 2 - 20
+                        readOnly: true; selectByMouse: true; wrapMode: TextEdit.Wrap
+                        textFormat: TextEdit.MarkdownText
+                        text: msg.kind === "assistant" ? msg.modelData.text : ""
+                        color: theme.fg; opacity: 0.92
+                        selectionColor: theme.accent; selectedTextColor: theme.bg
+                        font.family: theme.fontFamily; font.pixelSize: root.fs
+                        onLinkActivated: (l) => Qt.openUrlExternally(l)
                     }
 
-                    // thinking
-                    Item {
+                    // thinking: one dim line
+                    Text {
                         visible: msg.kind === "thought"
-                        width: parent.width; height: visible ? tText.implicitHeight : 0
-                        Text {
-                            id: tText
-                            x: 56; width: parent.width - 76
-                            text: msg.kind === "thought" ? "thinking · " + msg.modelData.text.replace(/\*+/g, "").replace(/\s+/g, " ") : ""
-                            maximumLineCount: 2; elide: Text.ElideRight; wrapMode: Text.WordWrap
-                            color: theme.muted; font.italic: true; opacity: 0.8
-                            font.family: theme.fontFamily; font.pixelSize: root.fs - 2
-                        }
+                        x: root.pad + 20; width: msgs.width - root.pad * 2 - 20
+                        text: msg.kind === "thought" ? "∴ " + msg.modelData.text.replace(/\*+/g, "").replace(/\s+/g, " ") : ""
+                        maximumLineCount: 1; elide: Text.ElideRight
+                        color: theme.muted; font.italic: true
+                        font.family: theme.fontFamily; font.pixelSize: root.fs - 2
                     }
 
-                    // tool call chip: what it is, what it was given, how it went
-                    Item {
+                    // a tool call: one line, status mark first
+                    Row {
+                        id: tool
+                        readonly property string st: msg.kind === "tool" ? (msg.modelData.status || "") : ""
+                        readonly property bool running: st === "" || st === "in_progress" || st === "pending"
+                        readonly property color tone: st === "completed" ? theme.green : (st === "failed" || st === "stopped") ? theme.red : theme.yellow
                         visible: msg.kind === "tool"
-                        width: parent.width; height: visible ? chip.height : 0
-                        Rectangle {
-                            id: chip
-                            readonly property string st: msg.kind === "tool" ? (msg.modelData.status || "") : ""
-                            readonly property bool running: st === "" || st === "in_progress" || st === "pending"
-                            readonly property color tone: st === "completed" ? theme.green : (st === "failed" || st === "stopped") ? theme.red : theme.yellow
-                            x: 56
-                            width: Math.min(parent.width - 76, cRow.implicitWidth + 24)
-                            height: root.fs + 12
-                            radius: height / 2
-                            color: theme.panel
-                            border.width: 1; border.color: theme.border
-                            Row {
-                                id: cRow
-                                x: 12; anchors.verticalCenter: parent.verticalCenter
-                                spacing: 8
-                                Rectangle {
-                                    anchors.verticalCenter: parent.verticalCenter
-                                    width: 7; height: 7; radius: 4; color: chip.tone
-                                    SequentialAnimation on opacity {
-                                        running: chip.running && root.busy; loops: Animation.Infinite
-                                        NumberAnimation { to: 0.25; duration: 450 }
-                                        NumberAnimation { to: 1; duration: 450 }
-                                        onRunningChanged: if (!running) parent.opacity = 1
-                                    }
-                                }
-                                Text {
-                                    id: chipTitle
-                                    anchors.verticalCenter: parent.verticalCenter
-                                    text: msg.kind === "tool" ? msg.modelData.text : ""
-                                    color: theme.fg; font.family: theme.fontFamily; font.pixelSize: root.fs - 2; font.bold: true
-                                }
-                                Text {
-                                    anchors.verticalCenter: parent.verticalCenter
-                                    visible: text !== ""
-                                    width: Math.min(implicitWidth, box.width - 160 - chipTitle.implicitWidth - chipStatus.implicitWidth)
-                                    elide: Text.ElideRight
-                                    text: msg.kind === "tool" ? (msg.modelData.detail || "") : ""
-                                    color: theme.muted; font.family: theme.fontFamily; font.pixelSize: root.fs - 2
-                                }
-                                Text {
-                                    id: chipStatus
-                                    anchors.verticalCenter: parent.verticalCenter
-                                    visible: chip.st !== ""
-                                    text: chip.st === "completed" ? "✓" : chip.st === "failed" ? "✗ failed" : chip.st === "stopped" ? "■ stopped" : chip.st.replace("_", " ")
-                                    color: chip.tone; font.family: theme.fontFamily; font.pixelSize: root.fs - 2
-                                }
-                            }
-                        }
-                    }
-
-                    // info divider (restored history)
-                    Item {
-                        visible: msg.kind === "info"
-                        width: parent.width; height: visible ? iText.implicitHeight + 8 : 0
+                        x: root.pad + 20; spacing: 8
                         Text {
-                            id: iText
-                            x: 20; width: parent.width - 40
-                            horizontalAlignment: Text.AlignHCenter; wrapMode: Text.WordWrap
-                            text: msg.kind === "info" ? "— " + msg.modelData.text + " —" : ""
-                            color: theme.muted; opacity: 0.8; font.family: theme.fontFamily; font.pixelSize: root.fs - 2
+                            text: tool.running && root.busy ? root.frames[root.spin] : tool.st === "completed" ? "✓" : tool.st === "failed" ? "✗" : tool.st === "stopped" ? "■" : "·"
+                            color: tool.tone; font.family: theme.fontFamily; font.pixelSize: root.fs - 1
+                        }
+                        Text {
+                            id: toolName
+                            text: msg.kind === "tool" ? msg.modelData.text.replace(/^nebula\./, "") : ""
+                            color: theme.fg; font.family: theme.fontFamily; font.pixelSize: root.fs - 2
+                        }
+                        Text {
+                            visible: text !== ""
+                            width: Math.min(implicitWidth, msgs.width - root.pad * 2 - 60 - toolName.implicitWidth - toolState.implicitWidth)
+                            elide: Text.ElideRight
+                            text: msg.kind === "tool" ? (msg.modelData.detail || "") : ""
+                            color: theme.muted; font.family: theme.fontFamily; font.pixelSize: root.fs - 2
+                        }
+                        Text {
+                            id: toolState
+                            visible: tool.st === "failed" || tool.st === "stopped"
+                            text: tool.st
+                            color: tool.tone; font.family: theme.fontFamily; font.pixelSize: root.fs - 2
                         }
                     }
 
-                    // error card
+                    // restored history and other notes
+                    Text {
+                        visible: msg.kind === "info"
+                        x: root.pad; width: msgs.width - root.pad * 2
+                        wrapMode: Text.WordWrap
+                        text: msg.kind === "info" ? "── " + msg.modelData.text : ""
+                        color: theme.muted; font.family: theme.fontFamily; font.pixelSize: root.fs - 2
+                    }
+
+                    // an error: red rule, message, keyboard-style actions
                     Item {
                         visible: msg.kind === "error"
-                        width: parent.width; height: visible ? ec.height : 0
-                        Rectangle {
-                            id: ec
-                            x: 20; width: parent.width - 40
-                            height: eCol.implicitHeight + 24
-                            radius: 10
-                            color: Qt.rgba(theme.red.r, theme.red.g, theme.red.b, 0.10)
-                            border.width: 1; border.color: Qt.rgba(theme.red.r, theme.red.g, theme.red.b, 0.6)
-                            Column {
-                                id: eCol
-                                x: 14; y: 12; width: parent.width - 28
-                                spacing: 8
-                                Text {
-                                    width: parent.width; wrapMode: Text.WrapAnywhere
-                                    text: msg.kind === "error" ? msg.modelData.text : ""
-                                    color: theme.red; font.family: theme.fontFamily; font.pixelSize: root.fs - 1
+                        x: root.pad + 20; width: msgs.width - root.pad * 2 - 20
+                        height: visible ? eCol.implicitHeight : 0
+                        Rectangle { width: 2; height: parent.height; color: theme.red }
+                        Column {
+                            id: eCol
+                            x: 12; width: parent.width - 12; spacing: 4
+                            Text {
+                                width: parent.width; wrapMode: Text.WrapAnywhere
+                                text: msg.kind === "error" ? msg.modelData.text : ""
+                                color: theme.red; font.family: theme.fontFamily; font.pixelSize: root.fs - 1
+                            }
+                            Row {
+                                spacing: 2
+                                HeaderButton {
+                                    visible: msg.index === root.log.length - 1 && root.lastUser() !== "" && !root.busy
+                                    label: "retry"; tone: theme.accent
+                                    onClicked: operatorAgent.send(root.lastUser())
                                 }
-                                Row {
-                                    spacing: 8
-                                    Button { label: "Retry"; visible: msg.index === root.log.length - 1 && root.lastUser() !== "" && !root.busy; onClicked: operatorAgent.send(root.lastUser()) }
-                                    Button {
-                                        property bool copied: false
-                                        label: copied ? "Copied" : "Copy log"
-                                        onClicked: { app.copyToClipboard(operatorAgent.diagnostics()); copied = true }
-                                    }
+                                HeaderButton {
+                                    property bool copied: false
+                                    label: copied ? "copied" : "copy log"
+                                    onClicked: { app.copyToClipboard(operatorAgent.diagnostics()); copied = true }
                                 }
                             }
                         }
@@ -370,141 +303,114 @@ FocusScope {
 
             footer: Item {
                 width: msgs.width
-                height: (root.busy ? 34 : 0) + (confirmCard.visible ? confirmCard.height + 12 : 0)
-                Row {
-                    x: 56; y: 6
-                    visible: root.busy && operatorAgent.pendingConfirm.tool === undefined
-                    spacing: 10
-                    Row {
-                        anchors.verticalCenter: parent.verticalCenter
-                        spacing: 4
-                        Repeater {
-                            model: 3
-                            delegate: Rectangle {
-                                required property int index
-                                width: 7; height: 7; radius: 4; color: theme.accent
-                                SequentialAnimation on opacity {
-                                    running: root.busy; loops: Animation.Infinite
-                                    PauseAnimation { duration: index * 150 }
-                                    NumberAnimation { to: 0.2; duration: 350 }
-                                    NumberAnimation { to: 1; duration: 350 }
-                                    PauseAnimation { duration: (2 - index) * 150 }
-                                }
-                            }
-                        }
-                    }
-                    Text { anchors.verticalCenter: parent.verticalCenter; text: operatorAgent.status || "working…"; color: theme.muted; font.family: theme.fontFamily; font.pixelSize: root.fs - 2 }
+                height: (root.busy && !root.asking ? root.fs + 14 : 0) + (root.asking ? ask.height + 14 : 0)
+                // working
+                Text {
+                    visible: root.busy && !root.asking
+                    x: root.pad + 20; y: 8
+                    text: root.frames[root.spin] + " " + (operatorAgent.status || "working").toLowerCase()
+                    color: theme.muted; font.family: theme.fontFamily; font.pixelSize: root.fs - 2
                 }
-                Rectangle {
-                    id: confirmCard
-                    visible: operatorAgent.pendingConfirm.tool !== undefined
-                    x: 20; y: 4; width: parent.width - 40
-                    height: cc.implicitHeight + 24
-                    radius: 10
-                    color: Qt.rgba(theme.yellow.r, theme.yellow.g, theme.yellow.b, 0.10)
-                    border.width: 1; border.color: theme.yellow
+                // an approval, answered with y / n or a click
+                Item {
+                    id: ask
+                    visible: root.asking
+                    x: root.pad + 20; y: 8; width: parent.width - root.pad * 2 - 20
+                    height: aCol.implicitHeight
+                    Rectangle { width: 2; height: parent.height; color: theme.yellow }
                     Column {
-                        id: cc
-                        x: 14; y: 12; width: parent.width - 28; spacing: 10
+                        id: aCol
+                        x: 12; width: parent.width - 12; spacing: 6
                         Text {
                             width: parent.width; wrapMode: Text.WrapAnywhere
-                            text: "The operator wants to: " + (operatorAgent.pendingConfirm.summary || "")
+                            text: "allow " + (operatorAgent.pendingConfirm.summary || "").replace(/^nebula\./, "") + "?"
                             color: theme.yellow; font.family: theme.fontFamily; font.pixelSize: root.fs - 1
                         }
                         Row {
-                            spacing: 8
-                            Button { label: "Allow"; primary: true; onClicked: operatorAgent.confirm(true) }
-                            Button { label: "Deny"; danger: true; onClicked: operatorAgent.confirm(false) }
+                            spacing: 2
+                            HeaderButton { label: "y  allow"; tone: theme.green; onClicked: operatorAgent.confirm(true) }
+                            HeaderButton { label: "n  deny"; tone: theme.red; onClicked: operatorAgent.confirm(false) }
                         }
                     }
                 }
             }
         }
 
-        // empty state
+        // ── empty: a quiet prompt and a few things to try ──
         Column {
+            id: empty
             visible: root.log.length === 0
-            anchors { horizontalCenter: msgs.horizontalCenter; verticalCenter: msgs.verticalCenter }
-            width: Math.min(msgs.width - 48, 560)
-            spacing: 14
-            Rectangle {
-                anchors.horizontalCenter: parent.horizontalCenter
-                width: 52; height: 52; radius: 26
-                color: Qt.rgba(theme.accent.r, theme.accent.g, theme.accent.b, 0.15)
-                border.width: 1; border.color: theme.accent
-                Icon { anchors.centerIn: parent; name: "operator"; size: 26; color: theme.accent }
-            }
+            anchors { left: parent.left; leftMargin: root.pad; right: parent.right; rightMargin: root.pad; top: header.bottom; topMargin: 18 }
+            spacing: 6
             Text {
-                width: parent.width; horizontalAlignment: Text.AlignHCenter
-                text: "What should I do?"; color: theme.fg; font.bold: true
-                font.family: theme.fontFamily; font.pixelSize: root.fs + 5
-            }
-            Text {
-                width: parent.width; horizontalAlignment: Text.AlignHCenter; wrapMode: Text.WordWrap
+                width: parent.width; wrapMode: Text.WordWrap
                 text: !operatorAgent.available
-                    ? "No compatible agent is installed. Install Codex, Claude Code or opencode, or set a custom command in Settings › Agents & AI."
-                    : "I run nebula for you: I can launch and prompt your coding agents, read their output, answer their prompts and rearrange panes."
+                    ? "No compatible agent is installed. Install Codex, Claude Code or opencode, or set a command in Settings › Agents & AI."
+                    : "The operator runs nebula for you: it launches and prompts your agents, reads their panes, answers their prompts and arranges the workspace."
                 color: theme.muted; font.family: theme.fontFamily; font.pixelSize: root.fs - 1
+                bottomPadding: 8
             }
-            Column {
-                width: parent.width; spacing: 8
-                visible: operatorAgent.available
-                Repeater {
-                    model: root.suggestions
-                    delegate: Rectangle {
-                        required property string modelData
-                        width: parent.width; height: root.fs + 18; radius: 8
-                        color: sma.containsMouse ? theme.panel : "transparent"
-                        border.width: 1; border.color: sma.containsMouse ? theme.accent : theme.border
-                        Text { x: 14; anchors.verticalCenter: parent.verticalCenter; width: parent.width - 28; elide: Text.ElideRight; text: modelData; color: theme.fg; font.family: theme.fontFamily; font.pixelSize: root.fs - 1 }
-                        MouseArea { id: sma; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: root.submit(modelData) }
+            Repeater {
+                model: operatorAgent.available ? root.suggestions : []
+                delegate: Rectangle {
+                    required property string modelData
+                    required property int index
+                    width: parent.width; height: root.fs + 12; radius: 4
+                    color: sHover.hovered ? theme.panel : "transparent"
+                    Row {
+                        x: 8; anchors.verticalCenter: parent.verticalCenter; spacing: 10
+                        Text { text: "›"; color: sHover.hovered ? theme.accent : theme.border; font.bold: true; font.family: theme.fontFamily; font.pixelSize: root.fs }
+                        Text { text: modelData; color: sHover.hovered ? theme.fg : theme.muted; font.family: theme.fontFamily; font.pixelSize: root.fs - 1 }
                     }
+                    HoverHandler { id: sHover; cursorShape: Qt.PointingHandCursor }
+                    TapHandler { onTapped: root.submit(modelData) }
                 }
             }
-            Button {
-                anchors.horizontalCenter: parent.horizontalCenter
+            HeaderButton {
                 visible: !operatorAgent.available
-                label: "Open settings"; primary: true
+                label: "open settings"; tone: theme.accent
                 onClicked: { app.hideOverlay(); app.setSettingsVisible(true) }
             }
         }
 
-        // ── composer ──────────────────────────────────────────
+        // ── composer: a prompt line ──
         Item {
             id: composer
             anchors { left: parent.left; right: parent.right; bottom: parent.bottom }
-            height: ctxChip.height + inputBox.height + hint.height + 30
+            height: ctx.height + inputRow.height + hint.height + 22
 
             Rectangle { anchors { left: parent.left; right: parent.right; top: parent.top } height: 1; color: theme.border }
 
-            Rectangle {
-                id: ctxChip
+            Row {
+                id: ctx
                 visible: root.context !== "" && !root.contextSent
-                x: 18; y: 10; width: parent.width - 36
-                height: visible ? root.fs + 14 : 0
-                radius: 8
-                color: theme.panel; border.width: 1; border.color: theme.border
+                x: root.pad; y: 8
+                height: visible ? root.fs + 6 : 0
+                spacing: 8
                 Text {
-                    x: 12; anchors.verticalCenter: parent.verticalCenter; width: parent.width - 48; elide: Text.ElideRight
-                    text: "Selected text attached · " + root.context.split("\n").filter(l => l.trim() !== "")[0]
+                    anchors.verticalCenter: parent.verticalCenter
+                    width: Math.min(implicitWidth, box.width - root.pad * 2 - 60)
+                    elide: Text.ElideRight
+                    text: "+ selection · " + root.context.split("\n").filter(l => l.trim() !== "")[0]
                     color: theme.muted; font.family: theme.fontFamily; font.pixelSize: root.fs - 2
                 }
-                IconButton { anchors { right: parent.right; rightMargin: 4; verticalCenter: parent.verticalCenter } icon: "close"; size: 10; onClicked: root.contextSent = true }
+                HeaderButton { anchors.verticalCenter: parent.verticalCenter; label: "drop"; onClicked: root.contextSent = true }
             }
 
-            Rectangle {
-                id: inputBox
-                x: 18; y: ctxChip.height + (ctxChip.visible ? 18 : 10)
-                width: parent.width - 36
-                height: Math.max(46, Math.min(150, edit.contentHeight + 24))
-                radius: 12
-                color: theme.panel
-                border.width: 1
-                border.color: edit.activeFocus ? theme.accent : theme.border
-
+            Item {
+                id: inputRow
+                x: root.pad; y: ctx.height + (ctx.visible ? 12 : 12)
+                width: parent.width - root.pad * 2
+                height: Math.max(root.fs + 8, Math.min(160, edit.contentHeight + 4))
+                Text {
+                    id: promptMark
+                    y: 2
+                    text: "›"; color: edit.activeFocus ? theme.accent : theme.muted; font.bold: true
+                    font.family: theme.fontFamily; font.pixelSize: root.fs
+                }
                 Flickable {
                     id: fl
-                    anchors { left: parent.left; right: sendBtn.left; top: parent.top; bottom: parent.bottom; leftMargin: 14; rightMargin: 8; topMargin: 12; bottomMargin: 12 }
+                    anchors { left: promptMark.right; leftMargin: 10; right: parent.right; top: parent.top; bottom: parent.bottom; topMargin: 2 }
                     clip: true
                     contentWidth: width
                     contentHeight: edit.contentHeight
@@ -522,46 +428,35 @@ FocusScope {
                         font.family: theme.fontFamily; font.pixelSize: root.fs
                         onCursorRectangleChanged: fl.ensureVisible(cursorRectangle)
                         Keys.onPressed: (e) => {
-                            if ((e.key === Qt.Key_Return || e.key === Qt.Key_Enter) && !(e.modifiers & Qt.ShiftModifier)) {
+                            const ctrl = e.modifiers & Qt.ControlModifier
+                            if (root.asking && text === "" && (e.key === Qt.Key_Y || e.key === Qt.Key_N)) {
+                                operatorAgent.confirm(e.key === Qt.Key_Y)
+                                e.accepted = true
+                            } else if (root.busy && ctrl && e.key === Qt.Key_C && selectedText === "") {
+                                operatorAgent.cancel()
+                                e.accepted = true
+                            } else if ((e.key === Qt.Key_Return || e.key === Qt.Key_Enter) && !(e.modifiers & Qt.ShiftModifier)) {
                                 root.submit(text)
                                 e.accepted = true
                             }
                         }
                         Text {
                             visible: edit.text === ""
-                            text: root.conn === "ready" ? "Message the operator…" : "Message the operator (it connects on send)…"
-                            color: theme.muted
+                            text: root.asking ? "y to allow, n to deny" : root.conn === "ready" ? "ask the operator" : "ask the operator (it connects when you send)"
+                            color: theme.muted; opacity: 0.8
                             font: edit.font
                         }
-                    }
-                }
-
-                Rectangle {
-                    id: sendBtn
-                    readonly property bool canSend: root.busy || edit.text.trim() !== ""
-                    anchors { right: parent.right; rightMargin: 8; bottom: parent.bottom; bottomMargin: 8 }
-                    width: 30; height: 30; radius: 15
-                    color: root.busy ? theme.red : theme.accent
-                    opacity: canSend ? 1 : 0.35
-                    Text {
-                        anchors.centerIn: parent
-                        text: root.busy ? "■" : "↑"
-                        color: theme.bg; font.bold: true; font.pixelSize: root.busy ? root.fs - 2 : root.fs + 2
-                    }
-                    MouseArea {
-                        anchors.fill: parent
-                        enabled: sendBtn.canSend
-                        cursorShape: Qt.PointingHandCursor
-                        onClicked: root.busy ? operatorAgent.cancel() : root.submit(edit.text)
                     }
                 }
             }
 
             Text {
                 id: hint
-                x: 20; y: inputBox.y + inputBox.height + 6
-                text: "Enter to send  ·  Shift+Enter for a new line  ·  Esc to close"
-                color: theme.muted; opacity: 0.8
+                x: root.pad; y: inputRow.y + inputRow.height + 6
+                width: parent.width - root.pad * 2
+                horizontalAlignment: Text.AlignRight
+                text: root.busy ? "ctrl+c stop  ·  esc close" : "enter send  ·  shift+enter newline  ·  esc close"
+                color: theme.muted; opacity: 0.7
                 font.family: theme.fontFamily; font.pixelSize: root.fs - 3
             }
         }
