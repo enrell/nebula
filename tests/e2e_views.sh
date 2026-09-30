@@ -39,18 +39,45 @@ MD
 start_gui
 ctl window.resize width=1200 height=800 >/dev/null
 
-# a file view: checked, placed next to the focused pane, drawn by the page
-R=$(ctl view.show file=report.md)
+# a file view docked next to the focused pane: checked and drawn by the page
+R=$(ctl view.show file=report.md where=right)
 V=$(echo "$R" | json 'd["view"]')
 [ "$(echo "$R" | json 'd["ok"]')" = True ] || fail "report.md should be valid: $R"
 [ "$(echo "$R" | json 'd["rendered"]')" = True ] || fail "view not drawn: $R"
 [ "$(echo "$R" | json 'd["title"]')" = Report ] || fail "front matter title: $R"
 [ "$(ctl space.list | json 'len(d[0]["tabs"][0]["panes"])')" = 1 ] || fail "views must not be listed as terminal panes"
-[ "$(ctl view.list | json 'd[0]["view"]')" = "$V" ] || fail "view.list"
+[ "$(ctl view.list | json 'd[0]["where"]')" = docked ] || fail "view.list"
 echo "file view: ok"
 
+# the default placement is a modal over the workspace; it hides and comes back, docks and pops out again
+R=$(ctl view.show content='```nebula:chart
+type: bar
+rows: [{k: a, v: 1}, {k: b, v: 3}]
+x: k
+y: v
+```')
+M=$(echo "$R" | json 'd["view"]')
+[ "$(echo "$R" | json 'd["rendered"]')" = True ] && [ "$(echo "$R" | json 'len(d["renderIssues"])')" = 0 ] || fail "modal chart: $R"
+[ "$(ctl view.list | json '[v["where"] for v in d if v["view"] == '"$M"'][0]')" = modal ] || fail "default placement is not modal"
+[ "$(ctl view.toggle)" = hidden ] || fail "view.toggle should hide the modal"
+[ "$(ctl view.toggle)" = shown ] || fail "view.toggle should show it again"
+ctl view.dock view="$M" where=down >/dev/null
+[ "$(ctl view.list | json '[v["where"] for v in d if v["view"] == '"$M"'][0]')" = docked ] || fail "dock"
+ctl view.dock view="$M" where=modal >/dev/null
+[ "$(ctl view.list | json '[v["where"] for v in d if v["view"] == '"$M"'][0]')" = modal ] || fail "pop out"
+ctl settings.set key=viewPlacement value=sideways >/dev/null 2>&1 && fail "invalid viewPlacement accepted"
+echo "modal: ok"
+
+# html blocks run in a sandbox; their errors come back as render issues
+R=$(ctl view.show view="$M" content='```nebula:html
+html: <script>throw new Error("boom")</script>
+```')
+for _ in $(seq 40); do ctl view.get view="$M" | json '" ".join(d["renderIssues"])' | grep -q boom && break; sleep 0.1; done
+ctl view.get view="$M" | json '" ".join(d["renderIssues"])' | grep -q "html block: .*boom" || fail "sandbox error not reported: $(ctl view.get view="$M")"
+echo "sandbox: ok"
+
 # errors come back with line numbers; the view stays open showing error cards
-R=$(ctl view.show content='```nebula:tabel
+R=$(ctl view.show where=right content='```nebula:tabel
 rows: []
 ```')
 E=$(echo "$R" | json 'd["view"]')
@@ -72,14 +99,15 @@ for _ in $(seq 30); do [ "$(ctl view.get view="$V" | json 'len(d["errors"])')" =
 echo "live reload: ok"
 
 # component catalogue
-[ "$(ctl view.components | json '",".join(c["name"] for c in d)')" = "callout,stats,table,checklist,code,image" ] || fail "components"
+[ "$(ctl view.components | json '",".join(c["name"] for c in d)')" = "callout,stats,table,chart,chart3d,checklist,code,image,html" ] || fail "components"
 ctl view.components name=nebula:table | json 'd["example"]' | grep -q '^```nebula:table' || fail "describe"
 
-# persistence: views come back after the GUI restarts
+# persistence: docked views come back after the GUI restarts; modal ones (and their stored content) do not
 sleep 1.2
 kill -9 $GUI; wait $GUI 2>/dev/null || true; rm -f "$NEBULA_SOCKET"
 start_gui
 [ "$(ctl view.list | json '" ".join(str(v["view"]) for v in d)')" = "$V $E" ] || fail "views not restored: $(ctl view.list)"
+ls "$NEBULA_STATE_DIR/views" | grep -q "^$M\." && fail "inline content of the modal view left behind"
 [ "$(ctl view.get view="$E" | json 'd["title"]')" = Fixed ] || fail "restored view lost its title"
 echo "persistence: ok"
 

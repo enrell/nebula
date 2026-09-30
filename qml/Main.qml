@@ -122,6 +122,11 @@ Window {
         z: 10
     }
 
+    ViewModal {
+        anchors { left: sidebar.right; leftMargin: 1; right: parent.right; top: parent.top; bottom: status.top }
+        z: 12
+    }
+
     Loader { anchors.fill: parent; z: 15; active: app.overlay === "launcher"; source: "LauncherDialog.qml" }
     Loader { anchors.fill: parent; z: 15; active: app.overlay === "operator"; source: "OperatorPanel.qml" }
     Loader { anchors.fill: parent; z: 15; active: app.overlay === "broadcast"; source: "BroadcastDialog.qml" }

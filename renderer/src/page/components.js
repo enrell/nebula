@@ -1,7 +1,9 @@
 // One renderer per registry component. Each gets the props produced by the checker (already validated and
 // resolved) and returns a DOM node. They never see raw YAML or unchecked input.
 import { h } from './dom.js';
+import { render3d, renderChart, webglAvailable } from './charts.js';
 import { highlight } from './highlight.js';
+import { sandboxFrame } from './sandbox.js';
 
 const tones = { good: 'good', bad: 'bad', neutral: 'neutral' };
 
@@ -76,4 +78,24 @@ function image(p, ctx) {
   return h('figure.image', img, p.caption ? h('figcaption', ctx.inline(p.caption)) : null);
 }
 
-export const renderers = { callout, stats, table, checklist, code, image };
+function chart(p, ctx) {
+  const box = h('div.chart-box', { style: { height: `${p.height}px` } });
+  ctx.afterMount(() => renderChart(box, p));
+  return card('chart-card', p.title, box);
+}
+
+function chart3d(p, ctx) {
+  if (!webglAvailable()) {
+    ctx.issue('chart3d: WebGL is not available in this view (no GPU / GL support)');
+    return card('chart-card', p.title, h('div.unavailable', 'WebGL is not available here, so this 3D chart cannot be drawn.'));
+  }
+  const box = h('div.chart-box', { style: { height: `${p.height}px` } });
+  ctx.afterMount(() => render3d(box, p));
+  return card('chart-card', p.title, box, h('footer.card-foot', 'drag to rotate · scroll to zoom'));
+}
+
+function html(p, ctx, block) {
+  return card('html-card', p.title, sandboxFrame(ctx.sandboxUrl(block.index), p.height));
+}
+
+export const renderers = { callout, stats, table, chart, chart3d, checklist, code, image, html };

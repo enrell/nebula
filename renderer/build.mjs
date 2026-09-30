@@ -4,6 +4,8 @@ import Ajv from 'ajv';
 import standalone from 'ajv/dist/standalone/index.js';
 import * as esbuild from 'esbuild';
 import { copyFileSync, mkdirSync, writeFileSync } from 'node:fs';
+import { readFile } from 'node:fs/promises';
+import { resolve } from 'node:path';
 import { FRONT_MATTER } from './src/core/front.js';
 import { components } from './src/components/index.js';
 
@@ -19,6 +21,27 @@ const common = { bundle: true, minify: true, legalComments: 'none', logLevel: 'w
 // QJSEngine (Qt's V4) implements ES2016 plus parts of later editions; lower everything newer.
 // core stays unminified and ASCII-only: V4's parser rejects some raw non-ASCII string data, and readable stack traces help.
 await esbuild.build({ ...common, minify: false, charset: 'ascii', entryPoints: ['src/core/index.js'], outfile: 'dist/core.js', format: 'iife', globalName: 'NebulaCore', target: 'es2016', platform: 'neutral', mainFields: ['module', 'main'] });
-await esbuild.build({ ...common, entryPoints: ['src/page/index.js'], outfile: 'dist/page.js', format: 'iife', target: 'chrome108' });
+// echarts-gl imports echarts/zrender internals without extensions, which their package export maps do not allow
+const deepImports = {
+  name: 'echarts-deep-imports',
+  setup(build) {
+    build.onResolve({ filter: /^(echarts|zrender)\/lib\// }, (args) => ({ path: resolve('node_modules', `${args.path.replace(/\.js$/, '')}.js`) }));
+  },
+};
+// claygl compiles size expressions with `new Function`; the page CSP has no 'unsafe-eval', so use an evaluator
+const noEval = {
+  name: 'claygl-no-eval',
+  setup(build) {
+    build.onLoad({ filter: /claygl[\\/]src[\\/]createCompositor\.js$/ }, async (args) => {
+      const code = await readFile(args.path, 'utf8');
+      const call = "new Function('width', 'height', 'dpr', 'return ' + exprRes[1])";
+      if (!code.includes(call)) throw new Error('claygl changed: update the claygl-no-eval plugin in build.mjs');
+      const helper = JSON.stringify(resolve('src/page/sizeexpr.js'));
+      return { contents: `import { compileSizeExpr } from ${helper};\n${code.replace(call, 'compileSizeExpr(exprRes[1])')}`, loader: 'js' };
+    });
+  },
+};
+await esbuild.build({ ...common, entryPoints: ['src/page/index.js'], outfile: 'dist/page.js', format: 'iife', target: 'chrome108', plugins: [deepImports, noEval] });
+if ((await readFile('dist/page.js', 'utf8')).match(/new Function\(|\beval\(/)) throw new Error('dist/page.js contains eval / new Function, which the page CSP blocks');
 await esbuild.build({ ...common, entryPoints: ['src/page/page.css'], outfile: 'dist/page.css', target: 'chrome108' });
 copyFileSync('src/page/page.html', 'dist/page.html');

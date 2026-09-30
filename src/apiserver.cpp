@@ -228,11 +228,12 @@ QJsonObject ApiServer::showView(const QJsonObject &p, ViewPane **out) {
         *out = v;
         return r;
     }
-    const QString where = p["where"].toString("right");
-    if (where != "right" && where != "down" && where != "tab") throw ApiError("where must be right, down or tab");
+    const QString where = p["where"].toString(Settings::instance()->viewPlacement());
+    if (!Settings::viewPlacements().contains(where)) throw ApiError("where must be modal, right, down or tab");
     v = new ViewPane(PaneIds::next());
     const QJsonObject r = v->setSource(src);
-    if (!m_ws->placeView(v, anchor, where)) { delete v; throw ApiError("cannot place the view"); }
+    if (where == "modal") m_ws->showModal(v, anchor);
+    else if (!m_ws->placeView(v, anchor, where)) { delete v; throw ApiError("cannot place the view"); }
     *out = v;
     return r;
 }
@@ -243,7 +244,8 @@ bool ApiServer::waitForRender(ViewPane *v, const QJsonObject &req, QLocalSocket 
     int si = -1, ti = -1;
     Tab *t = nullptr;
     m_ws->findView(v->id(), &si, &ti, &t);
-    const bool onScreen = si == m_ws->currentIndex() && t && t == m_ws->currentSpace()->currentTab();
+    const bool onScreen = m_ws->isModal(v) ? m_ws->modalVisible() && m_ws->modalView() == v
+                                           : si == m_ws->currentIndex() && t && t == m_ws->currentSpace()->currentTab();
     if (!v->pageAttached() && !onScreen) return false;
     QPointer<QLocalSocket> guard(sock);
     QPointer<ViewPane> view(v);
@@ -407,16 +409,39 @@ QJsonValue ApiServer::call(const QString &method, const QJsonObject &p, QLocalSo
         if (dir != "right" && dir != "down") throw ApiError("direction must be 'right' or 'down'");
         return QJsonObject{{"pane", t->split(dir == "right")}};
     }
-    if (method == "pane.close" || method == "view.close") {
-        const int id = method == "view.close" ? p["view"].toInt() : p.contains("pane") ? p["pane"].toInt() : pane(p)->id();
+    if (method == "view.close") {
+        if (!m_ws->closeView(p["view"].toInt())) throw ApiError("no such view");
+        return true;
+    }
+    if (method == "view.dock") {   // move a view between the modal and the layout
+        ViewPane *v = m_ws->findView(p["view"].toInt());
+        if (!v) throw ApiError("no such view");
+        const QString where = p["where"].toString("right");
+        if (!Settings::viewPlacements().contains(where)) throw ApiError("where must be modal, right, down or tab");
+        if (where == "modal") { if (!m_ws->isModal(v)) m_ws->popOutView(v->id()); return true; }
+        if (m_ws->isModal(v)) {
+            m_ws->showModal(v, v->anchor());   // bring it to the top of the stack, then dock the top
+            if (!m_ws->dockModal(where)) throw ApiError("cannot dock the view");
+            return true;
+        }
+        throw ApiError("the view is already docked; close it or pop it out first");
+    }
+    if (method == "pane.close") {
+        const int id = p.contains("pane") ? p["pane"].toInt() : pane(p)->id();
+        if (m_ws->closeView(id)) return true;
         Tab *t = m_ws->tabOfPane(id);
-        if (!t || (method == "view.close" && !t->viewById(id))) throw ApiError(method == "view.close" ? "no such view" : "no such pane");
+        if (!t) throw ApiError("no such pane");
         t->closePane(id);
         return true;
     }
     if (method == "view.show") {   // in-process callers (the operator) get the checker report without waiting for the page
         ViewPane *v = nullptr;
         return showView(p, &v);
+    }
+    if (method == "view.toggle") {   // hide / show the modal views
+        if (!m_ws->modalCount()) throw ApiError("no modal views");
+        m_ws->setModalHidden(m_ws->modalVisible());
+        return m_ws->modalVisible() ? "shown" : "hidden";
     }
     if (method == "view.get") {
         ViewPane *v = m_ws->findView(p["view"].toInt());
@@ -425,13 +450,17 @@ QJsonValue ApiServer::call(const QString &method, const QJsonObject &p, QLocalSo
     }
     if (method == "view.list") {
         QJsonArray out;
+        const auto add = [&out](ViewPane *v, const QString &where, int si, int ti) {
+            const QJsonObject r = v->report();
+            QJsonObject o{{"view", v->id()}, {"title", v->title()}, {"source", r["source"]}, {"where", where},
+                          {"errors", r["errors"].toArray().size()}, {"warnings", r["warnings"].toArray().size()}};
+            if (si >= 0) { o["space"] = si; o["tab"] = ti; }
+            out << o;
+        };
         for (int si = 0; si < spaces.size(); ++si)
             for (int ti = 0; ti < spaces[si]->tabList().size(); ++ti)
-                for (ViewPane *v : spaces[si]->tabList()[ti]->views()) {
-                    const QJsonObject r = v->report();
-                    out << QJsonObject{{"view", v->id()}, {"title", v->title()}, {"source", r["source"]}, {"space", si}, {"tab", ti},
-                                       {"errors", r["errors"].toArray().size()}, {"warnings", r["warnings"].toArray().size()}};
-                }
+                for (ViewPane *v : spaces[si]->tabList()[ti]->views()) add(v, "docked", si, ti);
+        for (ViewPane *v : m_ws->modals()) add(v, "modal", -1, -1);
         return out;
     }
     if (method == "view.components") {

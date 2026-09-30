@@ -26,12 +26,18 @@ Item {
         settings.pluginsEnabled: false
         settings.focusOnNavigationEnabled: false
         settings.showScrollBars: true
-        onNavigationRequested: (request) => { if (request.url.toString() !== root.pane.pageUrl) request.reject() }
+        // the page itself never navigates; sub-frames may only load the view's own html sandboxes
+        onNavigationRequested: (request) => {
+            const url = request.url.toString()
+            const allowed = request.isMainFrame ? url === root.pane.pageUrl : url.startsWith(root.pane.sandboxBase)
+            if (!allowed) request.reject()
+        }
         onNewWindowRequested: (request) => {}
         onContextMenuRequested: (request) => { request.accepted = true }
         // page errors reach the terminal nebula was started from; the page also reports them to the view (view_get)
         onJavaScriptConsoleMessage: (level, message, line, source) => {
-            if (level === WebEngineView.ErrorMessageLevel) console.warn(`view ${root.pane ? root.pane.id : "?"}: ${message} (${source}:${line})`)
+            // errors of agent code in html sandboxes are the agent's: they reach it as render issues, not this log
+            if (level === WebEngineView.ErrorMessageLevel && !source.startsWith(root.pane.sandboxBase)) console.warn(`view ${root.pane ? root.pane.id : "?"}: ${message} (${source}:${line})`)
         }
         onLoadingChanged: (info) => { if (info.status === WebEngineView.LoadFailedStatus) console.warn(`view page failed to load: ${info.errorString}`) }
 

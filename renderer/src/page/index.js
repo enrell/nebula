@@ -6,10 +6,15 @@ import { createMarkdown } from './markdown.js';
 
 let bridge;
 let fileBase = '';
+let sandboxBase = '';
+let renderSeq = 0;   // sandbox URLs change on every render, so a redraw (new document or theme) reloads them
 let files = new Set();   // files the checker verified; anything else would be refused by nebula anyway
 const issues = [];
+let mounted = [];     // callbacks that need the node in the document (charts measure their box)
 const ctx = {
+  afterMount(fn) { mounted.push(fn); },
   hasFile: (path) => files.has(path),
+  sandboxUrl: (index) => `${sandboxBase}${index}.html?r=${renderSeq}`,
   fileUrl: (path) => fileBase + path.split('/').map(encodeURIComponent).join('/'),
   markdown(text) { const el = h('div.md'); el.innerHTML = md.render(text); return el; },
   inline(text) { const el = h('span.md-inline'); el.innerHTML = md.renderInline(text); return el; },
@@ -36,15 +41,20 @@ function renderBlock(block) {
   if (block.type === 'markdown') return ctx.markdown(block.text);
   const render = renderers[block.component];
   if (!render) return errorCard({ ...block, errors: [{ line: block.line, message: `this nebula build cannot draw "${block.component}"` }] });
-  return render(block.props, ctx);
+  return render(block.props, ctx, block);
 }
 
+let lastDoc;
 function render(doc) {
+  lastDoc = doc;
+  renderSeq++;
   issues.length = 0;
+  mounted = [];
   files = new Set(doc?.refs ?? []);
   const root = document.getElementById('doc');
+  root.querySelectorAll('.chart-box').forEach((el) => el.nebulaDispose?.());
   const nodes = [];
-  if (doc?.title) nodes.push(h('h1.doc-title', doc.title));
+  // the title belongs to the chrome around the page (pane title bar or modal header), not to the page itself
   for (const block of doc?.blocks ?? []) {
     try {
       const el = renderBlock(block);
@@ -57,6 +67,9 @@ function render(doc) {
     }
   }
   root.replaceChildren(...nodes);
+  for (const fn of mounted) {
+    try { fn(); } catch (e) { ctx.issue(`drawing failed: ${e.message}`); }
+  }
   bridge?.rendered(JSON.stringify({ blocks: nodes.length, issues }));
 }
 
@@ -71,15 +84,22 @@ document.addEventListener('click', (e) => {
 });
 
 window.addEventListener('error', (e) => ctx.issue(`script error: ${e.message}`));
+// errors inside html sandboxes arrive as messages from their frames
+window.addEventListener('message', (e) => {
+  if (e.data && typeof e.data.nebulaIssue === 'string' && [...document.querySelectorAll('iframe.sandbox')].some((f) => f.contentWindow === e.source))
+    ctx.issue(`html block: ${e.data.nebulaIssue.slice(0, 300)}`);
+});
 
 window.addEventListener('DOMContentLoaded', () => {
   // eslint-disable-next-line no-undef
   new QWebChannel(qt.webChannelTransport, (channel) => {
     bridge = channel.objects.view;
     fileBase = bridge.fileBase;
+    sandboxBase = bridge.sandboxBase;
     applyTheme(bridge.theme);
     render(bridge.document);
-    bridge.themeChanged.connect(() => applyTheme(bridge.theme));
+    // charts and sandboxes read the theme when they are drawn: redraw everything on a theme change
+    bridge.themeChanged.connect(() => { applyTheme(bridge.theme); render(lastDoc); });
     bridge.documentChanged.connect(() => render(bridge.document));
   });
 });

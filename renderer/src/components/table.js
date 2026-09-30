@@ -1,28 +1,4 @@
-import { parseDelimited } from '../core/csv.js';
-import { extname } from '../core/paths.js';
-import { closest } from '../core/suggest.js';
-
-const MAX_ROWS = 5000;
-const didYouMean = (word, keys) => { const g = closest(word, keys); return (g ? `did you mean "${g}"? ` : '') + `available: ${keys.join(', ')}`; };
-const NUMERIC = /^[-+]?(\d+\.?\d*|\.\d+)([eE][-+]?\d+)?$/;
-
-function loadData(path, ctx) {
-  const ext = extname(path);
-  if (!['csv', 'tsv', 'json'].includes(ext)) return ctx.error('/data', `unsupported data file ".${ext}"`, 'use a .csv, .tsv or .json file');
-  const f = ctx.readText(path);
-  if (!f.ok) return ctx.error('/data', f.error);
-  if (ext === 'json') {
-    let v;
-    try { v = JSON.parse(f.text); } catch (e) { return ctx.error('/data', `${path} is not valid JSON: ${e.message}`); }
-    if (!Array.isArray(v) || v.some((r) => r === null || typeof r !== 'object' || Array.isArray(r)))
-      return ctx.error('/data', `${path} must hold an array of objects`);
-    return { keys: [...new Set(v.flatMap((r) => Object.keys(r)))], rows: v };
-  }
-  const rows = parseDelimited(f.text, ext === 'tsv' ? '\t' : ',');
-  if (!rows.length) return ctx.error('/data', `${path} is empty`);
-  const [header, ...body] = rows;
-  return { keys: header, rows: body.map((r) => Object.fromEntries(header.map((k, i) => [k, r[i] ?? '']))) };
-}
+import { dataProps, didYouMean, isNumeric, loadRecords, MAX_ROWS } from '../core/data.js';
 
 export default {
   name: 'table',
@@ -47,8 +23,7 @@ export default {
         },
         description: 'columns to show, in order; default: every field',
       },
-      rows: { type: 'array', items: { type: ['array', 'object'] }, description: 'lists (need columns) or objects' },
-      data: { type: 'string', description: 'relative path to a .csv, .tsv or .json (array of objects) file' },
+      ...dataProps,
       sort: {
         type: 'object',
         additionalProperties: false,
@@ -60,34 +35,16 @@ export default {
   },
   example: 'columns: [suite, passed, failed, {key: ms, label: time (ms)}]\nrows:\n  - [auth, 42, 0, 812]\n  - [billing, 17, 2, 1290]\nsort: {by: failed, desc: true}',
   resolve(props, ctx) {
-    if ((props.rows === undefined) === (props.data === undefined)) return ctx.error('', 'give exactly one of "rows" or "data"');
-    let cols = (props.columns ?? []).map((c) => (typeof c === 'string' ? { key: c } : c));
-    let records;
-    if (props.data !== undefined) {
-      const d = loadData(props.data, ctx);
-      if (!d) return undefined;
-      if (!cols.length) cols = d.keys.map((key) => ({ key }));
-      const missing = cols.filter((c) => !d.keys.includes(c.key));
-      if (missing.length)
-        return ctx.error('/columns', `column${missing.length > 1 ? 's' : ''} ${missing.map((c) => `"${c.key}"`).join(', ')} not found in ${props.data}`, didYouMean(missing[0].key, d.keys));
-      records = d.rows;
-    } else if (props.rows.every(Array.isArray)) {
-      if (!cols.length) return ctx.error('/columns', '"columns" is required when rows are lists');
-      const bad = props.rows.findIndex((r) => r.length !== cols.length);
-      if (bad >= 0) return ctx.error(`/rows/${bad}`, `row has ${props.rows[bad].length} cells but there are ${cols.length} columns`);
-      records = props.rows.map((r) => Object.fromEntries(cols.map((c, i) => [c.key, r[i]])));
-    } else if (props.rows.some(Array.isArray)) {
-      return ctx.error('/rows', 'rows must be all lists or all objects');
-    } else {
-      const keys = [...new Set(props.rows.flatMap((r) => Object.keys(r)))];
-      if (!cols.length) cols = keys.map((key) => ({ key }));
-      const missing = cols.filter((c) => !keys.includes(c.key));
-      if (missing.length) return ctx.error('/columns', `column "${missing[0].key}" is not a field of any row`, didYouMean(missing[0].key, keys));
-      records = props.rows;
-    }
+    const d = loadRecords(props, ctx);
+    if (!d) return undefined;
+    const cols = props.columns?.length ? props.columns.map((c) => (typeof c === 'string' ? { key: c } : c)) : d.keys.map((key) => ({ key }));
+    const missing = cols.filter((c) => !d.keys.includes(c.key));
+    if (missing.length)
+      return ctx.error('/columns', `column${missing.length > 1 ? 's' : ''} ${missing.map((c) => `"${c.key}"`).join(', ')} not found${props.data ? ` in ${props.data}` : ''}`, didYouMean(missing[0].key, d.keys));
+    const records = d.records;
     const cell = (v) => (v === null || v === undefined ? '' : typeof v === 'object' ? JSON.stringify(v) : v);
     let rows = records.map((r) => cols.map((c) => cell(r[c.key])));
-    const numeric = cols.map((_, i) => rows.length > 0 && rows.every((r) => r[i] === '' || typeof r[i] === 'number' || NUMERIC.test(String(r[i]).trim())));
+    const numeric = cols.map((_, i) => rows.length > 0 && rows.every((r) => r[i] === '' || isNumeric(r[i])));
     let sort;
     if (props.sort) {
       const i = cols.findIndex((c) => c.key === props.sort.by);

@@ -9,6 +9,7 @@
 #include <QFileInfo>
 #include <QHash>
 #include <QJsonDocument>
+#include <QRegularExpression>
 #include <QSaveFile>
 #include <QUrl>
 #include <cmath>
@@ -150,6 +151,39 @@ QJsonObject ViewPane::themeJson() const {
 }
 
 QString ViewPane::fileBase() const { return QString("nebula-view://app/files/%1/").arg(m_id); }
+QString ViewPane::sandboxBase() const { return QString("nebula-view://app/sandbox/%1/").arg(m_id); }
+
+// An `html` block runs in its own document, loaded from nebula-view:// into an iframe with sandbox="allow-scripts"
+// (opaque origin: no access to the view page, the bridge, storage or cookies). It cannot be srcdoc: that would
+// inherit the view page's strict CSP. Its own CSP allows inline code but no network source at all.
+QByteArray ViewPane::sandboxDocument(int blockIndex) const {
+    QString html;
+    bool found = false;
+    for (const QJsonValue &b : m_doc["blocks"].toArray())
+        if (b["index"].toInt() == blockIndex && b["component"].toString() == "html" && b["ok"].toBool()) {
+            html = b["props"]["html"].toString();
+            found = true;
+        }
+    if (!found) return {};
+    static const QString csp = "default-src 'none'; script-src 'unsafe-inline' 'unsafe-eval' blob:; style-src 'unsafe-inline'; "
+                               "img-src data: blob:; font-src data:; media-src data: blob:; worker-src blob:; connect-src 'none'; form-action 'none'";
+    const QJsonObject t = themeJson();
+    QString vars;
+    const QJsonObject colors = t["colors"].toObject();
+    for (auto it = colors.begin(); it != colors.end(); ++it) vars += QString("--%1:%2;").arg(it.key(), it.value().toString());
+    vars += QString("--font:\"%1\", monospace;--font-size:%2px;").arg(t["fontFamily"].toString()).arg(t["fontSize"].toDouble());
+    const QString head = QString("<meta charset=\"utf-8\"><meta http-equiv=\"Content-Security-Policy\" content=\"%1\">"
+                                 "<style>:root{%2color-scheme:dark}html,body{margin:0;background:var(--bg);color:var(--fg);font:var(--font-size)/1.5 var(--font)}canvas,svg{display:block}</style>"
+                                 "<script>addEventListener('error',e=>parent.postMessage({nebulaIssue:e.message+(e.lineno?' (line '+e.lineno+')':'')},'*'));"
+                                 "addEventListener('unhandledrejection',e=>parent.postMessage({nebulaIssue:'unhandled rejection: '+((e.reason&&e.reason.message)||e.reason)},'*'));</script>")
+                             .arg(csp, vars);
+    static const QRegularExpression headTag("<head(\\s[^>]*)?>", QRegularExpression::CaseInsensitiveOption);
+    const QRegularExpressionMatch m = headTag.match(html);
+    const QString doc = m.hasMatch() ? QString(html).insert(m.capturedEnd(), head)
+                                     : "<!doctype html><html><head>" + head + "</head><body>" + html + "</body></html>";
+    return doc.toUtf8();
+}
+
 QString ViewPane::pageUrl() const { return "nebula-view://app/page.html"; }
 
 void ViewPane::rendered(const QString &reportJson) {

@@ -40,6 +40,12 @@ Rectangle {
         Chip { text: root.working + " working"; tone: theme.yellow; active: root.working > 0 }
         Chip { text: root.blocked + " blocked"; tone: theme.red; active: root.blocked > 0; onClicked: app.runAction("next-attention") }
         Chip { text: root.done + " done"; tone: theme.green; active: root.done > 0; onClicked: app.runAction("next-attention") }
+        Chip {
+            visible: app.modalCount > 0
+            text: app.modalCount + (app.modalCount === 1 ? " view" : " views") + (app.modalVisible ? "" : "  (hidden)")
+            tone: theme.accent
+            onClicked: app.runAction("toggle-views")
+        }
     }
 
     Row {

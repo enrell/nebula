@@ -28,8 +28,9 @@ methods:
   pane.send_keys [pane=ID] keys='["Ctrl+C","Enter"]'
   pane.read [pane=ID] [lines=N] [scrollback=true]
   pane.report_state [pane=ID] state=working|blocked|done|idle [ttl=SECONDS]
-  view.show file=PATH | content=STR (content=@- reads stdin) [view=ID] [title=STR] [where=right|down|tab]
-  view.get view=ID | view.list | view.close view=ID | view.components [name=NAME]
+  view.show file=PATH | content=STR (content=@- reads stdin) [view=ID] [title=STR] [where=modal|right|down|tab]
+  view.get view=ID | view.list | view.close view=ID | view.dock view=ID where=modal|right|down|tab | view.toggle
+  view.components [name=NAME]
 
 Panes default to the focused pane; inside a pane $NEBULA_PANE is set and used when pane= is omitted for report_state
 and view.show (a view opens next to the calling pane; relative paths start from the current directory).

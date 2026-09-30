@@ -6,6 +6,7 @@ class QQuickWebEngineProfile;
 // The web side of views: the `nebula-view://` scheme and the isolated browser profile view pages run in.
 //   nebula-view://app/page.html|page.js|page.css|qwebchannel.js   renderer assets compiled into the binary
 //   nebula-view://app/files/<view>/<relative path>                 a file the view's checked document references
+//   nebula-view://app/sandbox/<view>/<block>.html                  the isolated document of an `html` block
 // The profile is off the record (nothing written to disk) and blocks every request that is not nebula-view:,
 // data: or blob:, so a view can never reach the network or arbitrary local files.
 namespace ViewWeb {

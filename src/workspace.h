@@ -52,6 +52,7 @@ public:
     Q_INVOKABLE int split(bool sideBySide);
     int splitWith(bool sideBySide, const QString &cwd, const QString &profile);
     Q_INVOKABLE void closePane(int id);
+    ViewPane *takeView(int id);   // removes a view from the layout without closing it (to show it as a modal)
     Q_INVOKABLE void focusPane(int id);
     Q_INVOKABLE void focusDirection(int dx, int dy);
     Q_INVOKABLE void focusCycle(int delta);
@@ -78,6 +79,7 @@ private:
     explicit Tab(RestoreTag, QObject *parent) : QObject(parent) {}
     TerminalSession *makeSession(const QString &cwd, int id = 0, bool attach = false, const QString &prefill = QString(), const QString &profile = QString());
     void adoptView(ViewPane *v);
+    ViewPane *removePane(int id, bool destroy);
     Node *find(Node *n, int pane) const;
     QVariantMap toVariant(const Node *n) const;
     void rects(const Node *n, QRectF r, QHash<int, QRectF> &out) const;
@@ -161,6 +163,9 @@ class Workspace : public QObject {
     Q_PROPERTY(bool helpVisible READ helpVisible NOTIFY viewChanged)
     Q_PROPERTY(QString overlay READ overlay NOTIFY viewChanged)
     Q_PROPERTY(QVariantMap overlayData READ overlayData NOTIFY viewChanged)
+    Q_PROPERTY(QObject *modalView READ modalView NOTIFY modalChanged)
+    Q_PROPERTY(int modalCount READ modalCount NOTIFY modalChanged)
+    Q_PROPERTY(bool modalVisible READ modalVisible NOTIFY modalChanged)
 public:
     explicit Workspace(Theme *theme, QObject *parent = nullptr);
     QVariantList spaces() const;
@@ -175,6 +180,20 @@ public:
     QVariantMap overlayData() const { return m_overlayData; }
     Q_INVOKABLE void showOverlay(const QString &name, const QVariantMap &data = {});
     Q_INVOKABLE void hideOverlay();
+
+    // Views shown as a modal over the workspace (the default placement). A stack: the newest is on top.
+    // Hiding keeps them (Esc, Ctrl+Shift+O, the status bar brings them back); closing discards the top one.
+    QObject *modalView() const;
+    int modalCount() const { return int(m_modals.size()); }
+    bool modalVisible() const { return !m_modals.isEmpty() && !m_modalHidden; }
+    void showModal(ViewPane *v, int anchorPane);
+    Q_INVOKABLE void closeModal();
+    Q_INVOKABLE void setModalHidden(bool hidden);
+    Q_INVOKABLE bool dockModal(const QString &where);   // top modal -> split next to its anchor ("right"/"down") or a tab
+    Q_INVOKABLE void popOutView(int viewId);           // docked view -> modal
+    bool closeView(int id);                            // docked or modal
+    bool isModal(const ViewPane *v) const;
+    QList<ViewPane *> modals() const;
 
     Q_INVOKABLE void copyToClipboard(const QString &text);
     Q_INVOKABLE void setSpaceProfile(int i, const QString &profile);
@@ -211,6 +230,7 @@ signals:
     void agentEvent(const QJsonObject &ev);
     void renameRequested(int index);
     void focusRequested();
+    void modalChanged();
 
 private:
     struct Binding {
@@ -230,6 +250,8 @@ private:
     int m_current = 0;
     QVariantList m_agents;
     bool m_sidebar = true, m_help = false, m_settings = false;
+    QList<ViewPane *> m_modals;
+    bool m_modalHidden = false;
     QString m_overlay;
     QVariantMap m_overlayData;
     QByteArray m_saved;

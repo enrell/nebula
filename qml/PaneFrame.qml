@@ -63,6 +63,7 @@ Item {
         Row {
             id: btns
             anchors.centerIn: parent
+            IconButton { size: 11; icon: "popout"; visible: root.isView; onClicked: app.popOutView(root.paneId) }
             IconButton { size: 11; icon: "split-right"; onClicked: { root.tab.focusPane(root.paneId); app.runAction("split-right") } }
             IconButton { size: 11; icon: "split-down"; onClicked: { root.tab.focusPane(root.paneId); app.runAction("split-down") } }
             IconButton { size: 11; icon: "zoom"; onClicked: { root.tab.focusPane(root.paneId); app.runAction("zoom-pane") } }

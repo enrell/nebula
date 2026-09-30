@@ -67,6 +67,14 @@ Canvas {
             ctx.closePath()
             break
         }
+        case "popout":
+            ctx.moveTo(w / 2 - 1, m); ctx.lineTo(m, m); ctx.lineTo(m, h - m); ctx.lineTo(w - m, h - m); ctx.lineTo(w - m, h / 2 + 1)
+            ctx.moveTo(w / 2 + 1, m); ctx.lineTo(w - m, m); ctx.lineTo(w - m, h / 2 - 1)
+            ctx.moveTo(w - m, m); ctx.lineTo(w / 2, h / 2)
+            break
+        case "hide":
+            ctx.moveTo(m, h - m - 1); ctx.lineTo(w - m, h - m - 1)
+            break
         case "back":
             ctx.moveTo(w - m, h / 2); ctx.lineTo(m, h / 2)
             ctx.moveTo(m + 3.5, h / 2 - 3.5); ctx.lineTo(m, h / 2); ctx.lineTo(m + 3.5, h / 2 + 3.5)

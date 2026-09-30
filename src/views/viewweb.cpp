@@ -29,6 +29,18 @@ public:
             {"/qwebchannel.js", {":/qtwebchannel/qwebchannel.js", "text/javascript"}},
         };
         if (assets.contains(path)) return serve(job, assets[path].first, assets[path].second);
+        // /sandbox/<view>/<block>.html: the document an `html` block runs in
+        static const QString sandbox = "/sandbox/";
+        if (path.startsWith(sandbox)) {
+            const QStringList parts = path.mid(sandbox.size()).split('/');
+            ViewPane *view = parts.size() == 2 ? ViewPane::byId(parts[0].toInt()) : nullptr;
+            const QByteArray doc = view && parts[1].endsWith(".html") ? view->sandboxDocument(parts[1].chopped(5).toInt()) : QByteArray();
+            if (doc.isEmpty()) return job->fail(QWebEngineUrlRequestJob::UrlNotFound);
+            auto *buf = new QBuffer(job);
+            buf->setData(doc);
+            buf->open(QIODevice::ReadOnly);
+            return job->reply("text/html", buf);
+        }
         // /files/<view>/<relative path>: only files the view's checked document declared
         static const QString prefix = "/files/";
         if (!path.startsWith(prefix)) return job->fail(QWebEngineUrlRequestJob::UrlNotFound);

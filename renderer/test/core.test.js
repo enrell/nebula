@@ -78,7 +78,7 @@ test('limits: huge documents are refused with a hint', () => {
 
 test('component catalogue', () => {
   const list = JSON.parse(core.componentsJson());
-  assert.deepEqual(list.map((c) => c.name), ['callout', 'stats', 'table', 'checklist', 'code', 'image']);
+  assert.deepEqual(list.map((c) => c.name), ['callout', 'stats', 'table', 'chart', 'chart3d', 'checklist', 'code', 'image', 'html']);
   for (const { name } of list) {
     const d = JSON.parse(core.describeJson(name));
     assert.ok(d.schema && d.example.startsWith(`\`\`\`nebula:${name}\n`));
@@ -99,4 +99,12 @@ test('an empty body reports the missing fields, not the colon pitfall', () => {
   const r = check('```nebula:callout\n```');
   assert.equal(r.diagnostics.length, 1);
   assert.match(r.diagnostics[0].message, /missing required field "text"/);
+});
+
+test('claygl size expressions evaluate without eval', async () => {
+  const { compileSizeExpr } = await import('../src/page/sizeexpr.js');
+  assert.deepEqual(compileSizeExpr(' [width * dpr / 4, height * 1.0 / 2] ')(800, 600, 2), [400, 300]);
+  assert.equal(compileSizeExpr('height')(800, 600, 1), 600);
+  assert.equal(compileSizeExpr('(width - 10) / 2')(30, 0, 1), 10);
+  assert.throws(() => compileSizeExpr('alert(1)'));
 });

@@ -38,7 +38,7 @@ QString viewShowDescription() {
     QString list;
     for (const QJsonValue &c : ViewEngine::instance().components())
         list += QString("\n- nebula:%1: %2").arg(c["name"].toString(), c["summary"].toString());
-    return "Show the user a rich view (a pane next to yours): Markdown plus nebula components, validated before it is drawn. "
+    return "Show the user a rich view (by default a large window over the workspace): Markdown plus nebula components, validated before it is drawn. "
            "Use it to present results, plans, tables, code and images instead of long terminal output.\n"
            "Format: Markdown; a component is a fenced block ```nebula:<name> [#id] with a YAML body; an optional front matter "
            "block (--- lines) may set title:. Reference big data and code by relative file path (table data:, code file:) instead of pasting it."
@@ -165,7 +165,7 @@ const QList<Spec> &all() {
         make("view_show", viewShowDescription(),
              schema({{"content", str("the document (Markdown + nebula components)")}, {"file", str("path of a document file instead of content; the view reloads when it changes")},
                      {"view", num("id of a view to update instead of opening a new one")}, {"title", str("pane title (default: the document's)")},
-                     {"where", str("right | down | tab (default right, next to your pane)")}}),
+                     {"where", str("modal | right | down | tab: over the workspace, or docked next to your pane (default: the user's setting, normally modal; leave it unset)")}}),
              [](const QJsonObject &a, const Api &api) {
                  QJsonObject p = a;
                  addCaller(p);

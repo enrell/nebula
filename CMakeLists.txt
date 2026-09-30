@@ -77,6 +77,7 @@ qt_add_qml_module(nebula
     qml/StatusBar.qml
     qml/OnboardingWizard.qml
     qml/ViewContent.qml
+    qml/ViewModal.qml
 )
 
 # Views: the document checker and the page renderer, built from renderer/ (see renderer/package.json).

@@ -69,6 +69,7 @@ int main(int argc, char *argv[]) {
     api.setOperator(&op);
     if (!api.listen(Paths::socket())) std::fprintf(stderr, "nebula: warning: cannot listen on %s\n", qPrintable(Paths::socket()));
 
+    ViewWeb::Provider viewWeb;   // before the engine: QML bindings use it until the engine is gone
     QQmlApplicationEngine engine;
     engine.rootContext()->setContextProperty("theme", &theme);
     engine.rootContext()->setContextProperty("settings", &settings);
@@ -78,7 +79,6 @@ int main(int argc, char *argv[]) {
     engine.rootContext()->setContextProperty("integrations", &integrations);
     engine.rootContext()->setContextProperty("launcher", &launcher);
     engine.rootContext()->setContextProperty("operatorAgent", &op);
-    ViewWeb::Provider viewWeb;
     engine.rootContext()->setContextProperty("viewWeb", &viewWeb);
     // Dev mode: NEBULA_QML_DIR=/path/to/qml loads the UI from disk and reloads it whenever a .qml file changes,
     // so UI iteration needs no rebuild at all.

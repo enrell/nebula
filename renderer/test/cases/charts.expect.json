@@ -1,0 +1,40 @@
+{
+ "ok": [
+  true,
+  false,
+  false,
+  false,
+  true,
+  false,
+  true,
+  false
+ ],
+ "errors": [
+  [
+   13,
+   "a pie chart takes exactly one y column"
+  ],
+  [
+   20,
+   "did you mean \"before_ms\"?"
+  ],
+  [
+   27,
+   "column \"run\" must be numeric, but row 1 has \"r1\""
+  ],
+  [
+   39,
+   "a surface needs a full grid: 2 x values \u00d7 2 y values = 4 points, got 3"
+  ],
+  [
+   55,
+   "give exactly one of \"html\" or \"file\""
+  ]
+ ],
+ "warnings": [
+  [
+   49,
+   "network access is blocked inside views"
+  ]
+ ]
+}

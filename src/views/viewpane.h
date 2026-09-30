@@ -24,6 +24,7 @@ class ViewPane : public QObject {
     Q_PROPERTY(QJsonObject document READ document NOTIFY documentChanged)
     Q_PROPERTY(QJsonObject theme READ themeJson NOTIFY themeChanged)
     Q_PROPERTY(QString fileBase READ fileBase CONSTANT)
+    Q_PROPERTY(QString sandboxBase READ sandboxBase CONSTANT)
     Q_PROPERTY(QString pageUrl READ pageUrl CONSTANT)
 public:
     struct Source {
@@ -53,9 +54,13 @@ public:
     QJsonObject document() const { return m_doc; }
     QJsonObject themeJson() const;
     QString fileBase() const;
+    QString sandboxBase() const;
+    QByteArray sandboxDocument(int blockIndex) const;   // the page an `html` block runs in (see ViewWeb)
     QString pageUrl() const;
     QString baseDir() const { return m_src.baseDir; }
     QString paneTitle() const { return m_src.title; }
+    int anchor() const { return m_anchor; }          // the pane that asked for the view (docking goes next to it)
+    void setAnchor(int pane) { m_anchor = pane; }
     bool allowsFile(const QString &relative) const { return m_refs.contains(relative); }
     int generation() const { return m_generation; }
     bool pageAttached() const { return m_pageAttached; }
@@ -87,6 +92,7 @@ private:
     QSet<QString> m_refs;
     QStringList m_renderIssues;
     int m_generation = 0, m_renderedGeneration = -1;
+    int m_anchor = -1;
     bool m_pageAttached = false;
     QFileSystemWatcher m_watcher;
     QTimer m_reloadTimer;
