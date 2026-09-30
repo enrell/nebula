@@ -63,6 +63,9 @@ REPO=$HOME/repo; mkdir -p "$REPO"; git -C "$REPO" init -q; git -C "$REPO" -c use
 W=$(ctl agent.launch agent=shell cwd="$REPO" worktree=true branch=feat/x where=tab)
 echo "$W" | grep -q "repo-feat-x" || fail "worktree path: $W"
 [ -d "$REPO-feat-x" ] || fail "worktree not created"
+# from inside that worktree, the next one is its sibling, branched off the main checkout
+W=$(ctl agent.launch agent=shell cwd="$REPO-feat-x" worktree=true branch=feat/y where=tab)
+echo "$W" | grep -q '"/[^"]*/repo-feat-y"' || fail "worktree from a worktree should be a sibling: $W"
 { ctl agent.launch agent=shell cwd=/nonexistent 2>&1 || true; } | grep -q "does not exist" || fail "bad cwd should error"
 { ctl agent.launch agent=shell profile=nope 2>&1 || true; } | grep -q "unknown profile" || fail "unknown profile should error"
 ctl agent.presets | grep -q claude || fail "presets"
