@@ -86,7 +86,7 @@ test('component catalogue', async () => {
     const d = JSON.parse(core.describeJson(name));
     assert.ok(d.schema && d.example.startsWith(`\`\`\`nebula:${name}\n`));
     // every example must itself be valid
-    const r = check(d.example.replace('file: src/workspace.cpp\nlines: 120-160', 'file: src/sample.py').replace('docs/screenshots/main.png', 'img/pixel.png'));
+    const r = check(d.example.replace('file: src/workspace.cpp\nlines: 120-160', 'file: src/sample.py'));
     assert.deepEqual(r.diagnostics.filter((x) => x.severity === 'error'), [], `${name} example`);
   }
   assert.equal(JSON.parse(core.describeJson('nope')), null);
@@ -109,4 +109,15 @@ test('claygl size expressions evaluate without eval', async () => {
   assert.equal(compileSizeExpr('height')(800, 600, 1), 600);
   assert.equal(compileSizeExpr('(width - 10) / 2')(30, 0, 1), 10);
   assert.throws(() => compileSizeExpr('alert(1)'));
+});
+
+test('formula precedence and associativity', async () => {
+  const { parse } = await import('../src/core/expr.js');
+  const ev = (s, v = {}) => parse(s, Object.keys(v)).fn(v);
+  const cases = [
+    ['1 - 2*3', {}, -5], ['x - b y', { x: 1, b: 3, y: 2 }, -5], ['10 - 4 - 3', {}, 3], ['8/4/2', {}, 1], ['2^3^2', {}, 512],
+    ['-x^2', { x: 3 }, -9], ['-2x', { x: 3 }, -6], ['2x + 1', { x: 3 }, 7], ['x y^2', { x: 2, y: 3 }, 18], ['3(x + 1)', { x: 1 }, 6],
+    ['1 + 2*3^2', {}, 19], ['-sin(x) - b y', { x: 1.5, y: 0.5, b: 0.25 }, -Math.sin(1.5) - 0.125],
+  ];
+  for (const [src, vars, want] of cases) assert.ok(Math.abs(ev(src, vars) - want) < 1e-12, `${src} = ${ev(src, vars)}, expected ${want}`);
 });

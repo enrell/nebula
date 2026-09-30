@@ -1,5 +1,5 @@
-// NumPy .npy (format 1.0 – 3.0) for 1-D and 2-D numeric arrays, from base64 (the host hands binary files over as
-// base64). Supports little/big endian ints, unsigned ints, floats and bools; C and Fortran order.
+// NumPy .npy (format 1.0 – 3.0) numeric arrays, from base64 (the host hands binary files over as base64) or from the
+// bytes the page fetched. Supports little/big endian ints, unsigned ints, floats and bools; C and Fortran order.
 const B64 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
 const LOOKUP = (() => { const t = new Int16Array(128).fill(-1); for (let i = 0; i < 64; i++) t[B64.charCodeAt(i)] = i; return t; })();
 
@@ -17,8 +17,9 @@ export function base64ToBytes(s) {
   return out.subarray(0, o);
 }
 
-// -> { shape, data: number[] (row-major) } or { error }
-export function parseNpy(bytes) {
+// -> { shape, data: number[] (row-major) } or { error }. `dims` lists the accepted dimensionalities; with
+// headerOnly the data is checked for length but not decoded (the checker of a large volume needs only the shape).
+export function parseNpy(bytes, { dims = [1, 2], headerOnly = false } = {}) {
   const magic = [0x93, 0x4e, 0x55, 0x4d, 0x50, 0x59];
   if (bytes.length < 10 || magic.some((b, i) => bytes[i] !== b)) return { error: 'not a .npy file (bad magic)' };
   const major = bytes[6];
@@ -32,7 +33,7 @@ export function parseNpy(bytes) {
   const shapeText = /'shape':\s*\(([^)]*)\)/.exec(header)?.[1];
   if (!descr || shapeText === undefined) return { error: 'unreadable .npy header' };
   const shape = shapeText.split(',').map((s) => s.trim()).filter(Boolean).map(Number);
-  if (shape.length < 1 || shape.length > 2) return { error: `.npy array has ${shape.length} dimensions; 1 or 2 are supported` };
+  if (!dims.includes(shape.length)) return { error: `.npy array has ${shape.length} dimension${shape.length === 1 ? '' : 's'} (shape ${shape.join('×') || 'scalar'}); expected ${dims.join(' or ')}` };
   const m = /^([<>|=])([fiub])(\d+)$/.exec(descr);
   if (!m) return { error: `.npy dtype ${descr} is not supported (numeric arrays only)` };
   const little = m[1] !== '>';
@@ -50,12 +51,18 @@ export function parseNpy(bytes) {
   const count = shape.reduce((a, b) => a * b, 1);
   const offset = start + headerLen;
   if (offset + count * size > bytes.length) return { error: '.npy file is truncated' };
+  if (headerOnly) return { shape };
   const flat = new Array(count);
   for (let i = 0; i < count; i++) flat[i] = read(offset + i * size);
-  if (shape.length === 2 && fortran) {   // to row-major
-    const [r, c] = shape, out = new Array(count);
-    for (let i = 0; i < r; i++) for (let j = 0; j < c; j++) out[i * c + j] = flat[j * r + i];
-    return { shape, data: out };
+  if (!fortran || shape.length < 2) return { shape, data: flat };
+  // Fortran order: the first index varies fastest; reorder to row-major (last index fastest)
+  const out = new Array(count), idx = new Array(shape.length).fill(0);
+  const fstride = shape.map((_, k) => shape.slice(0, k).reduce((a, b) => a * b, 1));
+  for (let i = 0; i < count; i++) {
+    let f = 0;
+    for (let k = 0; k < shape.length; k++) f += idx[k] * fstride[k];
+    out[i] = flat[f];
+    for (let k = shape.length - 1; k >= 0 && ++idx[k] === shape[k]; k--) idx[k] = 0;
   }
-  return { shape, data: flat };
+  return { shape, data: out };
 }

@@ -154,7 +154,8 @@ function checkComponent(b, block, host, refs, diagnostics, index, ids) {
       hint: (guess ? `did you mean "nebula:${guess}"? ` : '') + `available: ${components.map((c) => c.name).join(', ')}` });
     return;
   }
-  const parsed = parseYaml(b.body, b.bodyLine, tag, diagnostics);
+  // a raw block (```mermaid) is its body verbatim in one field; diagnostics point at the fence line
+  const parsed = b.raw ? { value: { [b.raw]: b.body }, lineOf: () => b.line, doc: { contents: null } } : parseYaml(b.body, b.bodyLine, tag, diagnostics);
   if (!parsed) return;
   let data = parsed.value;
   let strip = 0;

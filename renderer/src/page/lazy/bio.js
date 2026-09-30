@@ -93,6 +93,7 @@ export function tree(p, ctx) {
     draw();
     const ro = new ResizeObserver(draw);
     ro.observe(box);
+    box.classList.add('live');
     box.nebulaDispose = () => ro.disconnect();
   });
   return card('tree-card', p.title, box);
@@ -149,6 +150,7 @@ export function tracks(p, ctx) {
     draw();
     const ro = new ResizeObserver(draw);
     ro.observe(box);
+    box.classList.add('live');
     box.nebulaDispose = () => ro.disconnect();
   });
   const r = p.region;

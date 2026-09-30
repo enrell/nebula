@@ -1045,7 +1045,7 @@ var NebulaCore = (() => {
       (c, index) => (c.charCodeAt(index) & 64512) === 55296 ? (c.charCodeAt(index) - 55296) * 1024 + c.charCodeAt(index + 1) - 56320 + 65536 : c.charCodeAt(index)
     )
   );
-  function getEscaper(regex, map3) {
+  function getEscaper(regex, map4) {
     return function escape5(data) {
       let match2;
       let lastIdx = 0;
@@ -1054,7 +1054,7 @@ var NebulaCore = (() => {
         if (lastIdx !== match2.index) {
           result += data.substring(lastIdx, match2.index);
         }
-        result += map3.get(match2[0].charCodeAt(0));
+        result += map4.get(match2[0].charCodeAt(0));
         lastIdx = match2.index + 1;
       }
       return result + data.substring(lastIdx);
@@ -6396,9 +6396,9 @@ var NebulaCore = (() => {
     if (isNode(value))
       return value;
     if (isPair(value)) {
-      const map3 = (_b = (_a2 = ctx.schema[MAP]).createNode) == null ? void 0 : _b.call(_a2, ctx.schema, null, ctx);
-      map3.items.push(value);
-      return map3;
+      const map4 = (_b = (_a2 = ctx.schema[MAP]).createNode) == null ? void 0 : _b.call(_a2, ctx.schema, null, ctx);
+      map4.items.push(value);
+      return map4;
     }
     if (value instanceof String || value instanceof Number || value instanceof Boolean || typeof BigInt !== "undefined" && value instanceof BigInt) {
       value = value.valueOf();
@@ -7253,30 +7253,30 @@ ${ctx.indent}`;
     stringify: () => MERGE_KEY
   };
   var isMergeKey = (ctx, key) => (merge.identify(key) || isScalar(key) && (!key.type || key.type === Scalar.PLAIN) && merge.identify(key.value)) && (ctx == null ? void 0 : ctx.doc.schema.tags.some((tag) => tag.tag === merge.tag && tag.default));
-  function addMergeToJSMap(ctx, map3, value) {
+  function addMergeToJSMap(ctx, map4, value) {
     const source = resolveAliasValue(ctx, value);
     if (isSeq(source))
       for (const it of source.items)
-        mergeValue(ctx, map3, it);
+        mergeValue(ctx, map4, it);
     else if (Array.isArray(source))
       for (const it of source)
-        mergeValue(ctx, map3, it);
+        mergeValue(ctx, map4, it);
     else
-      mergeValue(ctx, map3, source);
+      mergeValue(ctx, map4, source);
   }
-  function mergeValue(ctx, map3, value) {
+  function mergeValue(ctx, map4, value) {
     const source = resolveAliasValue(ctx, value);
     if (!isMap(source))
       throw new Error("Merge sources must be maps or map aliases");
     const srcMap = source.toJSON(null, ctx, Map);
     for (const [key, value2] of srcMap) {
-      if (map3 instanceof Map) {
-        if (!map3.has(key))
-          map3.set(key, value2);
-      } else if (map3 instanceof Set) {
-        map3.add(key);
-      } else if (!Object.prototype.hasOwnProperty.call(map3, key)) {
-        Object.defineProperty(map3, key, {
+      if (map4 instanceof Map) {
+        if (!map4.has(key))
+          map4.set(key, value2);
+      } else if (map4 instanceof Set) {
+        map4.add(key);
+      } else if (!Object.prototype.hasOwnProperty.call(map4, key)) {
+        Object.defineProperty(map4, key, {
           value: value2,
           writable: true,
           enumerable: true,
@@ -7284,39 +7284,39 @@ ${ctx.indent}`;
         });
       }
     }
-    return map3;
+    return map4;
   }
   function resolveAliasValue(ctx, value) {
     return ctx && isAlias(value) ? value.resolve(ctx.doc, ctx) : value;
   }
 
   // node_modules/yaml/browser/dist/nodes/addPairToJSMap.js
-  function addPairToJSMap(ctx, map3, { key, value }) {
+  function addPairToJSMap(ctx, map4, { key, value }) {
     if (isNode(key) && key.addToJSMap)
-      key.addToJSMap(ctx, map3, value);
+      key.addToJSMap(ctx, map4, value);
     else if (isMergeKey(ctx, key))
-      addMergeToJSMap(ctx, map3, value);
+      addMergeToJSMap(ctx, map4, value);
     else {
       const jsKey = toJS(key, "", ctx);
-      if (map3 instanceof Map) {
-        map3.set(jsKey, toJS(value, jsKey, ctx));
-      } else if (map3 instanceof Set) {
-        map3.add(jsKey);
+      if (map4 instanceof Map) {
+        map4.set(jsKey, toJS(value, jsKey, ctx));
+      } else if (map4 instanceof Set) {
+        map4.add(jsKey);
       } else {
         const stringKey = stringifyKey(key, jsKey, ctx);
         const jsValue = toJS(value, stringKey, ctx);
-        if (stringKey in map3)
-          Object.defineProperty(map3, stringKey, {
+        if (stringKey in map4)
+          Object.defineProperty(map4, stringKey, {
             value: jsValue,
             writable: true,
             enumerable: true,
             configurable: true
           });
         else
-          map3[stringKey] = jsValue;
+          map4[stringKey] = jsValue;
       }
     }
-    return map3;
+    return map4;
   }
   function stringifyKey(key, jsKey, ctx) {
     if (jsKey === null)
@@ -7542,14 +7542,14 @@ ${indent}${end}`;
      */
     static from(schema4, obj, ctx) {
       const { keepUndefined, replacer } = ctx;
-      const map3 = new this(schema4);
+      const map4 = new this(schema4);
       const add2 = (key, value) => {
         if (typeof replacer === "function")
           value = replacer.call(obj, key, value);
         else if (Array.isArray(replacer) && !replacer.includes(key))
           return;
         if (value !== void 0 || keepUndefined)
-          map3.items.push(createPair(key, value, ctx));
+          map4.items.push(createPair(key, value, ctx));
       };
       if (obj instanceof Map) {
         for (const [key, value] of obj)
@@ -7559,9 +7559,9 @@ ${indent}${end}`;
           add2(key, obj[key]);
       }
       if (typeof schema4.sortMapEntries === "function") {
-        map3.items.sort(schema4.sortMapEntries);
+        map4.items.sort(schema4.sortMapEntries);
       }
-      return map3;
+      return map4;
     }
     /**
      * Adds a value to the collection.
@@ -7622,12 +7622,12 @@ ${indent}${end}`;
      * @returns Instance of Type, Map, or Object
      */
     toJSON(_, ctx, Type) {
-      const map3 = Type ? new Type() : (ctx == null ? void 0 : ctx.mapAsMap) ? /* @__PURE__ */ new Map() : {};
+      const map4 = Type ? new Type() : (ctx == null ? void 0 : ctx.mapAsMap) ? /* @__PURE__ */ new Map() : {};
       if (ctx == null ? void 0 : ctx.onCreate)
-        ctx.onCreate(map3);
+        ctx.onCreate(map4);
       for (const item of this.items)
-        addPairToJSMap(ctx, map3, item);
-      return map3;
+        addPairToJSMap(ctx, map4, item);
+      return map4;
     }
     toString(ctx, onComment, onChompKeep) {
       if (!ctx)
@@ -7654,10 +7654,10 @@ ${indent}${end}`;
     default: true,
     nodeClass: YAMLMap,
     tag: "tag:yaml.org,2002:map",
-    resolve(map3, onError) {
-      if (!isMap(map3))
+    resolve(map4, onError) {
+      if (!isMap(map4))
         onError("Expected a mapping for this tag");
-      return map3;
+      return map4;
     },
     createNode: (schema4, obj, ctx) => YAMLMap.from(schema4, obj, ctx)
   };
@@ -8124,9 +8124,9 @@ ${cn.comment}` : item.comment;
     toJSON(_, ctx) {
       if (!ctx)
         return super.toJSON(_);
-      const map3 = /* @__PURE__ */ new Map();
+      const map4 = /* @__PURE__ */ new Map();
       if (ctx == null ? void 0 : ctx.onCreate)
-        ctx.onCreate(map3);
+        ctx.onCreate(map4);
       for (const pair of this.items) {
         let key, value;
         if (isPair(pair)) {
@@ -8135,11 +8135,11 @@ ${cn.comment}` : item.comment;
         } else {
           key = toJS(pair, "", ctx);
         }
-        if (map3.has(key))
+        if (map4.has(key))
           throw new Error("Ordered maps must not include duplicate keys");
-        map3.set(key, value);
+        map4.set(key, value);
       }
-      return map3;
+      return map4;
     }
     static from(schema4, iterable, ctx) {
       const pairs2 = createPairs(schema4, iterable, ctx);
@@ -8371,15 +8371,15 @@ ${cn.comment}` : item.comment;
     default: false,
     tag: "tag:yaml.org,2002:set",
     createNode: (schema4, iterable, ctx) => YAMLSet.from(schema4, iterable, ctx),
-    resolve(map3, onError) {
-      if (isMap(map3)) {
-        if (map3.hasAllNullValues(true))
-          return Object.assign(new YAMLSet(), map3);
+    resolve(map4, onError) {
+      if (isMap(map4)) {
+        if (map4.hasAllNullValues(true))
+          return Object.assign(new YAMLSet(), map4);
         else
           onError("Set items must all have null values");
       } else
         onError("Expected a mapping for this tag");
-      return map3;
+      return map4;
     }
   };
 
@@ -9191,7 +9191,7 @@ ${pointer}
   function resolveBlockMap({ composeNode: composeNode2, composeEmptyNode: composeEmptyNode2 }, ctx, bm, onError, tag) {
     var _a2, _b;
     const NodeClass = (_a2 = tag == null ? void 0 : tag.nodeClass) != null ? _a2 : YAMLMap;
-    const map3 = new NodeClass(ctx.schema);
+    const map4 = new NodeClass(ctx.schema);
     if (ctx.atRoot)
       ctx.atRoot = false;
     let offset = bm.offset;
@@ -9217,10 +9217,10 @@ ${pointer}
         if (!keyProps.anchor && !keyProps.tag && !sep) {
           commentEnd = keyProps.end;
           if (keyProps.comment) {
-            if (map3.comment)
-              map3.comment += "\n" + keyProps.comment;
+            if (map4.comment)
+              map4.comment += "\n" + keyProps.comment;
             else
-              map3.comment = keyProps.comment;
+              map4.comment = keyProps.comment;
           }
           continue;
         }
@@ -9236,7 +9236,7 @@ ${pointer}
       if (ctx.schema.compat)
         flowIndentCheck(bm.indent, key, onError);
       ctx.atKey = false;
-      if (mapIncludes(ctx, map3.items, keyNode))
+      if (mapIncludes(ctx, map4.items, keyNode))
         onError(keyStart, "DUPLICATE_KEY", "Map keys must be unique");
       const valueProps = resolveProps(sep != null ? sep : [], {
         indicator: "map-value-ind",
@@ -9261,7 +9261,7 @@ ${pointer}
         const pair = new Pair(keyNode, valueNode);
         if (ctx.options.keepSourceTokens)
           pair.srcToken = collItem;
-        map3.items.push(pair);
+        map4.items.push(pair);
       } else {
         if (implicitKey)
           onError(keyNode.range, "MISSING_CHAR", "Implicit map keys need to be followed by map values");
@@ -9274,13 +9274,13 @@ ${pointer}
         const pair = new Pair(keyNode);
         if (ctx.options.keepSourceTokens)
           pair.srcToken = collItem;
-        map3.items.push(pair);
+        map4.items.push(pair);
       }
     }
     if (commentEnd && commentEnd < offset)
       onError(commentEnd, "IMPOSSIBLE", "Map comment with trailing content");
-    map3.range = [bm.offset, offset, commentEnd != null ? commentEnd : offset];
-    return map3;
+    map4.range = [bm.offset, offset, commentEnd != null ? commentEnd : offset];
+    return map4;
   }
 
   // node_modules/yaml/browser/dist/compose/resolve-block-seq.js
@@ -9502,17 +9502,17 @@ ${pointer}
         if (ctx.options.keepSourceTokens)
           pair.srcToken = collItem;
         if (isMap2) {
-          const map3 = coll;
-          if (mapIncludes(ctx, map3.items, keyNode))
+          const map4 = coll;
+          if (mapIncludes(ctx, map4.items, keyNode))
             onError(keyStart, "DUPLICATE_KEY", "Map keys must be unique");
-          map3.items.push(pair);
+          map4.items.push(pair);
         } else {
-          const map3 = new YAMLMap(ctx.schema);
-          map3.flow = true;
-          map3.items.push(pair);
+          const map4 = new YAMLMap(ctx.schema);
+          map4.flow = true;
+          map4.items.push(pair);
           const endRange = (valueNode != null ? valueNode : keyNode).range;
-          map3.range = [keyNode.range[0], endRange[1], endRange[2]];
-          coll.items.push(map3);
+          map4.range = [keyNode.range[0], endRange[1], endRange[2]];
+          coll.items.push(map4);
         }
         offset = valueNode ? valueNode.range[2] : valueProps.end;
       }
@@ -9989,7 +9989,7 @@ ${pointer}
 
   // node_modules/yaml/browser/dist/compose/compose-scalar.js
   function composeScalar(ctx, token, tagToken, onError) {
-    const { value, type, comment: comment2, range: range2 } = token.type === "block-scalar" ? resolveBlockScalar(ctx, token, onError) : resolveFlowScalar(token, ctx.options.strict, onError);
+    const { value, type, comment: comment2, range: range4 } = token.type === "block-scalar" ? resolveBlockScalar(ctx, token, onError) : resolveFlowScalar(token, ctx.options.strict, onError);
     const tagName = tagToken ? ctx.directives.tagName(tagToken.source, (msg) => onError(tagToken, "TAG_RESOLVE_FAILED", msg)) : null;
     let tag;
     if (ctx.options.stringKeys && ctx.atKey) {
@@ -10009,7 +10009,7 @@ ${pointer}
       onError(tagToken != null ? tagToken : token, "TAG_RESOLVE_FAILED", msg);
       scalar = new Scalar(value);
     }
-    scalar.range = range2;
+    scalar.range = range4;
     scalar.source = value;
     if (type)
       scalar.type = type;
@@ -10424,8 +10424,8 @@ ${end.comment}` : end.comment;
   visit2.REMOVE = REMOVE2;
   visit2.itemAtPath = (cst, path2) => {
     let item = cst;
-    for (const [field, index] of path2) {
-      const tok = item == null ? void 0 : item[field];
+    for (const [field2, index] of path2) {
+      const tok = item == null ? void 0 : item[field2];
       if (tok && "items" in tok) {
         item = tok.items[index];
       } else
@@ -10435,8 +10435,8 @@ ${end.comment}` : end.comment;
   };
   visit2.parentCollection = (cst, path2) => {
     const parent = visit2.itemAtPath(cst, path2.slice(0, -1));
-    const field = path2[path2.length - 1][0];
-    const coll = parent == null ? void 0 : parent[field];
+    const field2 = path2[path2.length - 1][0];
+    const coll = parent == null ? void 0 : parent[field2];
     if (coll && "items" in coll)
       return coll;
     throw new Error("Parent collection not found");
@@ -10445,11 +10445,11 @@ ${end.comment}` : end.comment;
     let ctrl = visitor(item, path2);
     if (typeof ctrl === "symbol")
       return ctrl;
-    for (const field of ["key", "value"]) {
-      const token = item[field];
+    for (const field2 of ["key", "value"]) {
+      const token = item[field2];
       if (token && "items" in token) {
         for (let i = 0; i < token.items.length; ++i) {
-          const ci = _visit(Object.freeze(path2.concat([[field, i]])), token.items[i], visitor);
+          const ci = _visit(Object.freeze(path2.concat([[field2, i]])), token.items[i], visitor);
           if (typeof ci === "number")
             i = ci - 1;
           else if (ci === BREAK2)
@@ -10459,7 +10459,7 @@ ${end.comment}` : end.comment;
             i -= 1;
           }
         }
-        if (typeof ctrl === "function" && field === "key")
+        if (typeof ctrl === "function" && field2 === "key")
           ctrl = ctrl(item, path2);
       }
     }
@@ -11513,14 +11513,14 @@ ${end.comment}` : end.comment;
           delete scalar.end;
         } else
           sep = [this.sourceToken];
-        const map3 = {
+        const map4 = {
           type: "block-map",
           offset: scalar.offset,
           indent: scalar.indent,
           items: [{ start, key: scalar, sep }]
         };
         this.onKeyLine = true;
-        this.stack[this.stack.length - 1] = map3;
+        this.stack[this.stack.length - 1] = map4;
       } else
         yield* __yieldStar(this.lineEnd(scalar));
     }
@@ -11550,9 +11550,9 @@ ${end.comment}` : end.comment;
           yield* __yieldStar(this.step());
       }
     }
-    *blockMap(map3) {
+    *blockMap(map4) {
       var _a2;
-      const it = map3.items[map3.items.length - 1];
+      const it = map4.items[map4.items.length - 1];
       switch (this.type) {
         case "newline":
           this.onKeyLine = false;
@@ -11562,7 +11562,7 @@ ${end.comment}` : end.comment;
             if ((last == null ? void 0 : last.type) === "comment")
               end == null ? void 0 : end.push(this.sourceToken);
             else
-              map3.items.push({ start: [this.sourceToken] });
+              map4.items.push({ start: [this.sourceToken] });
           } else if (it.sep) {
             it.sep.push(this.sourceToken);
           } else {
@@ -11572,17 +11572,17 @@ ${end.comment}` : end.comment;
         case "space":
         case "comment":
           if (it.value) {
-            map3.items.push({ start: [this.sourceToken] });
+            map4.items.push({ start: [this.sourceToken] });
           } else if (it.sep) {
             it.sep.push(this.sourceToken);
           } else {
-            if (this.atIndentedComment(it.start, map3.indent)) {
-              const prev = map3.items[map3.items.length - 2];
+            if (this.atIndentedComment(it.start, map4.indent)) {
+              const prev = map4.items[map4.items.length - 2];
               const end = (_a2 = prev == null ? void 0 : prev.value) == null ? void 0 : _a2.end;
               if (Array.isArray(end)) {
                 arrayPushArray(end, it.start);
                 end.push(this.sourceToken);
-                map3.items.pop();
+                map4.items.pop();
                 return;
               }
             }
@@ -11590,8 +11590,8 @@ ${end.comment}` : end.comment;
           }
           return;
       }
-      if (this.indent >= map3.indent) {
-        const atMapIndent = !this.onKeyLine && this.indent === map3.indent;
+      if (this.indent >= map4.indent) {
+        const atMapIndent = !this.onKeyLine && this.indent === map4.indent;
         const atNextItem = atMapIndent && (it.sep || it.explicitKey) && this.type !== "seq-item-ind";
         let start = [];
         if (atNextItem && it.sep && !it.value) {
@@ -11605,7 +11605,7 @@ ${end.comment}` : end.comment;
               case "space":
                 break;
               case "comment":
-                if (st.indent > map3.indent)
+                if (st.indent > map4.indent)
                   nl.length = 0;
                 break;
               default:
@@ -11620,7 +11620,7 @@ ${end.comment}` : end.comment;
           case "tag":
             if (atNextItem || it.value) {
               start.push(this.sourceToken);
-              map3.items.push({ start });
+              map4.items.push({ start });
               this.onKeyLine = true;
             } else if (it.sep) {
               it.sep.push(this.sourceToken);
@@ -11634,7 +11634,7 @@ ${end.comment}` : end.comment;
               it.explicitKey = true;
             } else if (atNextItem || it.value) {
               start.push(this.sourceToken);
-              map3.items.push({ start, explicitKey: true });
+              map4.items.push({ start, explicitKey: true });
             } else {
               this.stack.push({
                 type: "block-map",
@@ -11660,7 +11660,7 @@ ${end.comment}` : end.comment;
                   });
                 }
               } else if (it.value) {
-                map3.items.push({ start: [], key: null, sep: [this.sourceToken] });
+                map4.items.push({ start: [], key: null, sep: [this.sourceToken] });
               } else if (includesToken(it.sep, "map-value-ind")) {
                 this.stack.push({
                   type: "block-map",
@@ -11690,7 +11690,7 @@ ${end.comment}` : end.comment;
               if (!it.sep) {
                 Object.assign(it, { key: null, sep: [this.sourceToken] });
               } else if (it.value || atNextItem) {
-                map3.items.push({ start, key: null, sep: [this.sourceToken] });
+                map4.items.push({ start, key: null, sep: [this.sourceToken] });
               } else if (includesToken(it.sep, "map-value-ind")) {
                 this.stack.push({
                   type: "block-map",
@@ -11710,7 +11710,7 @@ ${end.comment}` : end.comment;
           case "double-quoted-scalar": {
             const fs = this.flowScalar(this.type);
             if (atNextItem || it.value) {
-              map3.items.push({ start, key: fs, sep: [] });
+              map4.items.push({ start, key: fs, sep: [] });
               this.onKeyLine = true;
             } else if (it.sep) {
               this.stack.push(fs);
@@ -11721,7 +11721,7 @@ ${end.comment}` : end.comment;
             return;
           }
           default: {
-            const bv = this.startBlockValue(map3);
+            const bv = this.startBlockValue(map4);
             if (bv) {
               if (bv.type === "block-seq") {
                 if (!it.explicitKey && it.sep && !includesToken(it.sep, "newline")) {
@@ -11734,7 +11734,7 @@ ${end.comment}` : end.comment;
                   return;
                 }
               } else if (atMapIndent) {
-                map3.items.push({ start });
+                map4.items.push({ start });
               }
               this.stack.push(bv);
               return;
@@ -11876,14 +11876,14 @@ ${end.comment}` : end.comment;
           fixFlowSeqItems(fc);
           const sep = fc.end.splice(1, fc.end.length);
           sep.push(this.sourceToken);
-          const map3 = {
+          const map4 = {
             type: "block-map",
             offset: fc.offset,
             indent: fc.indent,
             items: [{ start, key: fc, sep }]
           };
           this.onKeyLine = true;
-          this.stack[this.stack.length - 1] = map3;
+          this.stack[this.stack.length - 1] = map4;
         } else {
           yield* __yieldStar(this.lineEnd(fc));
         }
@@ -12032,6 +12032,441 @@ ${end.comment}` : end.comment;
     return doc;
   }
 
+  // src/core/suggest.js
+  function distance(a, b) {
+    const d = Array.from({ length: a.length + 1 }, (_, i) => [i, ...Array(b.length).fill(0)]);
+    for (let j = 1; j <= b.length; j++) d[0][j] = j;
+    for (let i = 1; i <= a.length; i++)
+      for (let j = 1; j <= b.length; j++)
+        d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+    return d[a.length][b.length];
+  }
+  function closest(word, candidates) {
+    const w = String(word).toLowerCase();
+    let best, bestD = Infinity;
+    for (const c of candidates) {
+      const d = distance(w, c.toLowerCase());
+      if (d < bestD) {
+        best = c;
+        bestD = d;
+      }
+    }
+    return best !== void 0 && (bestD <= 2 || bestD <= 3 && w.length > 6) ? best : void 0;
+  }
+
+  // src/core/expr.js
+  var FUNCS = {
+    sin: Math.sin,
+    cos: Math.cos,
+    tan: Math.tan,
+    asin: Math.asin,
+    acos: Math.acos,
+    atan: Math.atan,
+    sinh: Math.sinh,
+    cosh: Math.cosh,
+    tanh: Math.tanh,
+    asinh: Math.asinh,
+    acosh: Math.acosh,
+    atanh: Math.atanh,
+    exp: Math.exp,
+    ln: Math.log,
+    log: Math.log10,
+    log10: Math.log10,
+    log2: Math.log2,
+    sqrt: Math.sqrt,
+    cbrt: Math.cbrt,
+    abs: Math.abs,
+    floor: Math.floor,
+    ceil: Math.ceil,
+    round: Math.round,
+    sign: Math.sign,
+    atan2: Math.atan2,
+    pow: Math.pow,
+    min: Math.min,
+    max: Math.max,
+    hypot: Math.hypot,
+    sec: (v) => 1 / Math.cos(v),
+    csc: (v) => 1 / Math.sin(v),
+    cot: (v) => 1 / Math.tan(v),
+    gamma: (v) => gamma(v),
+    erf: (v) => erf(v),
+    sinc: (v) => v === 0 ? 1 : Math.sin(v) / v,
+    heaviside: (v) => v < 0 ? 0 : 1,
+    clamp: (v, lo, hi) => Math.min(Math.max(v, lo), hi)
+  };
+  var ARITY = { atan2: 2, pow: 2, min: [1, 16], max: [1, 16], hypot: [1, 16], clamp: 3 };
+  var CONSTS = { pi: Math.PI, e: Math.E, tau: 2 * Math.PI, phi: (1 + Math.sqrt(5)) / 2, inf: Infinity };
+  var functionNames = Object.keys(FUNCS);
+  var constantNames = Object.keys(CONSTS);
+  function gamma(z) {
+    if (z < 0.5) return Math.PI / (Math.sin(Math.PI * z) * gamma(1 - z));
+    const g = 7, c = [
+      0.9999999999998099,
+      676.5203681218851,
+      -1259.1392167224028,
+      771.3234287776531,
+      -176.6150291621406,
+      12.507343278686905,
+      -0.13857109526572012,
+      9984369578019572e-21,
+      15056327351493116e-23
+    ];
+    z -= 1;
+    let x = c[0];
+    for (let i = 1; i < g + 2; i++) x += c[i] / (z + i);
+    const t = z + g + 0.5;
+    return Math.sqrt(2 * Math.PI) * t ** (z + 0.5) * Math.exp(-t) * x;
+  }
+  function erf(x) {
+    const s = Math.sign(x), a = Math.abs(x), t = 1 / (1 + 0.3275911 * a);
+    return s * (1 - ((((1.061405429 * t - 1.453152027) * t + 1.421413741) * t - 0.284496736) * t + 0.254829592) * t * Math.exp(-a * a));
+  }
+  var ExprError = class extends Error {
+    constructor(message, col) {
+      super(message);
+      this.col = col;
+    }
+  };
+  function tokenize(src) {
+    var _a2, _b;
+    const out = [];
+    const re = /\s*(?:(\d+\.?\d*(?:[eE][-+]?\d+)?|\.\d+(?:[eE][-+]?\d+)?)|([A-Za-z_][A-Za-z_0-9]*)|(\*\*|[-+*/%^(),]))/y;
+    let i = 0;
+    while (i < src.length) {
+      if (/^\s*$/.test(src.slice(i))) break;
+      re.lastIndex = i;
+      const m = re.exec(src);
+      if (!m) {
+        const at = i + (src.slice(i).length - src.slice(i).trimStart().length);
+        throw new ExprError(`unexpected "${src[at]}"`, at + 1);
+      }
+      const col = m.index + m[0].length - ((_b = (_a2 = m[1]) != null ? _a2 : m[2]) != null ? _b : m[3]).length + 1;
+      if (m[1] !== void 0) out.push({ t: "num", v: Number(m[1]), col });
+      else if (m[2] !== void 0) out.push({ t: "id", v: m[2], col });
+      else out.push({ t: "op", v: m[3] === "**" ? "^" : m[3], col });
+      i = re.lastIndex;
+    }
+    out.push({ t: "end", col: src.length + 1 });
+    return out;
+  }
+  function build(tokens, allowed) {
+    let i = 0;
+    const vars = /* @__PURE__ */ new Set();
+    const peek = () => tokens[i];
+    const next = () => tokens[i++];
+    const expect = (v) => {
+      const t = next();
+      if (t.v !== v) throw new ExprError(t.t === "end" ? `missing "${v}"` : `expected "${v}"`, t.col);
+    };
+    const startsPrimary = (t) => t.t === "num" || t.t === "id" || t.v === "(";
+    function primary() {
+      var _a2;
+      const t = next();
+      if (t.t === "num") return () => t.v;
+      if (t.v === "(") {
+        const e = expr(0);
+        expect(")");
+        return e;
+      }
+      if (t.v === "-" || t.v === "+") {
+        const e = expr(3);
+        return t.v === "-" ? (v) => -e(v) : e;
+      }
+      if (t.t === "id") {
+        if (peek().v === "(" && FUNCS[t.v]) {
+          next();
+          const args = [];
+          if (peek().v !== ")") {
+            args.push(expr(0));
+            while (peek().v === ",") {
+              next();
+              args.push(expr(0));
+            }
+          }
+          expect(")");
+          const want = (_a2 = ARITY[t.v]) != null ? _a2 : 1;
+          const [lo, hi] = Array.isArray(want) ? want : [want, want];
+          if (args.length < lo || args.length > hi) throw new ExprError(`${t.v}() takes ${lo === hi ? lo : `${lo} to ${hi}`} argument${hi === 1 ? "" : "s"}, got ${args.length}`, t.col);
+          const f = FUNCS[t.v];
+          if (args.length === 1) {
+            const [a] = args;
+            return (v) => f(a(v));
+          }
+          return (v) => f(...args.map((a) => a(v)));
+        }
+        if (FUNCS[t.v]) throw new ExprError(`${t.v} is a function: write ${t.v}(\u2026)`, t.col);
+        if (t.v in CONSTS && !allowed.includes(t.v)) {
+          const c = CONSTS[t.v];
+          return () => c;
+        }
+        if (allowed.includes(t.v)) {
+          vars.add(t.v);
+          const name = t.v;
+          return (v) => v[name];
+        }
+        const guess = closest(t.v, [...allowed, ...constantNames, ...functionNames]);
+        throw new ExprError(`unknown name "${t.v}"${guess ? ` (did you mean "${guess}"?)` : ""}; variables here: ${allowed.join(", ") || "none"}`, t.col);
+      }
+      throw new ExprError(t.t === "end" ? "expression ends too early" : `unexpected "${t.v}"`, t.col);
+    }
+    function expr(minBp) {
+      let left = primary();
+      for (; ; ) {
+        const t = peek();
+        let op2 = t.t === "op" ? t.v : null;
+        if (!op2 && startsPrimary(t)) op2 = "implicit";
+        if (op2 === "(") op2 = "implicit";
+        const bp = { "+": 1, "-": 1, "*": 2, "/": 2, "%": 2, implicit: 2, "^": 4 }[op2];
+        if (bp === void 0 || bp < minBp) break;
+        if (op2 !== "implicit") next();
+        const right = expr(op2 === "^" ? bp : bp + 1);
+        const l = left;
+        left = {
+          "+": (v) => l(v) + right(v),
+          "-": (v) => l(v) - right(v),
+          "*": (v) => l(v) * right(v),
+          implicit: (v) => l(v) * right(v),
+          "/": (v) => l(v) / right(v),
+          "%": (v) => l(v) % right(v),
+          "^": (v) => l(v) ** right(v)
+        }[op2];
+      }
+      return left;
+    }
+    const fn = expr(0);
+    const end = peek();
+    if (end.t !== "end") throw new ExprError(`unexpected "${end.v}"`, end.col);
+    return { fn, vars };
+  }
+  function parse2(src, allowed = ["x"]) {
+    if (typeof src === "number") return { ok: true, fn: () => src, vars: /* @__PURE__ */ new Set() };
+    try {
+      const { fn, vars } = build(tokenize(String(src)), allowed);
+      return { ok: true, fn, vars };
+    } catch (e) {
+      if (e instanceof ExprError) return { ok: false, message: e.message, col: e.col };
+      throw e;
+    }
+  }
+
+  // src/core/npy.js
+  var B64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+  var LOOKUP = (() => {
+    const t = new Int16Array(128).fill(-1);
+    for (let i = 0; i < 64; i++) t[B64.charCodeAt(i)] = i;
+    return t;
+  })();
+  function base64ToBytes(s) {
+    const clean = s.replace(/[^A-Za-z0-9+/]/g, "");
+    const out = new Uint8Array(Math.floor(clean.length * 3 / 4));
+    let o = 0;
+    for (let i = 0; i + 1 < clean.length; i += 4) {
+      const n = LOOKUP[clean.charCodeAt(i)] << 18 | LOOKUP[clean.charCodeAt(i + 1)] << 12 | (LOOKUP[clean.charCodeAt(i + 2)] & 63) << 6 | LOOKUP[clean.charCodeAt(i + 3)] & 63;
+      out[o++] = n >> 16 & 255;
+      if (i + 2 < clean.length) out[o++] = n >> 8 & 255;
+      if (i + 3 < clean.length) out[o++] = n & 255;
+    }
+    return out.subarray(0, o);
+  }
+  function parseNpy(bytes, { dims = [1, 2], headerOnly = false } = {}) {
+    var _a2, _b;
+    const magic = [147, 78, 85, 77, 80, 89];
+    if (bytes.length < 10 || magic.some((b, i) => bytes[i] !== b)) return { error: "not a .npy file (bad magic)" };
+    const major = bytes[6];
+    const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+    const headerLen = major === 1 ? view.getUint16(8, true) : view.getUint32(8, true);
+    const start = major === 1 ? 10 : 12;
+    let header = "";
+    for (let i = start; i < start + headerLen; i++) header += String.fromCharCode(bytes[i]);
+    const descr = (_a2 = /'descr':\s*'([^']+)'/.exec(header)) == null ? void 0 : _a2[1];
+    const fortran = /'fortran_order':\s*True/.test(header);
+    const shapeText = (_b = /'shape':\s*\(([^)]*)\)/.exec(header)) == null ? void 0 : _b[1];
+    if (!descr || shapeText === void 0) return { error: "unreadable .npy header" };
+    const shape = shapeText.split(",").map((s) => s.trim()).filter(Boolean).map(Number);
+    if (!dims.includes(shape.length)) return { error: `.npy array has ${shape.length} dimension${shape.length === 1 ? "" : "s"} (shape ${shape.join("\xD7") || "scalar"}); expected ${dims.join(" or ")}` };
+    const m = /^([<>|=])([fiub])(\d+)$/.exec(descr);
+    if (!m) return { error: `.npy dtype ${descr} is not supported (numeric arrays only)` };
+    const little = m[1] !== ">";
+    const kind = m[2], size = Number(m[3]);
+    const readers = {
+      f4: (o) => view.getFloat32(o, little),
+      f8: (o) => view.getFloat64(o, little),
+      i1: (o) => view.getInt8(o),
+      i2: (o) => view.getInt16(o, little),
+      i4: (o) => view.getInt32(o, little),
+      u1: (o) => view.getUint8(o),
+      u2: (o) => view.getUint16(o, little),
+      u4: (o) => view.getUint32(o, little),
+      b1: (o) => view.getUint8(o),
+      i8: (o) => {
+        const lo = view.getUint32(o + (little ? 0 : 4), little), hi = view.getInt32(o + (little ? 4 : 0), little);
+        return hi * 4294967296 + lo;
+      },
+      u8: (o) => {
+        const lo = view.getUint32(o + (little ? 0 : 4), little), hi = view.getUint32(o + (little ? 4 : 0), little);
+        return hi * 4294967296 + lo;
+      }
+    };
+    const read = readers[`${kind}${size}`];
+    if (!read) return { error: `.npy dtype ${descr} is not supported` };
+    const count = shape.reduce((a, b) => a * b, 1);
+    const offset = start + headerLen;
+    if (offset + count * size > bytes.length) return { error: ".npy file is truncated" };
+    if (headerOnly) return { shape };
+    const flat2 = new Array(count);
+    for (let i = 0; i < count; i++) flat2[i] = read(offset + i * size);
+    if (!fortran || shape.length < 2) return { shape, data: flat2 };
+    const out = new Array(count), idx = new Array(shape.length).fill(0);
+    const fstride = shape.map((_, k) => shape.slice(0, k).reduce((a, b) => a * b, 1));
+    for (let i = 0; i < count; i++) {
+      let f = 0;
+      for (let k = 0; k < shape.length; k++) f += idx[k] * fstride[k];
+      out[i] = flat2[f];
+      for (let k = shape.length - 1; k >= 0 && ++idx[k] === shape[k]; k--) idx[k] = 0;
+    }
+    return { shape, data: out };
+  }
+
+  // src/core/params.js
+  var PARAMS_SCHEMA = {
+    type: "object",
+    additionalProperties: {
+      type: ["number", "object"],
+      additionalProperties: false,
+      required: ["value", "min", "max"],
+      properties: { value: { type: "number" }, min: { type: "number" }, max: { type: "number" }, step: { type: "number", exclusiveMinimum: 0 }, label: { type: "string" } }
+    },
+    description: "named constants: a number (a: 2) or a slider (a: {value: 2, min: 0, max: 5, step: 0.1})"
+  };
+  function resolveParams(params = {}, variables, ctx) {
+    var _a2, _b;
+    const values = {}, sliders = [];
+    for (const [name, spec] of Object.entries(params)) {
+      const path2 = `/params/${name}`;
+      if (!/^[A-Za-z_]\w*$/.test(name)) return ctx.error(path2, `"${name}" is not a valid name`);
+      const clash = functionNames.includes(name) ? "function" : constantNames.includes(name) ? "constant" : variables.includes(name) ? "variable" : null;
+      if (clash) return ctx.error(path2, `"${name}" is already a ${clash} name`);
+      if (typeof spec === "number") {
+        values[name] = spec;
+        continue;
+      }
+      if (!(spec.min < spec.max)) return ctx.error(path2, `slider range must have min < max (got ${spec.min}\u2026${spec.max})`);
+      if (spec.value < spec.min || spec.value > spec.max) return ctx.error(`${path2}/value`, `${spec.value} is outside ${spec.min}\u2026${spec.max}`);
+      values[name] = spec.value;
+      sliders.push({ name, value: spec.value, min: spec.min, max: spec.max, step: (_a2 = spec.step) != null ? _a2 : niceStep((spec.max - spec.min) / 100), label: (_b = spec.label) != null ? _b : name });
+    }
+    return { values, sliders };
+  }
+  var niceStep = (raw) => {
+    const p = 10 ** Math.floor(Math.log10(raw));
+    return [1, 2, 5, 10].map((m) => m * p).find((s) => s >= raw);
+  };
+
+  // src/core/paths.js
+  var isRemote = (p) => /^[a-z][a-z0-9+.-]*:/i.test(p);
+  function extname(p) {
+    const base2 = p.split("/").pop();
+    const i = base2.lastIndexOf(".");
+    return i > 0 ? base2.slice(i + 1).toLowerCase() : "";
+  }
+
+  // src/components/animation.js
+  var range = (d) => ({ type: "array", items: { type: "number" }, minItems: 2, maxItems: 2, description: d });
+  var MAX_VALUES = 4e6;
+  var animation_default = {
+    name: "animation",
+    summary: "Animate over time t: curves y(x, t) (waves), moving points x(t), y(t) with trails (orbits, pendulums), or simulation frames from a .npy \u2014 (frames, n) as a curve, (frames, ny, nx) as a colour map. Play/pause and scrub; params can be sliders.",
+    schema: {
+      type: "object",
+      additionalProperties: false,
+      properties: {
+        title: { type: "string" },
+        functions: { type: "array", minItems: 1, maxItems: 8, items: {
+          type: ["string", "object"],
+          additionalProperties: false,
+          required: ["y"],
+          properties: { y: { type: "string" }, label: { type: "string" } }
+        }, description: "curves y(x, t)" },
+        points: {
+          type: "array",
+          minItems: 1,
+          maxItems: 12,
+          items: {
+            type: "object",
+            additionalProperties: false,
+            required: ["x", "y"],
+            properties: { x: { type: ["string", "number"] }, y: { type: ["string", "number"] }, label: { type: "string" }, trail: { type: "boolean", default: true } }
+          },
+          description: "moving points x(t), y(t)"
+        },
+        data: { type: "string", description: "relative path to a .npy of shape (frames, n) or (frames, ny, nx)" },
+        t: range("time range (default [0, 10]; for data: the time of the first and last frame)"),
+        duration: { type: "number", minimum: 1, maximum: 300, default: 8, description: "seconds to play the whole range" },
+        loop: { type: "boolean", default: true },
+        x: range("x range (curves: the domain, default [-10, 10]; points: the view, default automatic)"),
+        y: range("y range of the view (default automatic)"),
+        params: PARAMS_SCHEMA,
+        xlabel: { type: "string" },
+        ylabel: { type: "string" },
+        height: { type: "integer", minimum: 200, maximum: 1200, default: 380 }
+      }
+    },
+    example: 'title: Standing wave\nt: [0, 6.283]\nx: [0, 10]\nparams:\n  k: {value: 1, min: 0.5, max: 3}\nfunctions:\n  - {y: "sin(k x - t)", label: right}\n  - {y: "sin(k x + t)", label: left}\n  - {y: "sin(k x - t) + sin(k x + t)", label: sum}',
+    resolve(props, ctx) {
+      var _a2, _b, _c, _d, _e, _f, _g, _h, _i;
+      const sources = ["functions", "points", "data"].filter((k) => props[k] !== void 0);
+      if (sources.length === 0) return ctx.error("", 'give "functions" (curves y(x, t)), "points" (x(t), y(t)) or "data" (a .npy of frames)');
+      if (props.data !== void 0 && sources.length > 1) return ctx.error("/data", "data animations cannot be mixed with functions or points");
+      for (const axis of ["x", "y", "t"]) if (props[axis] && !(props[axis][0] < props[axis][1])) return ctx.error(`/${axis}`, `${axis} range must be [min, max] with min < max`);
+      const base2 = { title: props.title, t: (_a2 = props.t) != null ? _a2 : [0, 10], duration: props.duration, loop: props.loop, y: props.y, xlabel: (_b = props.xlabel) != null ? _b : "x", ylabel: props.ylabel, height: props.height };
+      if (props.data !== void 0) {
+        if (props.params) return ctx.error("/params", "params apply to formula animations only");
+        if (extname(props.data) !== "npy") return ctx.error("/data", "expected a .npy file of shape (frames, n) or (frames, ny, nx)");
+        const f = ctx.readBase64(props.data);
+        if (!f.ok) return ctx.error("/data", f.error);
+        const a = parseNpy(base64ToBytes(f.base64), { dims: [2, 3], headerOnly: true });
+        if (a.error) return ctx.error("/data", `${props.data}: ${a.error}`);
+        const count = a.shape.reduce((x, y) => x * y, 1);
+        if (a.shape[0] < 2) return ctx.error("/data", `${props.data}: only ${a.shape[0]} frame`);
+        if (count > MAX_VALUES) return ctx.error("/data", `${props.data}: ${count.toLocaleString()} values is too many (max ${MAX_VALUES.toLocaleString()})`, "keep fewer frames or subsample the grid");
+        ctx.ref(props.data);
+        return __spreadProps(__spreadValues({}, base2), {
+          kind: a.shape.length === 2 ? "curve" : "map",
+          file: props.data,
+          shape: a.shape,
+          x: (_c = props.x) != null ? _c : a.shape.length === 2 ? [0, a.shape[1] - 1] : [0, a.shape[2] - 1],
+          y: (_d = props.y) != null ? _d : a.shape.length === 3 ? [0, a.shape[1] - 1] : void 0,
+          params: {},
+          sliders: []
+        });
+      }
+      const resolved = resolveParams(props.params, ["x", "t"], ctx);
+      if (!resolved) return void 0;
+      const names = Object.keys(resolved.values);
+      const check2 = (src, vars, path2, what) => {
+        const r = parse2(String(src), [...vars, ...names]);
+        if (!r.ok) {
+          ctx.error(path2, `${what} = ${src}: ${r.message}${r.col ? ` (column ${r.col})` : ""}`);
+          return false;
+        }
+        return true;
+      };
+      const functions2 = [];
+      for (const [i, item] of ((_e = props.functions) != null ? _e : []).entries()) {
+        const f = typeof item === "string" ? { y: item } : item;
+        if (!check2(f.y, ["x", "t"], typeof item === "string" ? `/functions/${i}` : `/functions/${i}/y`, "y")) return void 0;
+        functions2.push({ y: f.y, label: (_f = f.label) != null ? _f : f.y });
+      }
+      const points = [];
+      for (const [i, pt] of ((_g = props.points) != null ? _g : []).entries()) {
+        for (const k of ["x", "y"]) if (!check2(pt[k], ["t"], `/points/${i}/${k}`, k)) return void 0;
+        points.push({ x: String(pt.x), y: String(pt.y), label: (_h = pt.label) != null ? _h : `(${pt.x}, ${pt.y})`, trail: pt.trail });
+      }
+      if (functions2.length && points.length && !props.x) return ctx.error("/x", "give an x range when animating both curves and points");
+      return __spreadProps(__spreadValues({}, base2), { kind: "formula", functions: functions2, points, x: (_i = props.x) != null ? _i : functions2.length ? [-10, 10] : void 0, params: resolved.values, sliders: resolved.sliders });
+    }
+  };
+
   // src/components/callout.js
   var callout_default = {
     name: "callout",
@@ -12057,14 +12492,14 @@ ${end.comment}` : end.comment;
   // src/core/csv.js
   function parseDelimited(text3, sep) {
     const rows = [];
-    let row = [], field = "", i = 0, quoted = false;
+    let row = [], field2 = "", i = 0, quoted = false;
     const n = text3.length;
     while (i < n) {
       const c = text3[i];
       if (quoted) {
         if (c === '"') {
           if (text3[i + 1] === '"') {
-            field += '"';
+            field2 += '"';
             i += 2;
             continue;
           }
@@ -12072,67 +12507,37 @@ ${end.comment}` : end.comment;
           i++;
           continue;
         }
-        field += c;
+        field2 += c;
         i++;
         continue;
       }
-      if (c === '"' && field === "") {
+      if (c === '"' && field2 === "") {
         quoted = true;
         i++;
         continue;
       }
       if (c === sep) {
-        row.push(field);
-        field = "";
+        row.push(field2);
+        field2 = "";
         i++;
         continue;
       }
       if (c === "\r" || c === "\n") {
-        row.push(field);
+        row.push(field2);
         rows.push(row);
         row = [];
-        field = "";
+        field2 = "";
         i += c === "\r" && text3[i + 1] === "\n" ? 2 : 1;
         continue;
       }
-      field += c;
+      field2 += c;
       i++;
     }
-    if (field !== "" || row.length) {
-      row.push(field);
+    if (field2 !== "" || row.length) {
+      row.push(field2);
       rows.push(row);
     }
     return rows.filter((r) => !(r.length === 1 && r[0] === ""));
-  }
-
-  // src/core/paths.js
-  var isRemote = (p) => /^[a-z][a-z0-9+.-]*:/i.test(p);
-  function extname(p) {
-    const base2 = p.split("/").pop();
-    const i = base2.lastIndexOf(".");
-    return i > 0 ? base2.slice(i + 1).toLowerCase() : "";
-  }
-
-  // src/core/suggest.js
-  function distance(a, b) {
-    const d = Array.from({ length: a.length + 1 }, (_, i) => [i, ...Array(b.length).fill(0)]);
-    for (let j = 1; j <= b.length; j++) d[0][j] = j;
-    for (let i = 1; i <= a.length; i++)
-      for (let j = 1; j <= b.length; j++)
-        d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
-    return d[a.length][b.length];
-  }
-  function closest(word, candidates) {
-    const w = String(word).toLowerCase();
-    let best, bestD = Infinity;
-    for (const c of candidates) {
-      const d = distance(w, c.toLowerCase());
-      if (d < bestD) {
-        best = c;
-        bestD = d;
-      }
-    }
-    return best !== void 0 && (bestD <= 2 || bestD <= 3 && w.length > 6) ? best : void 0;
   }
 
   // src/core/data.js
@@ -12249,8 +12654,8 @@ ${end.comment}` : end.comment;
       if (!d) return void 0;
       const t = props.type;
       const src = props.data;
-      const where = (field, i) => Array.isArray(props[field]) ? `/${field}/${i}` : `/${field}`;
-      const need = (field) => props[field] === void 0 && ctx.error("", `a ${t} chart needs "${field}"`);
+      const where = (field2, i) => Array.isArray(props[field2]) ? `/${field2}/${i}` : `/${field2}`;
+      const need = (field2) => props[field2] === void 0 && ctx.error("", `a ${t} chart needs "${field2}"`);
       if (t === "histogram" || t === "box") {
         if (need("y")) return void 0;
       } else if (t === "heatmap") {
@@ -12388,8 +12793,8 @@ ${end.comment}` : end.comment;
           return ctx.error("/type", `a surface needs a full grid: ${xs.size} x values \xD7 ${ys.size} y values = ${xs.size * ys.size} points, got ${points.length}`, "use type: scatter for irregular points");
         points.sort((a, b) => a[1] - b[1] || a[0] - b[0]);
       }
-      const range2 = (i) => points.reduce(([lo, hi], p) => [Math.min(lo, p[i]), Math.max(hi, p[i])], [Infinity, -Infinity]);
-      return { type: props.type, title: props.title, names: { x: props.x, y: props.y, z: props.z, color: (_a2 = props.color) != null ? _a2 : props.z }, points, colorRange: points.length ? range2(3) : [0, 1], height: props.height, rotate: props.rotate };
+      const range4 = (i) => points.reduce(([lo, hi], p) => [Math.min(lo, p[i]), Math.max(hi, p[i])], [Infinity, -Infinity]);
+      return { type: props.type, title: props.title, names: { x: props.x, y: props.y, z: props.z, color: (_a2 = props.color) != null ? _a2 : props.z }, points, colorRange: points.length ? range4(3) : [0, 1], height: props.height, rotate: props.rotate };
     }
   };
 
@@ -12526,6 +12931,285 @@ ${end.comment}` : end.comment;
     }
   };
 
+  // src/components/diagram.js
+  var TYPES2 = [
+    "flowchart",
+    "graph",
+    "sequenceDiagram",
+    "classDiagram",
+    "stateDiagram",
+    "erDiagram",
+    "journey",
+    "gantt",
+    "pie",
+    "quadrantChart",
+    "requirementDiagram",
+    "requirement",
+    "gitGraph",
+    "C4Context",
+    "C4Container",
+    "C4Component",
+    "C4Dynamic",
+    "C4Deployment",
+    "mindmap",
+    "timeline",
+    "sankey",
+    "xychart",
+    "block",
+    "packet",
+    "kanban",
+    "architecture",
+    "radar",
+    "treemap",
+    "venn",
+    "ishikawa",
+    "cynefin",
+    "eventmodeling",
+    "railroad",
+    "railroad-abnf",
+    "railroad-ebnf",
+    "railroad-peg",
+    "swimlane",
+    "treeView",
+    "usecase",
+    "wardley",
+    "agentflow"
+  ];
+  function diagramType(source) {
+    var _a2;
+    const lines = source.replace(/\r/g, "").split("\n");
+    let i = 0;
+    if (((_a2 = lines[0]) == null ? void 0 : _a2.trim()) === "---") {
+      const end = lines.indexOf("---", 1);
+      i = end < 0 ? lines.length : end + 1;
+    }
+    for (; i < lines.length; i++) {
+      const l = lines[i].trim();
+      if (!l || l.startsWith("%%")) continue;
+      return { line: i, word: l.split(/[\s:;{]/)[0] };
+    }
+    return null;
+  }
+  var diagram_default = {
+    name: "diagram",
+    summary: "Mermaid diagrams: flowchart, sequence, class, state, ER, gantt, pie, mindmap, timeline, gitGraph, quadrant, xychart, sankey, block, architecture, kanban\u2026 A ```mermaid fence in Markdown is drawn the same way.",
+    shorthand: { scalar: "source" },
+    schema: {
+      type: "object",
+      additionalProperties: false,
+      required: ["source"],
+      properties: {
+        title: { type: "string" },
+        source: { type: "string", description: 'the mermaid text, e.g. "flowchart LR\\n  A --> B"' },
+        caption: { type: "string", description: "Markdown (inline) under the diagram" }
+      }
+    },
+    example: "source: |\n  flowchart LR\n    data[(raw data)] --> clean[clean] --> fit{fit ok?}\n    fit -- yes --> report\n    fit -- no --> clean",
+    resolve(props, ctx) {
+      const found = diagramType(props.source);
+      if (!found) return ctx.error("/source", "the diagram is empty");
+      const base2 = found.word.replace(/-(beta|v2|elk)$/, "");
+      if (!TYPES2.includes(base2)) {
+        const guess = closest(base2, TYPES2);
+        return ctx.error("/source", `"${found.word}" is not a mermaid diagram type`, (guess ? `did you mean "${guess}"? ` : "") + "start with e.g. flowchart TD, sequenceDiagram, classDiagram, gantt, pie, mindmap");
+      }
+      if (props.source.length > 1e5) return ctx.error("/source", "diagram source is too long (max 100,000 characters)");
+      if (props.caption) ctx.markdown("/caption", props.caption);
+      return { title: props.title, source: props.source, caption: props.caption, type: base2 };
+    }
+  };
+
+  // src/components/field.js
+  var range2 = (d) => ({ type: "array", items: { type: "number" }, minItems: 2, maxItems: 2, description: d });
+  var MAX_CELLS = 250 * 250;
+  var field_default = {
+    name: "field",
+    summary: "Vector fields (flows, forces, phase portraits): u and v of x, y as formulas, or a .npy grid (ny \xD7 nx \xD7 2); streamlines and/or arrows coloured by magnitude, optional scalar background; params can be sliders.",
+    schema: {
+      type: "object",
+      additionalProperties: false,
+      properties: {
+        title: { type: "string" },
+        u: { type: ["string", "number"], description: 'x component, e.g. "y"' },
+        v: { type: ["string", "number"], description: 'y component, e.g. "-sin(x) - b y"' },
+        data: { type: "string", description: "relative path to a .npy array of shape (ny, nx, 2), rows from y min to y max" },
+        x: range2("x range (default [-5, 5])"),
+        y: range2("y range (default [-5, 5])"),
+        background: { type: "string", description: 'scalar formula of x, y drawn as a colour map (potential, density), or "magnitude"' },
+        style: { enum: ["streamlines", "arrows", "both"], default: "streamlines" },
+        density: { type: "integer", minimum: 6, maximum: 60, default: 22, description: "arrows / streamline seeds per axis" },
+        params: PARAMS_SCHEMA,
+        xlabel: { type: "string" },
+        ylabel: { type: "string" },
+        height: { type: "integer", minimum: 200, maximum: 1200, default: 440 }
+      }
+    },
+    example: 'title: Damped pendulum\nu: y\nv: "-sin(x) - b y"\nx: [-7, 7]\ny: [-4, 4]\nparams:\n  b: {value: 0.25, min: 0, max: 1.5}\nxlabel: \u03B8\nylabel: \u03C9',
+    resolve(props, ctx) {
+      var _a2, _b, _c, _d;
+      for (const axis of ["x", "y"]) if (props[axis] && !(props[axis][0] < props[axis][1])) return ctx.error(`/${axis}`, `${axis} range must be [min, max] with min < max`);
+      const base2 = {
+        title: props.title,
+        x: (_a2 = props.x) != null ? _a2 : [-5, 5],
+        y: (_b = props.y) != null ? _b : [-5, 5],
+        style: props.style,
+        density: props.density,
+        xlabel: (_c = props.xlabel) != null ? _c : "x",
+        ylabel: (_d = props.ylabel) != null ? _d : "y",
+        height: props.height
+      };
+      const formulas = props.u !== void 0 || props.v !== void 0;
+      if (formulas === (props.data !== void 0)) return ctx.error("", 'give either formulas "u" and "v", or "data" (a .npy grid)');
+      if (props.data !== void 0) {
+        if (props.params) return ctx.error("/params", "params apply to formula fields only");
+        if (props.background && props.background !== "magnitude") return ctx.error("/background", "a data field takes only background: magnitude");
+        if (extname(props.data) !== "npy") return ctx.error("/data", "expected a .npy file of shape (ny, nx, 2)");
+        const f = ctx.readBase64(props.data);
+        if (!f.ok) return ctx.error("/data", f.error);
+        const a = parseNpy(base64ToBytes(f.base64), { dims: [3] });
+        if (a.error) return ctx.error("/data", `${props.data}: ${a.error}`);
+        const [ny, nx, k] = a.shape;
+        if (k !== 2) return ctx.error("/data", `${props.data}: last dimension is ${k}, expected 2 (u, v)`);
+        if (nx < 2 || ny < 2 || nx * ny > MAX_CELLS) return ctx.error("/data", `${props.data}: ${ny}\xD7${nx} grid; expected at least 2\xD72 and at most ${MAX_CELLS.toLocaleString()} cells`, "subsample the grid");
+        return __spreadProps(__spreadValues({}, base2), { grid: { nx, ny, uv: a.data.map((v) => Number.isFinite(v) ? v : 0) }, background: props.background, params: {}, sliders: [] });
+      }
+      if (props.u === void 0 || props.v === void 0) return ctx.error("", `missing "${props.u === void 0 ? "u" : "v"}"`, "a formula field needs both u and v");
+      const resolved = resolveParams(props.params, ["x", "y"], ctx);
+      if (!resolved) return void 0;
+      const allowed = ["x", "y", ...Object.keys(resolved.values)];
+      for (const k of ["u", "v", "background"]) {
+        if (props[k] === void 0 || k === "background" && props[k] === "magnitude") continue;
+        const r = parse2(String(props[k]), allowed);
+        if (!r.ok) return ctx.error(`/${k}`, `${k} = ${props[k]}: ${r.message}${r.col ? ` (column ${r.col})` : ""}`);
+      }
+      return __spreadProps(__spreadValues({}, base2), { u: String(props.u), v: String(props.v), background: props.background, params: resolved.values, sliders: resolved.sliders });
+    }
+  };
+
+  // src/components/graph.js
+  var MAX_NODES = 3e3;
+  var MAX_EDGES = 12e3;
+  var id = { type: ["string", "number"] };
+  var graph_default = {
+    name: "graph",
+    summary: "Networks and graphs: edges (inline [a, b, weight] or a CSV edge list source,target[,weight]) and optional nodes with label, group and value; force or circular layout, directed arrows, colour by group, size by degree or value.",
+    shorthand: { array: "edges" },
+    schema: {
+      type: "object",
+      additionalProperties: false,
+      properties: {
+        title: { type: "string" },
+        data: { type: "string", description: "relative path to a .csv/.tsv edge list (source, target[, weight]) or a .json {nodes, edges}" },
+        nodes: { type: "array", items: {
+          type: ["string", "number", "object"],
+          additionalProperties: false,
+          required: ["id"],
+          properties: { id, label: { type: "string" }, group: { type: ["string", "number"] }, value: { type: "number" } }
+        } },
+        edges: { type: "array", items: {
+          type: ["array", "object"],
+          minItems: 2,
+          maxItems: 3,
+          items: { type: ["string", "number"] },
+          additionalProperties: false,
+          required: ["source", "target"],
+          properties: { source: id, target: id, weight: { type: "number" }, label: { type: "string" } }
+        }, description: "[a, b], [a, b, weight] or {source, target, weight, label}" },
+        directed: { type: "boolean", default: false },
+        layout: { enum: ["force", "circular"], default: "force" },
+        size: { enum: ["degree", "value", "uniform"], default: "degree", description: "node size" },
+        labels: { enum: ["auto", "all", "none"], default: "auto", description: "auto: labels when there are at most 60 nodes, else on hover" },
+        height: { type: "integer", minimum: 200, maximum: 1400, default: 460 }
+      }
+    },
+    example: "directed: true\nnodes:\n  - {id: gene A, group: regulator}\n  - {id: gene B, group: target}\n  - {id: gene C, group: target}\nedges:\n  - [gene A, gene B, 2]\n  - [gene A, gene C]\n  - [gene B, gene C, 0.5]",
+    resolve(props, ctx) {
+      var _a2;
+      let nodes = props.nodes, edges = props.edges;
+      const at = (k, i) => props.data !== void 0 ? "/data" : `/${k}/${i}`;
+      if (props.data !== void 0) {
+        if (edges || nodes) return ctx.error("/data", 'give either "data" or inline nodes/edges, not both');
+        const ext = extname(props.data);
+        const f = ctx.readText(props.data);
+        if (!f.ok) return ctx.error("/data", f.error);
+        if (ext === "json") {
+          let doc;
+          try {
+            doc = JSON.parse(f.text);
+          } catch (e) {
+            return ctx.error("/data", `${props.data}: invalid JSON (${e.message})`);
+          }
+          if (!doc || !Array.isArray(doc.edges)) return ctx.error("/data", `${props.data}: expected {"nodes": [...], "edges": [...]}`);
+          nodes = doc.nodes;
+          edges = doc.edges;
+          const bad = edges.findIndex((e) => !(Array.isArray(e) ? e.length >= 2 : e && e.source !== void 0 && e.target !== void 0));
+          if (bad >= 0) return ctx.error("/data", `${props.data}: edge ${bad + 1} needs a source and a target`);
+        } else if (ext === "csv" || ext === "tsv") {
+          const rows = parseDelimited(f.text, ext === "tsv" ? "	" : ",").filter((r) => r.some((c) => c.trim()));
+          if (!rows.length) return ctx.error("/data", `${props.data} is empty`);
+          const head = rows[0].map((c) => c.trim().toLowerCase());
+          const hasHeader = head.includes("source") || head.includes("target") || head.includes("from");
+          const col = (names, dflt) => {
+            const i = head.findIndex((c) => names.includes(c));
+            return hasHeader ? i : dflt;
+          };
+          const [si, ti, wi, li] = [col(["source", "from"], 0), col(["target", "to"], 1), col(["weight", "value", "w"], 2), col(["label"], -1)];
+          if (si < 0 || ti < 0) return ctx.error("/data", `${props.data}: needs source and target columns`);
+          edges = [];
+          for (const [n, r] of rows.slice(hasHeader ? 1 : 0).entries()) {
+            if (r.length < 2) return ctx.error("/data", `${props.data}: row ${n + (hasHeader ? 2 : 1)} has fewer than 2 columns`);
+            const w = wi >= 0 && r[wi] !== void 0 && r[wi].trim() !== "" ? Number(r[wi]) : void 0;
+            if (w !== void 0 && !Number.isFinite(w)) return ctx.error("/data", `${props.data}: row ${n + (hasHeader ? 2 : 1)}: weight "${r[wi]}" is not a number`);
+            edges.push({ source: r[si].trim(), target: r[ti].trim(), weight: w, label: li >= 0 ? r[li] : void 0 });
+          }
+        } else return ctx.error("/data", `unsupported graph file ".${ext}"`, "use a .csv/.tsv edge list or a .json {nodes, edges}");
+      }
+      if (!edges && !nodes) return ctx.error("", 'give "edges" (and optionally "nodes"), or "data"');
+      edges != null ? edges : edges = [];
+      const out = /* @__PURE__ */ new Map();
+      for (const [i, n] of (nodes != null ? nodes : []).entries()) {
+        const node = typeof n === "object" ? n : { id: n };
+        const key = String(node.id);
+        if (out.has(key)) return ctx.error(at("nodes", i), `duplicate node "${key}"`);
+        out.set(key, { id: key, label: (_a2 = node.label) != null ? _a2 : key, group: node.group !== void 0 ? String(node.group) : void 0, value: node.value, degree: 0 });
+      }
+      const declared = out.size > 0;
+      const list2 = [];
+      for (const [i, e] of edges.entries()) {
+        const [s, t, w, label] = Array.isArray(e) ? e : [e.source, e.target, e.weight, e.label];
+        if (w !== void 0 && typeof w !== "number") return ctx.error(at("edges", i), `weight ${JSON.stringify(w)} is not a number`);
+        for (const end of [s, t]) {
+          const key = String(end);
+          if (!out.has(key)) {
+            if (declared) {
+              const guess = closest(key, [...out.keys()]);
+              return ctx.error(at("edges", i), `node "${key}" is not in nodes`, guess ? `did you mean "${guess}"?` : "add it to nodes, or leave nodes out to take them from the edges");
+            }
+            out.set(key, { id: key, label: key, degree: 0 });
+          }
+        }
+        out.get(String(s)).degree++;
+        out.get(String(t)).degree++;
+        list2.push({ s: String(s), t: String(t), w, label });
+      }
+      if (out.size > MAX_NODES) return ctx.error(props.data ? "/data" : "/nodes", `${out.size} nodes is too many to draw (max ${MAX_NODES})`);
+      if (list2.length > MAX_EDGES) return ctx.error(props.data ? "/data" : "/edges", `${list2.length} edges is too many to draw (max ${MAX_EDGES})`);
+      if (props.size === "value" && ![...out.values()].some((n) => n.value !== void 0)) ctx.warn("/size", "no node has a value; sizes are uniform");
+      const all = [...out.values()];
+      return {
+        title: props.title,
+        nodes: all,
+        edges: list2,
+        groups: [...new Set(all.map((n) => n.group).filter((g) => g !== void 0))],
+        directed: props.directed,
+        layout: props.layout,
+        size: props.size,
+        labels: props.labels === "auto" ? all.length <= 60 ? "all" : "none" : props.labels,
+        height: props.height
+      };
+    }
+  };
+
   // src/components/html.js
   var MAX_BYTES = 512 * 1024;
   var html_default = {
@@ -12559,11 +13243,11 @@ ${end.comment}` : end.comment;
   };
 
   // src/components/image.js
-  var TYPES2 = ["png", "jpg", "jpeg", "gif", "webp", "svg"];
+  var TYPES3 = ["png", "jpg", "jpeg", "gif", "webp", "svg"];
   var MAX_BYTES2 = 20 * 1024 * 1024;
   var image_default = {
     name: "image",
-    summary: "An image file from the project (png, jpg, gif, webp, svg), path relative to the document.",
+    summary: 'An image file from the project (png, jpg, gif, webp, svg): zoom and pan, a before/after comparison slider (compare), and a scale bar from the pixel size (scale: "0.65 \xB5m").',
     shorthand: { scalar: "src" },
     schema: {
       type: "object",
@@ -12573,19 +13257,155 @@ ${end.comment}` : end.comment;
         src: { type: "string", description: "relative path" },
         alt: { type: "string" },
         caption: { type: "string", description: "Markdown (inline)" },
-        width: { type: "integer", minimum: 16, maximum: 4096, description: "max display width in px" }
+        width: { type: "integer", minimum: 16, maximum: 4096, description: "max display width in px" },
+        compare: { type: "string", description: "relative path of a second image of the same scene, revealed with a slider" },
+        labels: { type: "array", items: { type: "string" }, minItems: 2, maxItems: 2, description: "names of src and compare, e.g. [before, after]" },
+        zoom: { type: "boolean", default: false, description: "wheel to zoom, drag to pan, double-click to reset" },
+        scale: { type: "string", description: 'size of one image pixel, e.g. "0.65 \xB5m", "2.5 nm", "30 m": draws a scale bar' }
       }
     },
-    example: "src: docs/screenshots/main.png\ncaption: The new layout",
+    example: 'src: img/cells.png\ncompare: img/cells-segmented.png\nlabels: [raw, segmented]\nscale: "0.65 \xB5m"\nzoom: true',
     resolve(props, ctx) {
-      if (isRemote(props.src)) return ctx.error("/src", "remote images are blocked (views have no network access)", "download the file into the project and reference its relative path");
-      if (!TYPES2.includes(extname(props.src))) return ctx.error("/src", `unsupported image type "${extname(props.src) || "(none)"}"`, `use one of: ${TYPES2.join(", ")}`);
-      const st = ctx.stat(props.src);
-      if (!st.ok) return ctx.error("/src", st.error);
-      if (st.size > MAX_BYTES2) return ctx.error("/src", `image is too large (${Math.round(st.size / 1048576)} MB, max 20 MB)`);
-      ctx.ref(props.src);
+      for (const key of ["src", "compare"]) {
+        const path2 = props[key];
+        if (path2 === void 0) continue;
+        if (isRemote(path2)) return ctx.error(`/${key}`, "remote images are blocked (views have no network access)", "download the file into the project and reference its relative path");
+        if (!TYPES3.includes(extname(path2))) return ctx.error(`/${key}`, `unsupported image type "${extname(path2) || "(none)"}"`, `use one of: ${TYPES3.join(", ")}`);
+        const st = ctx.stat(path2);
+        if (!st.ok) return ctx.error(`/${key}`, st.error);
+        if (st.size > MAX_BYTES2) return ctx.error(`/${key}`, `image is too large (${Math.round(st.size / 1048576)} MB, max 20 MB)`);
+        ctx.ref(path2);
+      }
+      if (props.labels && !props.compare) ctx.warn("/labels", "labels name the two images of a comparison; there is no compare image");
+      let scale;
+      if (props.scale !== void 0) {
+        const m = /^\s*(\d+(?:\.\d+)?(?:[eE][-+]?\d+)?)\s*([^\s\d][^\s]*)\s*$/.exec(props.scale);
+        if (!m || !(Number(m[1]) > 0)) return ctx.error("/scale", `"${props.scale}" is not a pixel size`, 'write a number and a unit, e.g. "0.65 \xB5m" or "30 m"');
+        scale = { size: Number(m[1]), unit: m[2] };
+      }
       if (props.caption) ctx.markdown("/caption", props.caption);
-      return props;
+      return __spreadProps(__spreadValues({}, props), { scale });
+    }
+  };
+
+  // src/components/map.js
+  var MAX_VERTICES = 4e5;
+  var GEOMETRIES = ["Point", "MultiPoint", "LineString", "MultiLineString", "Polygon", "MultiPolygon", "GeometryCollection"];
+  var DEPTH = { Point: 0, MultiPoint: 1, LineString: 1, MultiLineString: 2, Polygon: 2, MultiPolygon: 3 };
+  function checkGeoJson(doc) {
+    if (!doc || typeof doc !== "object") return { error: "not a GeoJSON object" };
+    const features = doc.type === "FeatureCollection" ? doc.features : doc.type === "Feature" ? [doc] : GEOMETRIES.includes(doc.type) ? [{ type: "Feature", geometry: doc, properties: {} }] : null;
+    if (!Array.isArray(features)) return { error: `"type" must be FeatureCollection, Feature or a geometry (got ${JSON.stringify(doc.type)})` };
+    let vertices = 0;
+    const walk = (coords, depth, where) => {
+      if (depth === 0) {
+        if (!Array.isArray(coords) || coords.length < 2 || !coords.every((c) => typeof c === "number" && Number.isFinite(c))) return `${where}: a position must be [longitude, latitude]`;
+        const [lon, lat] = coords;
+        if (Math.abs(lon) > 180.0001 || Math.abs(lat) > 90.0001) {
+          return Math.abs(lon) <= 90 && Math.abs(lat) <= 180 ? `${where}: [${lon}, ${lat}] looks like [latitude, longitude]; GeoJSON positions are [longitude, latitude]` : `${where}: [${lon}, ${lat}] is not longitude/latitude (projected coordinates?); GeoJSON must be WGS84 degrees`;
+        }
+        vertices++;
+        return null;
+      }
+      if (!Array.isArray(coords)) return `${where}: coordinates must be nested lists`;
+      for (const c of coords) {
+        const e = walk(c, depth - 1, where);
+        if (e) return e;
+      }
+      return null;
+    };
+    const geometry = (g, where) => {
+      var _a2;
+      if (g === null) return null;
+      if (!g || !GEOMETRIES.includes(g.type)) return `${where}: unknown geometry type ${JSON.stringify(g == null ? void 0 : g.type)}`;
+      if (g.type === "GeometryCollection") {
+        for (const [i, sub2] of ((_a2 = g.geometries) != null ? _a2 : []).entries()) {
+          const e = geometry(sub2, `${where} geometry ${i + 1}`);
+          if (e) return e;
+        }
+        return null;
+      }
+      return walk(g.coordinates, DEPTH[g.type], where);
+    };
+    for (const [i, f] of features.entries()) {
+      if ((f == null ? void 0 : f.type) !== "Feature") return { error: `feature ${i + 1}: "type" must be "Feature"` };
+      const e = geometry(f.geometry, `feature ${i + 1}`);
+      if (e) return { error: e };
+      if (vertices > MAX_VERTICES) return { error: `more than ${MAX_VERTICES.toLocaleString()} vertices; simplify the shapes (e.g. mapshaper -simplify)` };
+    }
+    return { features, vertices };
+  }
+  var map_default = {
+    name: "map",
+    summary: "Offline maps: GeoJSON regions, routes and sites (file) and/or inline points (lat, lon, value) over a built-in world basemap; colour regions by a property (choropleth); several projections; zoom and pan.",
+    schema: {
+      type: "object",
+      additionalProperties: false,
+      properties: {
+        title: { type: "string" },
+        data: { type: "string", description: "relative path to a .geojson / .json file (WGS84 longitude, latitude)" },
+        color: { type: "string", description: "feature property to colour regions by (numeric: a colour ramp; text: categories)" },
+        label: { type: "string", description: "feature property shown as the name in tooltips (default: name)" },
+        points: {
+          type: "array",
+          maxItems: 5e3,
+          items: {
+            type: "object",
+            additionalProperties: false,
+            required: ["lat", "lon"],
+            properties: { lat: { type: "number", minimum: -90, maximum: 90 }, lon: { type: "number", minimum: -180, maximum: 180 }, label: { type: "string" }, value: { type: "number" } }
+          },
+          description: "markers; sized by value when given"
+        },
+        basemap: { enum: ["world", "none"], default: "world" },
+        projection: {
+          enum: ["auto", "equal-earth", "natural-earth", "mercator", "equirectangular", "orthographic"],
+          default: "auto",
+          description: "auto: equal-earth for world-wide data, mercator for a region"
+        },
+        height: { type: "integer", minimum: 200, maximum: 1400, default: 460 }
+      }
+    },
+    example: "title: Field stations\npoints:\n  - {lat: -3.47, lon: -62.37, label: Amazon, value: 41}\n  - {lat: 64.13, lon: -21.94, label: Reykjav\xEDk, value: 12}\n  - {lat: -77.85, lon: 166.67, label: McMurdo, value: 7}\n  - {lat: 35.36, lon: 138.73, label: Fuji, value: 23}",
+    resolve(props, ctx) {
+      var _a2, _b;
+      if (props.data === void 0 && props.points === void 0 && props.basemap === "none") return ctx.error("", 'nothing to draw: give "data" or "points", or keep the world basemap');
+      const out = { title: props.title, points: (_a2 = props.points) != null ? _a2 : [], basemap: props.basemap, projection: props.projection, height: props.height, label: (_b = props.label) != null ? _b : "name" };
+      if (props.data === void 0) {
+        if (props.color) return ctx.error("/color", "color applies to the regions of a GeoJSON file (data)");
+        return out;
+      }
+      if (!["geojson", "json"].includes(extname(props.data))) return ctx.error("/data", "expected a .geojson or .json file");
+      const f = ctx.readText(props.data);
+      if (!f.ok) return ctx.error("/data", f.error);
+      let doc;
+      try {
+        doc = JSON.parse(f.text);
+      } catch (e) {
+        return ctx.error("/data", `${props.data}: invalid JSON (${e.message})`);
+      }
+      const g = checkGeoJson(doc);
+      if (g.error) return ctx.error("/data", `${props.data}: ${g.error}`);
+      const keys = [...new Set(g.features.flatMap((x) => {
+        var _a3;
+        return Object.keys((_a3 = x.properties) != null ? _a3 : {});
+      }))];
+      if (props.color !== void 0) {
+        const values = g.features.map((x) => {
+          var _a3;
+          return (_a3 = x.properties) == null ? void 0 : _a3[props.color];
+        }).filter((v) => v !== void 0 && v !== null && v !== "");
+        if (!values.length) {
+          const guess = closest(props.color, keys);
+          return ctx.error("/color", `no feature has the property "${props.color}"`, (guess ? `did you mean "${guess}"? ` : "") + (keys.length ? `properties: ${keys.slice(0, 20).join(", ")}` : "the features have no properties"));
+        }
+        const numeric = values.every((v) => typeof v === "number" || typeof v === "string" && v.trim() !== "" && Number.isFinite(Number(v)));
+        out.color = numeric ? { key: props.color, numeric: true, range: [Math.min(...values.map(Number)), Math.max(...values.map(Number))] } : { key: props.color, numeric: false, categories: [...new Set(values.map(String))].slice(0, 24) };
+        if (!numeric && new Set(values.map(String)).size > 24) ctx.warn("/color", `"${props.color}" has more than 24 distinct values; the rest share a colour`);
+      }
+      if (props.label !== void 0 && !keys.includes(props.label)) ctx.warn("/label", `no feature has the property "${props.label}"`);
+      ctx.ref(props.data);
+      return __spreadProps(__spreadValues({}, out), { file: props.data, features: g.features.length });
     }
   };
 
@@ -12893,11 +13713,11 @@ ${end.comment}` : end.comment;
     }
   };
   var Style = class {
-    constructor(id, size, cramped) {
+    constructor(id2, size, cramped) {
       this.id = void 0;
       this.size = void 0;
       this.cramped = void 0;
-      this.id = id;
+      this.id = id2;
       this.size = size;
       this.cramped = cramped;
     }
@@ -27123,81 +27943,8 @@ ${end.comment}` : end.comment;
     }
   };
 
-  // src/core/npy.js
-  var B64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-  var LOOKUP = (() => {
-    const t = new Int16Array(128).fill(-1);
-    for (let i = 0; i < 64; i++) t[B64.charCodeAt(i)] = i;
-    return t;
-  })();
-  function base64ToBytes(s) {
-    const clean = s.replace(/[^A-Za-z0-9+/]/g, "");
-    const out = new Uint8Array(Math.floor(clean.length * 3 / 4));
-    let o = 0;
-    for (let i = 0; i + 1 < clean.length; i += 4) {
-      const n = LOOKUP[clean.charCodeAt(i)] << 18 | LOOKUP[clean.charCodeAt(i + 1)] << 12 | (LOOKUP[clean.charCodeAt(i + 2)] & 63) << 6 | LOOKUP[clean.charCodeAt(i + 3)] & 63;
-      out[o++] = n >> 16 & 255;
-      if (i + 2 < clean.length) out[o++] = n >> 8 & 255;
-      if (i + 3 < clean.length) out[o++] = n & 255;
-    }
-    return out.subarray(0, o);
-  }
-  function parseNpy(bytes) {
-    var _a2, _b;
-    const magic = [147, 78, 85, 77, 80, 89];
-    if (bytes.length < 10 || magic.some((b, i) => bytes[i] !== b)) return { error: "not a .npy file (bad magic)" };
-    const major = bytes[6];
-    const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
-    const headerLen = major === 1 ? view.getUint16(8, true) : view.getUint32(8, true);
-    const start = major === 1 ? 10 : 12;
-    let header = "";
-    for (let i = start; i < start + headerLen; i++) header += String.fromCharCode(bytes[i]);
-    const descr = (_a2 = /'descr':\s*'([^']+)'/.exec(header)) == null ? void 0 : _a2[1];
-    const fortran = /'fortran_order':\s*True/.test(header);
-    const shapeText = (_b = /'shape':\s*\(([^)]*)\)/.exec(header)) == null ? void 0 : _b[1];
-    if (!descr || shapeText === void 0) return { error: "unreadable .npy header" };
-    const shape = shapeText.split(",").map((s) => s.trim()).filter(Boolean).map(Number);
-    if (shape.length < 1 || shape.length > 2) return { error: `.npy array has ${shape.length} dimensions; 1 or 2 are supported` };
-    const m = /^([<>|=])([fiub])(\d+)$/.exec(descr);
-    if (!m) return { error: `.npy dtype ${descr} is not supported (numeric arrays only)` };
-    const little = m[1] !== ">";
-    const kind = m[2], size = Number(m[3]);
-    const readers = {
-      f4: (o) => view.getFloat32(o, little),
-      f8: (o) => view.getFloat64(o, little),
-      i1: (o) => view.getInt8(o),
-      i2: (o) => view.getInt16(o, little),
-      i4: (o) => view.getInt32(o, little),
-      u1: (o) => view.getUint8(o),
-      u2: (o) => view.getUint16(o, little),
-      u4: (o) => view.getUint32(o, little),
-      b1: (o) => view.getUint8(o),
-      i8: (o) => {
-        const lo = view.getUint32(o + (little ? 0 : 4), little), hi = view.getInt32(o + (little ? 4 : 0), little);
-        return hi * 4294967296 + lo;
-      },
-      u8: (o) => {
-        const lo = view.getUint32(o + (little ? 0 : 4), little), hi = view.getUint32(o + (little ? 4 : 0), little);
-        return hi * 4294967296 + lo;
-      }
-    };
-    const read = readers[`${kind}${size}`];
-    if (!read) return { error: `.npy dtype ${descr} is not supported` };
-    const count = shape.reduce((a, b) => a * b, 1);
-    const offset = start + headerLen;
-    if (offset + count * size > bytes.length) return { error: ".npy file is truncated" };
-    const flat2 = new Array(count);
-    for (let i = 0; i < count; i++) flat2[i] = read(offset + i * size);
-    if (shape.length === 2 && fortran) {
-      const [r, c] = shape, out = new Array(count);
-      for (let i = 0; i < r; i++) for (let j = 0; j < c; j++) out[i * c + j] = flat2[j * r + i];
-      return { shape, data: out };
-    }
-    return { shape, data: flat2 };
-  }
-
   // src/components/matrix.js
-  var MAX_CELLS = 25e4;
+  var MAX_CELLS2 = 25e4;
   var matrix_default = {
     name: "matrix",
     summary: "A numeric grid as a heatmap, contour lines or a WebGL surface: correlation/confusion matrices, fields, images of data. From a .csv/.tsv grid (row/column labels detected), a NumPy .npy file or inline values.",
@@ -27262,7 +28009,7 @@ ${end.comment}` : end.comment;
         } else return ctx.error("/data", `unsupported matrix file ".${ext}"`, "use a .csv, .tsv or .npy file");
       }
       const nr = grid.length, nc = grid[0].length;
-      if (nr * nc > MAX_CELLS) return ctx.error(props.data ? "/data" : "/values", `${nr}\xD7${nc} is ${nr * nc} cells (max ${MAX_CELLS})`, "downsample first");
+      if (nr * nc > MAX_CELLS2) return ctx.error(props.data ? "/data" : "/values", `${nr}\xD7${nc} is ${nr * nc} cells (max ${MAX_CELLS2})`, "downsample first");
       if (rows && rows.length !== nr) return ctx.error("/rows", `${rows.length} row labels for ${nr} rows`);
       if (cols2 && cols2.length !== nc) return ctx.error("/cols", `${cols2.length} column labels for ${nc} columns`);
       if (props.style === "contour" && (nr < 2 || nc < 2)) return ctx.error("/style", "contours need at least 2 rows and 2 columns");
@@ -28858,6 +29605,92 @@ ${end.comment}` : end.comment;
     }
   };
 
+  // src/components/plot.js
+  var VARS = { function: ["x"], parametric: ["t"], polar: ["t", "theta"], surface: ["x", "y"] };
+  var FIELDS = { function: ["y"], parametric: ["x", "y"], polar: ["r"], surface: ["z"] };
+  var range3 = (d) => ({ type: "array", items: { type: "number" }, minItems: 2, maxItems: 2, description: d });
+  var plot_default = {
+    name: "plot",
+    summary: 'Plot formulas: type function (y: "sin(x)/x"), parametric (x, y of t), polar (r of t) or surface (z of x, y, WebGL). Functions: sin cos tan exp ln log sqrt abs gamma erf \u2026; constants pi e; params are named constants or sliders the reader can drag.',
+    shorthand: { array: "functions", scalar: "functions" },
+    schema: {
+      type: "object",
+      additionalProperties: false,
+      required: ["functions"],
+      properties: {
+        type: { enum: ["function", "parametric", "polar", "surface"], default: "function" },
+        title: { type: "string" },
+        functions: {
+          type: ["array", "string"],
+          minItems: 1,
+          maxItems: 12,
+          items: {
+            type: ["string", "object"],
+            additionalProperties: false,
+            properties: { y: { type: ["string", "number"] }, x: { type: ["string", "number"] }, r: { type: ["string", "number"] }, z: { type: ["string", "number"] }, label: { type: "string" } }
+          },
+          description: "expressions: strings, or {y|x,y|r|z, label} by type"
+        },
+        x: range3("x range (function, surface; default [-10, 10])"),
+        y: range3("y range: the view for functions (default: automatic), the domain for surfaces"),
+        t: range3("parameter range for parametric and polar (default [0, 2pi])"),
+        params: PARAMS_SCHEMA,
+        samples: { type: "integer", minimum: 10, maximum: 5e3, description: "points per curve (default 600) or grid size per axis for surfaces (default 60, max 150)" },
+        xlabel: { type: "string" },
+        ylabel: { type: "string" },
+        height: { type: "integer", minimum: 160, maximum: 1200 },
+        rotate: { type: "boolean", default: false, description: "surfaces: turn slowly until the user drags" }
+      }
+    },
+    example: 'title: Damped oscillation\nx: [0, 20]\nparams:\n  a: {value: 0.15, min: 0, max: 1}\n  w: 2\nfunctions:\n  - {y: "exp(-a x) cos(w x)", label: signal}\n  - {y: "exp(-a x)", label: envelope}',
+    resolve(props, ctx) {
+      var _a2, _b, _c, _d, _e, _f, _g, _h;
+      const type = props.type;
+      const resolved = resolveParams(props.params, VARS[type], ctx);
+      if (!resolved) return void 0;
+      const params = resolved.values;
+      const allowed = [...VARS[type], ...Object.keys(params)];
+      const list2 = [].concat(props.functions);
+      if (type === "surface" && list2.length !== 1) return ctx.error("/functions", "a surface plot takes exactly one function");
+      const functions2 = [];
+      for (let i = 0; i < list2.length; i++) {
+        const item = list2[i];
+        const path2 = Array.isArray(props.functions) ? `/functions/${i}` : "/functions";
+        const f = typeof item === "string" ? { [FIELDS[type][0]]: item } : __spreadValues({}, item);
+        if (typeof item === "string" && type === "parametric") return ctx.error(path2, 'parametric curves need {x: "\u2026", y: "\u2026"}');
+        const extra = Object.keys(f).filter((k) => k !== "label" && !FIELDS[type].includes(k));
+        if (extra.length) return ctx.error(`${path2}/${extra[0]}`, `"${extra[0]}" does not apply to ${type} plots`, `use ${FIELDS[type].join(" and ")}`);
+        for (const k of FIELDS[type]) {
+          if (f[k] === void 0) return ctx.error(path2, `missing "${k}"`, `a ${type} plot needs ${FIELDS[type].join(" and ")}`);
+          const r = parse2(f[k], allowed);
+          if (!r.ok) return ctx.error(typeof item === "string" ? path2 : `${path2}/${k}`, `${k} = ${f[k]}: ${r.message}${r.col ? ` (column ${r.col})` : ""}`);
+          f[k] = String(f[k]);
+        }
+        (_a2 = f.label) != null ? _a2 : f.label = type === "parametric" ? `(${f.x}, ${f.y})` : f[FIELDS[type][0]];
+        functions2.push(f);
+      }
+      for (const axis of ["x", "y", "t"])
+        if (props[axis] && !(props[axis][0] < props[axis][1])) return ctx.error(`/${axis}`, `${axis} range must be [min, max] with min < max`);
+      if (type === "surface" && props.samples > 150) return ctx.error("/samples", "surfaces take at most 150 samples per axis");
+      const surfaceY = (_b = props.y) != null ? _b : [-10, 10];
+      return {
+        type,
+        title: props.title,
+        functions: functions2,
+        params,
+        sliders: resolved.sliders,
+        x: (_c = props.x) != null ? _c : [-10, 10],
+        y: type === "surface" ? surfaceY : props.y,
+        t: (_d = props.t) != null ? _d : [0, 2 * Math.PI],
+        samples: (_e = props.samples) != null ? _e : type === "surface" ? 60 : 600,
+        xlabel: (_f = props.xlabel) != null ? _f : type === "polar" ? void 0 : "x",
+        ylabel: (_g = props.ylabel) != null ? _g : type === "surface" ? "y" : void 0,
+        height: (_h = props.height) != null ? _h : type === "surface" ? 440 : 320,
+        rotate: props.rotate
+      };
+    }
+  };
+
   // src/components/reaction.js
   var reaction_default = {
     name: "reaction",
@@ -28985,6 +29818,71 @@ ${end.comment}` : end.comment;
     }
   };
 
+  // src/core/numfmt.js
+  function sig(v, digits) {
+    if (!Number.isFinite(v) || v === 0) return String(v);
+    const s = Number(v.toPrecision(digits));
+    return Math.abs(s) >= 1e6 || Math.abs(s) < 1e-4 ? s.toExponential(Math.max(0, digits - 1)) : String(s);
+  }
+  function withError(v, e) {
+    if (!Number.isFinite(v)) return String(v);
+    if (!Number.isFinite(e) || e <= 0) return String(v);
+    const exp = Math.floor(Math.log10(e)) - 1;
+    const decimals = Math.max(0, -exp);
+    const scale = 10 ** exp;
+    const r = (x) => exp < 0 ? x.toFixed(decimals) : String(Math.round(x / scale) * scale);
+    return `${r(v)} \xB1 ${r(e)}`;
+  }
+  function formatValue(v, { error: error2, unit, digits } = {}) {
+    let s;
+    if (typeof v !== "number") s = String(v);
+    else if (error2 !== void 0) s = withError(v, error2);
+    else if (digits) s = sig(v, digits);
+    else s = String(v);
+    return unit ? `${s} ${unit}` : s;
+  }
+
+  // src/components/stats.js
+  var stats_default = {
+    name: "stats",
+    summary: "A row of key numbers (KPIs) with optional change and tone. A bare list is the items.",
+    shorthand: { array: "items" },
+    schema: {
+      type: "object",
+      additionalProperties: false,
+      required: ["items"],
+      properties: {
+        title: { type: "string" },
+        items: {
+          type: "array",
+          minItems: 1,
+          maxItems: 12,
+          items: {
+            type: "object",
+            additionalProperties: false,
+            required: ["label", "value"],
+            properties: {
+              label: { type: "string" },
+              value: { type: ["string", "number"] },
+              error: { type: "number", minimum: 0, description: "\xB1 uncertainty; the value is rounded to its precision" },
+              unit: { type: "string" },
+              digits: { type: "integer", minimum: 1, maximum: 12, description: "significant figures" },
+              delta: { type: ["string", "number"], description: "change, e.g. +12% or -3" },
+              tone: { enum: ["good", "bad", "neutral"], default: "neutral" },
+              hint: { type: "string", description: "small text under the value" }
+            }
+          }
+        }
+      }
+    },
+    // YAML reads `delta: +18` as the number 18; keep the sign that the author clearly meant to show.
+    resolve(props) {
+      const signed = (d) => typeof d === "number" && d > 0 ? `+${d}` : d === void 0 ? void 0 : String(d);
+      return __spreadProps(__spreadValues({}, props), { items: props.items.map((it) => __spreadProps(__spreadValues({}, it), { value: formatValue(it.value, it), delta: signed(it.delta) })) });
+    },
+    example: "- {label: g, value: 9.8134, error: 0.0021, unit: m/s\xB2}\n- {label: Tests, value: 142, delta: +18, tone: good}\n- {label: p95 latency, value: 38ms, delta: -41%, tone: good}\n- {label: Open issues, value: 3}"
+  };
+
   // src/core/formats/molecule.js
   var FORMATS = { pdb: "pdb", ent: "pdb", pqr: "pqr", cif: "cif", mmcif: "cif", sdf: "sdf", mol: "sdf", mol2: "mol2", xyz: "xyz", gro: "gro" };
   function checkMolecule(text3, format2) {
@@ -29081,18 +29979,97 @@ ${end.comment}` : end.comment;
     }
   };
 
+  // src/components/table.js
+  var table_default = {
+    name: "table",
+    summary: "Sortable table from inline rows or a data file (csv, tsv, json). Numbers are right-aligned automatically.",
+    schema: {
+      type: "object",
+      additionalProperties: false,
+      properties: __spreadProps(__spreadValues({
+        title: { type: "string" },
+        columns: {
+          type: "array",
+          minItems: 1,
+          items: {
+            type: ["string", "object"],
+            additionalProperties: false,
+            required: ["key"],
+            properties: {
+              key: { type: "string", description: "field name (object rows / data files) or header (list rows)" },
+              label: { type: "string" },
+              align: { enum: ["left", "right", "center"] },
+              unit: { type: "string", description: "shown in the header" },
+              error: { type: "string", description: "column holding the \xB1 uncertainty of this one" },
+              digits: { type: "integer", minimum: 1, maximum: 12, description: "significant figures" }
+            }
+          },
+          description: "columns to show, in order; default: every field"
+        }
+      }, dataProps), {
+        sort: {
+          type: "object",
+          additionalProperties: false,
+          required: ["by"],
+          properties: { by: { type: "string" }, desc: { type: "boolean", default: false } }
+        },
+        limit: { type: "integer", minimum: 1, maximum: MAX_ROWS, default: 1e3 }
+      })
+    },
+    example: "columns: [suite, passed, failed, {key: ms, label: time (ms)}]\nrows:\n  - [auth, 42, 0, 812]\n  - [billing, 17, 2, 1290]\nsort: {by: failed, desc: true}",
+    resolve(props, ctx) {
+      var _a2;
+      const d = loadRecords(props, ctx);
+      if (!d) return void 0;
+      const cols2 = ((_a2 = props.columns) == null ? void 0 : _a2.length) ? props.columns.map((c) => typeof c === "string" ? { key: c } : c) : d.keys.map((key) => ({ key }));
+      const missing = cols2.filter((c) => !d.keys.includes(c.key));
+      if (missing.length)
+        return ctx.error("/columns", `column${missing.length > 1 ? "s" : ""} ${missing.map((c) => `"${c.key}"`).join(", ")} not found${props.data ? ` in ${props.data}` : ""}`, didYouMean(missing[0].key, d.keys));
+      const records = d.records;
+      for (const [i, c] of cols2.entries())
+        if (c.error !== void 0 && !d.keys.includes(c.error)) return ctx.error(`/columns/${i}/error`, `"${c.error}" is not a column`, didYouMean(c.error, d.keys));
+      const cell = (v) => v === null || v === void 0 ? "" : typeof v === "object" ? JSON.stringify(v) : v;
+      let rows = records.map((r) => cols2.map((c) => {
+        const v = cell(r[c.key]);
+        if (c.error === void 0 && c.digits === void 0 || v === "" || !isNumeric(v)) return v;
+        const e = c.error !== void 0 && isNumeric(r[c.error]) ? Number(r[c.error]) : void 0;
+        return formatValue(Number(v), { error: e, digits: c.digits });
+      }));
+      const numeric = cols2.map((c, i) => rows.length > 0 && rows.every((r) => r[i] === "" || isNumeric(r[i]) || c.error !== void 0 && / ± /.test(r[i])));
+      let sort;
+      if (props.sort) {
+        const i = cols2.findIndex((c) => c.key === props.sort.by);
+        if (i < 0) return ctx.error("/sort/by", `"${props.sort.by}" is not a column`, didYouMean(props.sort.by, cols2.map((c) => c.key)));
+        sort = { column: i, desc: props.sort.desc };
+      }
+      if (rows.length > props.limit) {
+        ctx.warn("/limit", `showing ${props.limit} of ${rows.length} rows`);
+        rows = rows.slice(0, props.limit);
+      }
+      return {
+        title: props.title,
+        columns: cols2.map((c, i) => {
+          var _a3, _b;
+          return { key: c.key, label: ((_a3 = c.label) != null ? _a3 : c.key) + (c.unit ? ` (${c.unit})` : ""), align: (_b = c.align) != null ? _b : numeric[i] ? "right" : "left", numeric: numeric[i] };
+        }),
+        rows,
+        sort
+      };
+    }
+  };
+
   // src/core/formats/bed.js
-  function parseBed(text3, { graph = false } = {}) {
+  function parseBed(text3, { graph: graph2 = false } = {}) {
     const out = [];
     const lines = text3.replace(/\r/g, "").split("\n");
     for (let n = 0; n < lines.length; n++) {
       const line = lines[n];
       if (!line.trim() || /^(#|track|browser)/.test(line)) continue;
       const f = line.split(/\t| +/);
-      if (f.length < (graph ? 4 : 3)) return { error: `line ${n + 1}: expected at least ${graph ? 4 : 3} columns (chrom start end${graph ? " value" : ""})` };
+      if (f.length < (graph2 ? 4 : 3)) return { error: `line ${n + 1}: expected at least ${graph2 ? 4 : 3} columns (chrom start end${graph2 ? " value" : ""})` };
       const start = Number(f[1]), end = Number(f[2]);
       if (!Number.isInteger(start) || !Number.isInteger(end) || start < 0 || end < start) return { error: `line ${n + 1}: start/end must be integers with 0 \u2264 start \u2264 end` };
-      if (graph) {
+      if (graph2) {
         const value = Number(f[3]);
         if (!Number.isFinite(value)) return { error: `line ${n + 1}: "${f[3]}" is not a number` };
         out.push({ chrom: f[0], start, end, value });
@@ -29341,430 +30318,91 @@ ${end.comment}` : end.comment;
     }
   };
 
-  // src/core/expr.js
-  var FUNCS = {
-    sin: Math.sin,
-    cos: Math.cos,
-    tan: Math.tan,
-    asin: Math.asin,
-    acos: Math.acos,
-    atan: Math.atan,
-    sinh: Math.sinh,
-    cosh: Math.cosh,
-    tanh: Math.tanh,
-    asinh: Math.asinh,
-    acosh: Math.acosh,
-    atanh: Math.atanh,
-    exp: Math.exp,
-    ln: Math.log,
-    log: Math.log10,
-    log10: Math.log10,
-    log2: Math.log2,
-    sqrt: Math.sqrt,
-    cbrt: Math.cbrt,
-    abs: Math.abs,
-    floor: Math.floor,
-    ceil: Math.ceil,
-    round: Math.round,
-    sign: Math.sign,
-    atan2: Math.atan2,
-    pow: Math.pow,
-    min: Math.min,
-    max: Math.max,
-    hypot: Math.hypot,
-    sec: (v) => 1 / Math.cos(v),
-    csc: (v) => 1 / Math.sin(v),
-    cot: (v) => 1 / Math.tan(v),
-    gamma: (v) => gamma(v),
-    erf: (v) => erf(v),
-    sinc: (v) => v === 0 ? 1 : Math.sin(v) / v,
-    heaviside: (v) => v < 0 ? 0 : 1,
-    clamp: (v, lo, hi) => Math.min(Math.max(v, lo), hi)
-  };
-  var ARITY = { atan2: 2, pow: 2, min: [1, 16], max: [1, 16], hypot: [1, 16], clamp: 3 };
-  var CONSTS = { pi: Math.PI, e: Math.E, tau: 2 * Math.PI, phi: (1 + Math.sqrt(5)) / 2, inf: Infinity };
-  var functionNames = Object.keys(FUNCS);
-  var constantNames = Object.keys(CONSTS);
-  function gamma(z) {
-    if (z < 0.5) return Math.PI / (Math.sin(Math.PI * z) * gamma(1 - z));
-    const g = 7, c = [
-      0.9999999999998099,
-      676.5203681218851,
-      -1259.1392167224028,
-      771.3234287776531,
-      -176.6150291621406,
-      12.507343278686905,
-      -0.13857109526572012,
-      9984369578019572e-21,
-      15056327351493116e-23
-    ];
-    z -= 1;
-    let x = c[0];
-    for (let i = 1; i < g + 2; i++) x += c[i] / (z + i);
-    const t = z + g + 0.5;
-    return Math.sqrt(2 * Math.PI) * t ** (z + 0.5) * Math.exp(-t) * x;
-  }
-  function erf(x) {
-    const s = Math.sign(x), a = Math.abs(x), t = 1 / (1 + 0.3275911 * a);
-    return s * (1 - ((((1.061405429 * t - 1.453152027) * t + 1.421413741) * t - 0.284496736) * t + 0.254829592) * t * Math.exp(-a * a));
-  }
-  var ExprError = class extends Error {
-    constructor(message, col) {
-      super(message);
-      this.col = col;
-    }
-  };
-  function tokenize(src) {
+  // src/components/volume.js
+  var MAX_VOXELS = 256 * 256 * 256;
+  function checkCube(text3) {
     var _a2, _b;
-    const out = [];
-    const re = /\s*(?:(\d+\.?\d*(?:[eE][-+]?\d+)?|\.\d+(?:[eE][-+]?\d+)?)|([A-Za-z_][A-Za-z_0-9]*)|(\*\*|[-+*/%^(),]))/y;
-    let i = 0;
-    while (i < src.length) {
-      if (/^\s*$/.test(src.slice(i))) break;
-      re.lastIndex = i;
-      const m = re.exec(src);
-      if (!m) {
-        const at = i + (src.slice(i).length - src.slice(i).trimStart().length);
-        throw new ExprError(`unexpected "${src[at]}"`, at + 1);
+    const lines = text3.replace(/\r/g, "").split("\n");
+    const nums = (l) => l.trim().split(/\s+/).map(Number);
+    const head = nums((_a2 = lines[2]) != null ? _a2 : "");
+    if (head.length < 4 || head.some((v) => !Number.isFinite(v))) return { error: "line 3: expected the atom count and the origin (x y z)" };
+    const natoms = Math.abs(head[0]);
+    const axes = [3, 4, 5].map((i) => {
+      var _a3;
+      return nums((_a3 = lines[i]) != null ? _a3 : "");
+    });
+    const bad = axes.findIndex((a) => a.length < 4 || a.some((v) => !Number.isFinite(v)) || !Number.isInteger(a[0]) || a[0] === 0);
+    if (bad >= 0) return { error: `line ${bad + 4}: expected a voxel count and a step vector` };
+    const size = axes.map((a) => Math.abs(a[0]));
+    const first = 6 + natoms + (head[0] < 0 ? 1 : 0);
+    for (let i = 6; i < 6 + natoms; i++) if (nums((_b = lines[i]) != null ? _b : "").length < 5) return { error: `line ${i + 1}: expected an atom (Z, charge, x, y, z)` };
+    const want = size[0] * size[1] * size[2];
+    if (want > MAX_VOXELS) return { error: `${size.join("\xD7")} voxels is too many (max ${MAX_VOXELS.toLocaleString()})` };
+    let count = 0;
+    for (let i = first; i < lines.length; i++) {
+      for (const t of lines[i].trim().split(/\s+/)) {
+        if (!t) continue;
+        if (!Number.isFinite(Number(t))) return { error: `line ${i + 1}: "${t}" is not a number` };
+        count++;
       }
-      const col = m.index + m[0].length - ((_b = (_a2 = m[1]) != null ? _a2 : m[2]) != null ? _b : m[3]).length + 1;
-      if (m[1] !== void 0) out.push({ t: "num", v: Number(m[1]), col });
-      else if (m[2] !== void 0) out.push({ t: "id", v: m[2], col });
-      else out.push({ t: "op", v: m[3] === "**" ? "^" : m[3], col });
-      i = re.lastIndex;
     }
-    out.push({ t: "end", col: src.length + 1 });
-    return out;
+    if (count !== want) return { error: `${count.toLocaleString()} values for a ${size.join("\xD7")} grid (${want.toLocaleString()} expected)` };
+    return { size, atoms: natoms };
   }
-  function build(tokens, allowed) {
-    let i = 0;
-    const vars = /* @__PURE__ */ new Set();
-    const peek = () => tokens[i];
-    const next = () => tokens[i++];
-    const expect = (v) => {
-      const t = next();
-      if (t.v !== v) throw new ExprError(t.t === "end" ? `missing "${v}"` : `expected "${v}"`, t.col);
-    };
-    const startsPrimary = (t) => t.t === "num" || t.t === "id" || t.v === "(";
-    function primary() {
-      var _a2;
-      const t = next();
-      if (t.t === "num") return () => t.v;
-      if (t.v === "(") {
-        const e = expr(0);
-        expect(")");
-        return e;
-      }
-      if (t.v === "-" || t.v === "+") {
-        const e = expr(3);
-        return t.v === "-" ? (v) => -e(v) : e;
-      }
-      if (t.t === "id") {
-        if (peek().v === "(" && FUNCS[t.v]) {
-          next();
-          const args = [];
-          if (peek().v !== ")") {
-            args.push(expr(0));
-            while (peek().v === ",") {
-              next();
-              args.push(expr(0));
-            }
-          }
-          expect(")");
-          const want = (_a2 = ARITY[t.v]) != null ? _a2 : 1;
-          const [lo, hi] = Array.isArray(want) ? want : [want, want];
-          if (args.length < lo || args.length > hi) throw new ExprError(`${t.v}() takes ${lo === hi ? lo : `${lo} to ${hi}`} argument${hi === 1 ? "" : "s"}, got ${args.length}`, t.col);
-          const f = FUNCS[t.v];
-          if (args.length === 1) {
-            const [a] = args;
-            return (v) => f(a(v));
-          }
-          return (v) => f(...args.map((a) => a(v)));
-        }
-        if (FUNCS[t.v]) throw new ExprError(`${t.v} is a function: write ${t.v}(\u2026)`, t.col);
-        if (t.v in CONSTS && !allowed.includes(t.v)) {
-          const c = CONSTS[t.v];
-          return () => c;
-        }
-        if (allowed.includes(t.v)) {
-          vars.add(t.v);
-          const name = t.v;
-          return (v) => v[name];
-        }
-        const guess = closest(t.v, [...allowed, ...constantNames, ...functionNames]);
-        throw new ExprError(`unknown name "${t.v}"${guess ? ` (did you mean "${guess}"?)` : ""}; variables here: ${allowed.join(", ") || "none"}`, t.col);
-      }
-      throw new ExprError(t.t === "end" ? "expression ends too early" : `unexpected "${t.v}"`, t.col);
-    }
-    function expr(minBp) {
-      let left = primary();
-      for (; ; ) {
-        const t = peek();
-        let op2 = t.t === "op" ? t.v : null;
-        if (!op2 && startsPrimary(t)) op2 = "implicit";
-        if (op2 === "(") op2 = "implicit";
-        const bp = { "+": 1, "-": 1, "*": 2, "/": 2, "%": 2, implicit: 2, "^": 4 }[op2];
-        if (bp === void 0 || bp < minBp || bp === minBp && op2 !== "^") break;
-        if (op2 !== "implicit") next();
-        const right = expr(op2 === "^" ? bp : bp + 1);
-        const l = left;
-        left = {
-          "+": (v) => l(v) + right(v),
-          "-": (v) => l(v) - right(v),
-          "*": (v) => l(v) * right(v),
-          implicit: (v) => l(v) * right(v),
-          "/": (v) => l(v) / right(v),
-          "%": (v) => l(v) % right(v),
-          "^": (v) => l(v) ** right(v)
-        }[op2];
-      }
-      return left;
-    }
-    const fn = expr(0);
-    const end = peek();
-    if (end.t !== "end") throw new ExprError(`unexpected "${end.v}"`, end.col);
-    return { fn, vars };
-  }
-  function parse2(src, allowed = ["x"]) {
-    if (typeof src === "number") return { ok: true, fn: () => src, vars: /* @__PURE__ */ new Set() };
-    try {
-      const { fn, vars } = build(tokenize(String(src)), allowed);
-      return { ok: true, fn, vars };
-    } catch (e) {
-      if (e instanceof ExprError) return { ok: false, message: e.message, col: e.col };
-      throw e;
-    }
-  }
-
-  // src/components/plot.js
-  var VARS = { function: ["x"], parametric: ["t"], polar: ["t", "theta"], surface: ["x", "y"] };
-  var FIELDS = { function: ["y"], parametric: ["x", "y"], polar: ["r"], surface: ["z"] };
-  var range = (d) => ({ type: "array", items: { type: "number" }, minItems: 2, maxItems: 2, description: d });
-  var plot_default = {
-    name: "plot",
-    summary: 'Plot formulas: type function (y: "sin(x)/x"), parametric (x, y of t), polar (r of t) or surface (z of x, y, WebGL). Functions: sin cos tan exp ln log sqrt abs gamma erf \u2026; constants pi e; params for named constants.',
-    shorthand: { array: "functions", scalar: "functions" },
+  var volume_default = {
+    name: "volume",
+    summary: "3D scalar fields (densities, orbitals, CT/MRI stacks, simulation grids): isosurfaces in WebGL plus a slice viewer. From a .npy a[i, j, k] over x, y, z or a Gaussian .cube file.",
+    shorthand: { scalar: "data" },
     schema: {
       type: "object",
       additionalProperties: false,
-      required: ["functions"],
-      properties: {
-        type: { enum: ["function", "parametric", "polar", "surface"], default: "function" },
-        title: { type: "string" },
-        functions: {
-          type: ["array", "string"],
-          minItems: 1,
-          maxItems: 12,
-          items: {
-            type: ["string", "object"],
-            additionalProperties: false,
-            properties: { y: { type: ["string", "number"] }, x: { type: ["string", "number"] }, r: { type: ["string", "number"] }, z: { type: ["string", "number"] }, label: { type: "string" } }
-          },
-          description: "expressions: strings, or {y|x,y|r|z, label} by type"
-        },
-        x: range("x range (function, surface; default [-10, 10])"),
-        y: range("y range: the view for functions (default: automatic), the domain for surfaces"),
-        t: range("parameter range for parametric and polar (default [0, 2pi])"),
-        params: { type: "object", additionalProperties: { type: "number" }, description: "named constants, e.g. {a: 2, k: 0.5}" },
-        samples: { type: "integer", minimum: 10, maximum: 5e3, description: "points per curve (default 600) or grid size per axis for surfaces (default 60, max 150)" },
-        xlabel: { type: "string" },
-        ylabel: { type: "string" },
-        height: { type: "integer", minimum: 160, maximum: 1200 },
-        rotate: { type: "boolean", default: false, description: "surfaces: turn slowly until the user drags" }
-      }
-    },
-    example: 'title: Damped oscillation\nx: [0, 20]\nparams: {a: 0.15, w: 2}\nfunctions:\n  - {y: "exp(-a x) cos(w x)", label: signal}\n  - {y: "exp(-a x)", label: envelope}',
-    resolve(props, ctx) {
-      var _a2, _b, _c, _d, _e, _f, _g, _h, _i;
-      const type = props.type;
-      const params = (_a2 = props.params) != null ? _a2 : {};
-      for (const name of Object.keys(params)) {
-        if (!/^[A-Za-z_]\w*$/.test(name)) return ctx.error(`/params/${name}`, `"${name}" is not a valid name`);
-        if (functionNames.includes(name) || constantNames.includes(name) || VARS[type].includes(name))
-          return ctx.error(`/params/${name}`, `"${name}" is already a ${functionNames.includes(name) ? "function" : constantNames.includes(name) ? "constant" : "variable"} name`);
-      }
-      const allowed = [...VARS[type], ...Object.keys(params)];
-      const list2 = [].concat(props.functions);
-      if (type === "surface" && list2.length !== 1) return ctx.error("/functions", "a surface plot takes exactly one function");
-      const functions2 = [];
-      for (let i = 0; i < list2.length; i++) {
-        const item = list2[i];
-        const path2 = Array.isArray(props.functions) ? `/functions/${i}` : "/functions";
-        const f = typeof item === "string" ? { [FIELDS[type][0]]: item } : __spreadValues({}, item);
-        if (typeof item === "string" && type === "parametric") return ctx.error(path2, 'parametric curves need {x: "\u2026", y: "\u2026"}');
-        const extra = Object.keys(f).filter((k) => k !== "label" && !FIELDS[type].includes(k));
-        if (extra.length) return ctx.error(`${path2}/${extra[0]}`, `"${extra[0]}" does not apply to ${type} plots`, `use ${FIELDS[type].join(" and ")}`);
-        for (const k of FIELDS[type]) {
-          if (f[k] === void 0) return ctx.error(path2, `missing "${k}"`, `a ${type} plot needs ${FIELDS[type].join(" and ")}`);
-          const r = parse2(f[k], allowed);
-          if (!r.ok) return ctx.error(typeof item === "string" ? path2 : `${path2}/${k}`, `${k} = ${f[k]}: ${r.message}${r.col ? ` (column ${r.col})` : ""}`);
-          f[k] = String(f[k]);
-        }
-        (_b = f.label) != null ? _b : f.label = type === "parametric" ? `(${f.x}, ${f.y})` : f[FIELDS[type][0]];
-        functions2.push(f);
-      }
-      for (const axis of ["x", "y", "t"])
-        if (props[axis] && !(props[axis][0] < props[axis][1])) return ctx.error(`/${axis}`, `${axis} range must be [min, max] with min < max`);
-      if (type === "surface" && props.samples > 150) return ctx.error("/samples", "surfaces take at most 150 samples per axis");
-      const surfaceY = (_c = props.y) != null ? _c : [-10, 10];
-      return {
-        type,
-        title: props.title,
-        functions: functions2,
-        params,
-        x: (_d = props.x) != null ? _d : [-10, 10],
-        y: type === "surface" ? surfaceY : props.y,
-        t: (_e = props.t) != null ? _e : [0, 2 * Math.PI],
-        samples: (_f = props.samples) != null ? _f : type === "surface" ? 60 : 600,
-        xlabel: (_g = props.xlabel) != null ? _g : type === "polar" ? void 0 : "x",
-        ylabel: (_h = props.ylabel) != null ? _h : type === "surface" ? "y" : void 0,
-        height: (_i = props.height) != null ? _i : type === "surface" ? 440 : 320,
-        rotate: props.rotate
-      };
-    }
-  };
-
-  // src/core/numfmt.js
-  function sig(v, digits) {
-    if (!Number.isFinite(v) || v === 0) return String(v);
-    const s = Number(v.toPrecision(digits));
-    return Math.abs(s) >= 1e6 || Math.abs(s) < 1e-4 ? s.toExponential(Math.max(0, digits - 1)) : String(s);
-  }
-  function withError(v, e) {
-    if (!Number.isFinite(v)) return String(v);
-    if (!Number.isFinite(e) || e <= 0) return String(v);
-    const exp = Math.floor(Math.log10(e)) - 1;
-    const decimals = Math.max(0, -exp);
-    const scale = 10 ** exp;
-    const r = (x) => exp < 0 ? x.toFixed(decimals) : String(Math.round(x / scale) * scale);
-    return `${r(v)} \xB1 ${r(e)}`;
-  }
-  function formatValue(v, { error: error2, unit, digits } = {}) {
-    let s;
-    if (typeof v !== "number") s = String(v);
-    else if (error2 !== void 0) s = withError(v, error2);
-    else if (digits) s = sig(v, digits);
-    else s = String(v);
-    return unit ? `${s} ${unit}` : s;
-  }
-
-  // src/components/stats.js
-  var stats_default = {
-    name: "stats",
-    summary: "A row of key numbers (KPIs) with optional change and tone. A bare list is the items.",
-    shorthand: { array: "items" },
-    schema: {
-      type: "object",
-      additionalProperties: false,
-      required: ["items"],
+      required: ["data"],
       properties: {
         title: { type: "string" },
-        items: {
+        data: { type: "string", description: "relative path to a .npy (shape (nx, ny, nz)) or a .cube file" },
+        levels: {
           type: "array",
           minItems: 1,
-          maxItems: 12,
+          maxItems: 6,
           items: {
-            type: "object",
+            type: ["number", "object"],
             additionalProperties: false,
-            required: ["label", "value"],
-            properties: {
-              label: { type: "string" },
-              value: { type: ["string", "number"] },
-              error: { type: "number", minimum: 0, description: "\xB1 uncertainty; the value is rounded to its precision" },
-              unit: { type: "string" },
-              digits: { type: "integer", minimum: 1, maximum: 12, description: "significant figures" },
-              delta: { type: ["string", "number"], description: "change, e.g. +12% or -3" },
-              tone: { enum: ["good", "bad", "neutral"], default: "neutral" },
-              hint: { type: "string", description: "small text under the value" }
-            }
-          }
-        }
-      }
-    },
-    // YAML reads `delta: +18` as the number 18; keep the sign that the author clearly meant to show.
-    resolve(props) {
-      const signed = (d) => typeof d === "number" && d > 0 ? `+${d}` : d === void 0 ? void 0 : String(d);
-      return __spreadProps(__spreadValues({}, props), { items: props.items.map((it) => __spreadProps(__spreadValues({}, it), { value: formatValue(it.value, it), delta: signed(it.delta) })) });
-    },
-    example: "- {label: g, value: 9.8134, error: 0.0021, unit: m/s\xB2}\n- {label: Tests, value: 142, delta: +18, tone: good}\n- {label: p95 latency, value: 38ms, delta: -41%, tone: good}\n- {label: Open issues, value: 3}"
-  };
-
-  // src/components/table.js
-  var table_default = {
-    name: "table",
-    summary: "Sortable table from inline rows or a data file (csv, tsv, json). Numbers are right-aligned automatically.",
-    schema: {
-      type: "object",
-      additionalProperties: false,
-      properties: __spreadProps(__spreadValues({
-        title: { type: "string" },
-        columns: {
-          type: "array",
-          minItems: 1,
-          items: {
-            type: ["string", "object"],
-            additionalProperties: false,
-            required: ["key"],
-            properties: {
-              key: { type: "string", description: "field name (object rows / data files) or header (list rows)" },
-              label: { type: "string" },
-              align: { enum: ["left", "right", "center"] },
-              unit: { type: "string", description: "shown in the header" },
-              error: { type: "string", description: "column holding the \xB1 uncertainty of this one" },
-              digits: { type: "integer", minimum: 1, maximum: 12, description: "significant figures" }
-            }
+            required: ["value"],
+            properties: { value: { type: "number" }, color: { type: "string" }, opacity: { type: "number", minimum: 0.05, maximum: 1 } }
           },
-          description: "columns to show, in order; default: every field"
-        }
-      }, dataProps), {
-        sort: {
-          type: "object",
-          additionalProperties: false,
-          required: ["by"],
-          properties: { by: { type: "string" }, desc: { type: "boolean", default: false } }
+          description: "isosurface values (default: \xB1 a third of the largest |value| for signed data, else half the maximum)"
         },
-        limit: { type: "integer", minimum: 1, maximum: MAX_ROWS, default: 1e3 }
-      })
+        spacing: { type: "array", items: { type: "number", exclusiveMinimum: 0 }, minItems: 3, maxItems: 3, description: ".npy voxel size [dx, dy, dz] (default [1, 1, 1])" },
+        view: { enum: ["both", "isosurface", "slices"], default: "both" },
+        height: { type: "integer", minimum: 240, maximum: 1200, default: 420 }
+      }
     },
-    example: "columns: [suite, passed, failed, {key: ms, label: time (ms)}]\nrows:\n  - [auth, 42, 0, 812]\n  - [billing, 17, 2, 1290]\nsort: {by: failed, desc: true}",
+    example: "title: Electron density\ndata: density.npy\nlevels: [0.2, {value: 0.6, color: orange, opacity: 0.9}]",
     resolve(props, ctx) {
-      var _a2;
-      const d = loadRecords(props, ctx);
-      if (!d) return void 0;
-      const cols2 = ((_a2 = props.columns) == null ? void 0 : _a2.length) ? props.columns.map((c) => typeof c === "string" ? { key: c } : c) : d.keys.map((key) => ({ key }));
-      const missing = cols2.filter((c) => !d.keys.includes(c.key));
-      if (missing.length)
-        return ctx.error("/columns", `column${missing.length > 1 ? "s" : ""} ${missing.map((c) => `"${c.key}"`).join(", ")} not found${props.data ? ` in ${props.data}` : ""}`, didYouMean(missing[0].key, d.keys));
-      const records = d.records;
-      for (const [i, c] of cols2.entries())
-        if (c.error !== void 0 && !d.keys.includes(c.error)) return ctx.error(`/columns/${i}/error`, `"${c.error}" is not a column`, didYouMean(c.error, d.keys));
-      const cell = (v) => v === null || v === void 0 ? "" : typeof v === "object" ? JSON.stringify(v) : v;
-      let rows = records.map((r) => cols2.map((c) => {
-        const v = cell(r[c.key]);
-        if (c.error === void 0 && c.digits === void 0 || v === "" || !isNumeric(v)) return v;
-        const e = c.error !== void 0 && isNumeric(r[c.error]) ? Number(r[c.error]) : void 0;
-        return formatValue(Number(v), { error: e, digits: c.digits });
-      }));
-      const numeric = cols2.map((c, i) => rows.length > 0 && rows.every((r) => r[i] === "" || isNumeric(r[i]) || c.error !== void 0 && / ± /.test(r[i])));
-      let sort;
-      if (props.sort) {
-        const i = cols2.findIndex((c) => c.key === props.sort.by);
-        if (i < 0) return ctx.error("/sort/by", `"${props.sort.by}" is not a column`, didYouMean(props.sort.by, cols2.map((c) => c.key)));
-        sort = { column: i, desc: props.sort.desc };
+      var _a2, _b;
+      const ext = extname(props.data);
+      const out = { title: props.title, file: props.data, levels: ((_a2 = props.levels) != null ? _a2 : []).map((l) => typeof l === "number" ? { value: l } : l), view: props.view, height: props.height };
+      if (ext === "npy") {
+        const f = ctx.readBase64(props.data);
+        if (!f.ok) return ctx.error("/data", f.error);
+        const a = parseNpy(base64ToBytes(f.base64), { dims: [3], headerOnly: true });
+        if (a.error) return ctx.error("/data", `${props.data}: ${a.error}`);
+        const n = a.shape.reduce((x, y) => x * y, 1);
+        if (a.shape.some((d) => d < 2)) return ctx.error("/data", `${props.data}: shape ${a.shape.join("\xD7")}; every axis needs at least 2 samples`);
+        if (n > MAX_VOXELS) return ctx.error("/data", `${props.data}: ${a.shape.join("\xD7")} voxels is too many (max ${MAX_VOXELS.toLocaleString()})`, "downsample the grid");
+        ctx.ref(props.data);
+        return __spreadProps(__spreadValues({}, out), { format: "npy", size: a.shape, spacing: (_b = props.spacing) != null ? _b : [1, 1, 1] });
       }
-      if (rows.length > props.limit) {
-        ctx.warn("/limit", `showing ${props.limit} of ${rows.length} rows`);
-        rows = rows.slice(0, props.limit);
+      if (ext === "cube") {
+        if (props.spacing) ctx.warn("/spacing", "a .cube file carries its own voxel size; spacing is ignored");
+        const f = ctx.readText(props.data);
+        if (!f.ok) return ctx.error("/data", f.error);
+        const c = checkCube(f.text);
+        if (c.error) return ctx.error("/data", `${props.data}: ${c.error}`);
+        ctx.ref(props.data);
+        return __spreadProps(__spreadValues({}, out), { format: "cube", size: c.size, atoms: c.atoms });
       }
-      return {
-        title: props.title,
-        columns: cols2.map((c, i) => {
-          var _a3, _b;
-          return { key: c.key, label: ((_a3 = c.label) != null ? _a3 : c.key) + (c.unit ? ` (${c.unit})` : ""), align: (_b = c.align) != null ? _b : numeric[i] ? "right" : "left", numeric: numeric[i] };
-        }),
-        rows,
-        sort
-      };
+      return ctx.error("/data", `unsupported volume file ".${ext}"`, "use a .npy (3-D array) or a .cube file");
     }
   };
 
@@ -29789,22 +30427,35 @@ ${end.comment}` : end.comment;
     structure_default,
     sequence_default,
     tree_default,
-    tracks_default
+    tracks_default,
     // chemistry and biology
+    field_default,
+    animation_default,
+    volume_default,
+    // physics
+    graph_default,
+    diagram_default,
+    map_default
+    // networks, diagrams and maps
   ];
   var byName = Object.fromEntries(components.map((c) => [c.name, c]));
 
   // src/core/validators.generated.js
   var validators_generated_exports = {};
   __export(validators_generated_exports, {
+    animation: () => animation,
     callout: () => callout,
     chart: () => chart,
     chart3d: () => chart3d,
     checklist: () => checklist,
     code: () => code2,
+    diagram: () => diagram,
+    field: () => field,
     frontMatter: () => frontMatter,
+    graph: () => graph,
     html: () => html,
     image: () => image2,
+    map: () => map3,
     math: () => math2,
     matrix: () => matrix,
     molecule: () => molecule,
@@ -29815,7 +30466,8 @@ ${end.comment}` : end.comment;
     structure: () => structure,
     table: () => table2,
     tracks: () => tracks,
-    tree: () => tree
+    tree: () => tree,
+    volume: () => volume
   });
   var callout = validate10;
   var schema11 = { "type": "object", "additionalProperties": false, "required": ["text"], "properties": { "tone": { "enum": ["info", "success", "warning", "danger", "note"], "default": "info" }, "title": { "type": "string" }, "text": { "type": "string", "description": "Markdown" } } };
@@ -30707,11 +31359,14 @@ ${end.comment}` : end.comment;
     return errors2 === 0;
   }
   var image2 = validate15;
-  var schema16 = { "type": "object", "additionalProperties": false, "required": ["src"], "properties": { "src": { "type": "string", "description": "relative path" }, "alt": { "type": "string" }, "caption": { "type": "string", "description": "Markdown (inline)" }, "width": { "type": "integer", "minimum": 16, "maximum": 4096, "description": "max display width in px" } } };
+  var schema16 = { "type": "object", "additionalProperties": false, "required": ["src"], "properties": { "src": { "type": "string", "description": "relative path" }, "alt": { "type": "string" }, "caption": { "type": "string", "description": "Markdown (inline)" }, "width": { "type": "integer", "minimum": 16, "maximum": 4096, "description": "max display width in px" }, "compare": { "type": "string", "description": "relative path of a second image of the same scene, revealed with a slider" }, "labels": { "type": "array", "items": { "type": "string" }, "minItems": 2, "maxItems": 2, "description": "names of src and compare, e.g. [before, after]" }, "zoom": { "type": "boolean", "default": false, "description": "wheel to zoom, drag to pan, double-click to reset" }, "scale": { "type": "string", "description": 'size of one image pixel, e.g. "0.65 \xB5m", "2.5 nm", "30 m": draws a scale bar' } } };
   function validate15(data, { instancePath = "", parentData, parentDataProperty, rootData = data } = {}) {
     let vErrors = null;
     let errors2 = 0;
     if (data && typeof data == "object" && !Array.isArray(data)) {
+      if (data.zoom === void 0) {
+        data.zoom = false;
+      }
       if (data.src === void 0) {
         const err0 = { instancePath, schemaPath: "#/required", keyword: "required", params: { missingProperty: "src" }, message: "must have required property 'src'", schema: schema16.required, parentSchema: schema16, data };
         if (vErrors === null) {
@@ -30722,7 +31377,7 @@ ${end.comment}` : end.comment;
         errors2++;
       }
       for (const key0 in data) {
-        if (!(key0 === "src" || key0 === "alt" || key0 === "caption" || key0 === "width")) {
+        if (!(key0 === "src" || key0 === "alt" || key0 === "caption" || key0 === "width" || key0 === "compare" || key0 === "labels" || key0 === "zoom" || key0 === "scale")) {
           const err1 = { instancePath, schemaPath: "#/additionalProperties", keyword: "additionalProperties", params: { additionalProperty: key0 }, message: "must NOT have additional properties", schema: false, parentSchema: schema16, data };
           if (vErrors === null) {
             vErrors = [err1];
@@ -30800,12 +31455,90 @@ ${end.comment}` : end.comment;
           }
         }
       }
+      if (data.compare !== void 0) {
+        let data4 = data.compare;
+        if (typeof data4 !== "string") {
+          const err8 = { instancePath: instancePath + "/compare", schemaPath: "#/properties/compare/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema16.properties.compare.type, parentSchema: schema16.properties.compare, data: data4 };
+          if (vErrors === null) {
+            vErrors = [err8];
+          } else {
+            vErrors.push(err8);
+          }
+          errors2++;
+        }
+      }
+      if (data.labels !== void 0) {
+        let data5 = data.labels;
+        if (Array.isArray(data5)) {
+          if (data5.length > 2) {
+            const err9 = { instancePath: instancePath + "/labels", schemaPath: "#/properties/labels/maxItems", keyword: "maxItems", params: { limit: 2 }, message: "must NOT have more than 2 items", schema: 2, parentSchema: schema16.properties.labels, data: data5 };
+            if (vErrors === null) {
+              vErrors = [err9];
+            } else {
+              vErrors.push(err9);
+            }
+            errors2++;
+          }
+          if (data5.length < 2) {
+            const err10 = { instancePath: instancePath + "/labels", schemaPath: "#/properties/labels/minItems", keyword: "minItems", params: { limit: 2 }, message: "must NOT have fewer than 2 items", schema: 2, parentSchema: schema16.properties.labels, data: data5 };
+            if (vErrors === null) {
+              vErrors = [err10];
+            } else {
+              vErrors.push(err10);
+            }
+            errors2++;
+          }
+          const len0 = data5.length;
+          for (let i0 = 0; i0 < len0; i0++) {
+            let data6 = data5[i0];
+            if (typeof data6 !== "string") {
+              const err11 = { instancePath: instancePath + "/labels/" + i0, schemaPath: "#/properties/labels/items/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema16.properties.labels.items.type, parentSchema: schema16.properties.labels.items, data: data6 };
+              if (vErrors === null) {
+                vErrors = [err11];
+              } else {
+                vErrors.push(err11);
+              }
+              errors2++;
+            }
+          }
+        } else {
+          const err12 = { instancePath: instancePath + "/labels", schemaPath: "#/properties/labels/type", keyword: "type", params: { type: "array" }, message: "must be array", schema: schema16.properties.labels.type, parentSchema: schema16.properties.labels, data: data5 };
+          if (vErrors === null) {
+            vErrors = [err12];
+          } else {
+            vErrors.push(err12);
+          }
+          errors2++;
+        }
+      }
+      let data7 = data.zoom;
+      if (typeof data7 !== "boolean") {
+        const err13 = { instancePath: instancePath + "/zoom", schemaPath: "#/properties/zoom/type", keyword: "type", params: { type: "boolean" }, message: "must be boolean", schema: schema16.properties.zoom.type, parentSchema: schema16.properties.zoom, data: data7 };
+        if (vErrors === null) {
+          vErrors = [err13];
+        } else {
+          vErrors.push(err13);
+        }
+        errors2++;
+      }
+      if (data.scale !== void 0) {
+        let data8 = data.scale;
+        if (typeof data8 !== "string") {
+          const err14 = { instancePath: instancePath + "/scale", schemaPath: "#/properties/scale/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema16.properties.scale.type, parentSchema: schema16.properties.scale, data: data8 };
+          if (vErrors === null) {
+            vErrors = [err14];
+          } else {
+            vErrors.push(err14);
+          }
+          errors2++;
+        }
+      }
     } else {
-      const err8 = { instancePath, schemaPath: "#/type", keyword: "type", params: { type: "object" }, message: "must be object", schema: schema16.type, parentSchema: schema16, data };
+      const err15 = { instancePath, schemaPath: "#/type", keyword: "type", params: { type: "object" }, message: "must be object", schema: schema16.type, parentSchema: schema16, data };
       if (vErrors === null) {
-        vErrors = [err8];
+        vErrors = [err15];
       } else {
-        vErrors.push(err8);
+        vErrors.push(err15);
       }
       errors2++;
     }
@@ -31609,7 +32342,7 @@ ${end.comment}` : end.comment;
     return errors2 === 0;
   }
   var plot = validate19;
-  var schema20 = { "type": "object", "additionalProperties": false, "required": ["functions"], "properties": { "type": { "enum": ["function", "parametric", "polar", "surface"], "default": "function" }, "title": { "type": "string" }, "functions": { "type": ["array", "string"], "minItems": 1, "maxItems": 12, "items": { "type": ["string", "object"], "additionalProperties": false, "properties": { "y": { "type": ["string", "number"] }, "x": { "type": ["string", "number"] }, "r": { "type": ["string", "number"] }, "z": { "type": ["string", "number"] }, "label": { "type": "string" } } }, "description": "expressions: strings, or {y|x,y|r|z, label} by type" }, "x": { "type": "array", "items": { "type": "number" }, "minItems": 2, "maxItems": 2, "description": "x range (function, surface; default [-10, 10])" }, "y": { "type": "array", "items": { "type": "number" }, "minItems": 2, "maxItems": 2, "description": "y range: the view for functions (default: automatic), the domain for surfaces" }, "t": { "type": "array", "items": { "type": "number" }, "minItems": 2, "maxItems": 2, "description": "parameter range for parametric and polar (default [0, 2pi])" }, "params": { "type": "object", "additionalProperties": { "type": "number" }, "description": "named constants, e.g. {a: 2, k: 0.5}" }, "samples": { "type": "integer", "minimum": 10, "maximum": 5e3, "description": "points per curve (default 600) or grid size per axis for surfaces (default 60, max 150)" }, "xlabel": { "type": "string" }, "ylabel": { "type": "string" }, "height": { "type": "integer", "minimum": 160, "maximum": 1200 }, "rotate": { "type": "boolean", "default": false, "description": "surfaces: turn slowly until the user drags" } } };
+  var schema20 = { "type": "object", "additionalProperties": false, "required": ["functions"], "properties": { "type": { "enum": ["function", "parametric", "polar", "surface"], "default": "function" }, "title": { "type": "string" }, "functions": { "type": ["array", "string"], "minItems": 1, "maxItems": 12, "items": { "type": ["string", "object"], "additionalProperties": false, "properties": { "y": { "type": ["string", "number"] }, "x": { "type": ["string", "number"] }, "r": { "type": ["string", "number"] }, "z": { "type": ["string", "number"] }, "label": { "type": "string" } } }, "description": "expressions: strings, or {y|x,y|r|z, label} by type" }, "x": { "type": "array", "items": { "type": "number" }, "minItems": 2, "maxItems": 2, "description": "x range (function, surface; default [-10, 10])" }, "y": { "type": "array", "items": { "type": "number" }, "minItems": 2, "maxItems": 2, "description": "y range: the view for functions (default: automatic), the domain for surfaces" }, "t": { "type": "array", "items": { "type": "number" }, "minItems": 2, "maxItems": 2, "description": "parameter range for parametric and polar (default [0, 2pi])" }, "params": { "type": "object", "additionalProperties": { "type": ["number", "object"], "additionalProperties": false, "required": ["value", "min", "max"], "properties": { "value": { "type": "number" }, "min": { "type": "number" }, "max": { "type": "number" }, "step": { "type": "number", "exclusiveMinimum": 0 }, "label": { "type": "string" } } }, "description": "named constants: a number (a: 2) or a slider (a: {value: 2, min: 0, max: 5, step: 0.1})" }, "samples": { "type": "integer", "minimum": 10, "maximum": 5e3, "description": "points per curve (default 600) or grid size per axis for surfaces (default 60, max 150)" }, "xlabel": { "type": "string" }, "ylabel": { "type": "string" }, "height": { "type": "integer", "minimum": 160, "maximum": 1200 }, "rotate": { "type": "boolean", "default": false, "description": "surfaces: turn slowly until the user drags" } } };
   function validate19(data, { instancePath = "", parentData, parentDataProperty, rootData = data } = {}) {
     let vErrors = null;
     let errors2 = 0;
@@ -31917,8 +32650,8 @@ ${end.comment}` : end.comment;
         if (data15 && typeof data15 == "object" && !Array.isArray(data15)) {
           for (const key2 in data15) {
             let data16 = data15[key2];
-            if (!(typeof data16 == "number" && isFinite(data16))) {
-              const err26 = { instancePath: instancePath + "/params/" + key2.replace(/~/g, "~0").replace(/\//g, "~1"), schemaPath: "#/properties/params/additionalProperties/type", keyword: "type", params: { type: "number" }, message: "must be number", schema: schema20.properties.params.additionalProperties.type, parentSchema: schema20.properties.params.additionalProperties, data: data16 };
+            if (!(typeof data16 == "number" && isFinite(data16)) && !(data16 && typeof data16 == "object" && !Array.isArray(data16))) {
+              const err26 = { instancePath: instancePath + "/params/" + key2.replace(/~/g, "~0").replace(/\//g, "~1"), schemaPath: "#/properties/params/additionalProperties/type", keyword: "type", params: { type: schema20.properties.params.additionalProperties.type }, message: "must be number,object", schema: schema20.properties.params.additionalProperties.type, parentSchema: schema20.properties.params.additionalProperties, data: data16 };
               if (vErrors === null) {
                 vErrors = [err26];
               } else {
@@ -31926,121 +32659,231 @@ ${end.comment}` : end.comment;
               }
               errors2++;
             }
+            if (data16 && typeof data16 == "object" && !Array.isArray(data16)) {
+              if (data16.value === void 0) {
+                const err27 = { instancePath: instancePath + "/params/" + key2.replace(/~/g, "~0").replace(/\//g, "~1"), schemaPath: "#/properties/params/additionalProperties/required", keyword: "required", params: { missingProperty: "value" }, message: "must have required property 'value'", schema: schema20.properties.params.additionalProperties.required, parentSchema: schema20.properties.params.additionalProperties, data: data16 };
+                if (vErrors === null) {
+                  vErrors = [err27];
+                } else {
+                  vErrors.push(err27);
+                }
+                errors2++;
+              }
+              if (data16.min === void 0) {
+                const err28 = { instancePath: instancePath + "/params/" + key2.replace(/~/g, "~0").replace(/\//g, "~1"), schemaPath: "#/properties/params/additionalProperties/required", keyword: "required", params: { missingProperty: "min" }, message: "must have required property 'min'", schema: schema20.properties.params.additionalProperties.required, parentSchema: schema20.properties.params.additionalProperties, data: data16 };
+                if (vErrors === null) {
+                  vErrors = [err28];
+                } else {
+                  vErrors.push(err28);
+                }
+                errors2++;
+              }
+              if (data16.max === void 0) {
+                const err29 = { instancePath: instancePath + "/params/" + key2.replace(/~/g, "~0").replace(/\//g, "~1"), schemaPath: "#/properties/params/additionalProperties/required", keyword: "required", params: { missingProperty: "max" }, message: "must have required property 'max'", schema: schema20.properties.params.additionalProperties.required, parentSchema: schema20.properties.params.additionalProperties, data: data16 };
+                if (vErrors === null) {
+                  vErrors = [err29];
+                } else {
+                  vErrors.push(err29);
+                }
+                errors2++;
+              }
+              for (const key3 in data16) {
+                if (!(key3 === "value" || key3 === "min" || key3 === "max" || key3 === "step" || key3 === "label")) {
+                  const err30 = { instancePath: instancePath + "/params/" + key2.replace(/~/g, "~0").replace(/\//g, "~1"), schemaPath: "#/properties/params/additionalProperties/additionalProperties", keyword: "additionalProperties", params: { additionalProperty: key3 }, message: "must NOT have additional properties", schema: false, parentSchema: schema20.properties.params.additionalProperties, data: data16 };
+                  if (vErrors === null) {
+                    vErrors = [err30];
+                  } else {
+                    vErrors.push(err30);
+                  }
+                  errors2++;
+                }
+              }
+              if (data16.value !== void 0) {
+                let data17 = data16.value;
+                if (!(typeof data17 == "number" && isFinite(data17))) {
+                  const err31 = { instancePath: instancePath + "/params/" + key2.replace(/~/g, "~0").replace(/\//g, "~1") + "/value", schemaPath: "#/properties/params/additionalProperties/properties/value/type", keyword: "type", params: { type: "number" }, message: "must be number", schema: schema20.properties.params.additionalProperties.properties.value.type, parentSchema: schema20.properties.params.additionalProperties.properties.value, data: data17 };
+                  if (vErrors === null) {
+                    vErrors = [err31];
+                  } else {
+                    vErrors.push(err31);
+                  }
+                  errors2++;
+                }
+              }
+              if (data16.min !== void 0) {
+                let data18 = data16.min;
+                if (!(typeof data18 == "number" && isFinite(data18))) {
+                  const err32 = { instancePath: instancePath + "/params/" + key2.replace(/~/g, "~0").replace(/\//g, "~1") + "/min", schemaPath: "#/properties/params/additionalProperties/properties/min/type", keyword: "type", params: { type: "number" }, message: "must be number", schema: schema20.properties.params.additionalProperties.properties.min.type, parentSchema: schema20.properties.params.additionalProperties.properties.min, data: data18 };
+                  if (vErrors === null) {
+                    vErrors = [err32];
+                  } else {
+                    vErrors.push(err32);
+                  }
+                  errors2++;
+                }
+              }
+              if (data16.max !== void 0) {
+                let data19 = data16.max;
+                if (!(typeof data19 == "number" && isFinite(data19))) {
+                  const err33 = { instancePath: instancePath + "/params/" + key2.replace(/~/g, "~0").replace(/\//g, "~1") + "/max", schemaPath: "#/properties/params/additionalProperties/properties/max/type", keyword: "type", params: { type: "number" }, message: "must be number", schema: schema20.properties.params.additionalProperties.properties.max.type, parentSchema: schema20.properties.params.additionalProperties.properties.max, data: data19 };
+                  if (vErrors === null) {
+                    vErrors = [err33];
+                  } else {
+                    vErrors.push(err33);
+                  }
+                  errors2++;
+                }
+              }
+              if (data16.step !== void 0) {
+                let data20 = data16.step;
+                if (typeof data20 == "number" && isFinite(data20)) {
+                  if (data20 <= 0 || isNaN(data20)) {
+                    const err34 = { instancePath: instancePath + "/params/" + key2.replace(/~/g, "~0").replace(/\//g, "~1") + "/step", schemaPath: "#/properties/params/additionalProperties/properties/step/exclusiveMinimum", keyword: "exclusiveMinimum", params: { comparison: ">", limit: 0 }, message: "must be > 0", schema: 0, parentSchema: schema20.properties.params.additionalProperties.properties.step, data: data20 };
+                    if (vErrors === null) {
+                      vErrors = [err34];
+                    } else {
+                      vErrors.push(err34);
+                    }
+                    errors2++;
+                  }
+                } else {
+                  const err35 = { instancePath: instancePath + "/params/" + key2.replace(/~/g, "~0").replace(/\//g, "~1") + "/step", schemaPath: "#/properties/params/additionalProperties/properties/step/type", keyword: "type", params: { type: "number" }, message: "must be number", schema: schema20.properties.params.additionalProperties.properties.step.type, parentSchema: schema20.properties.params.additionalProperties.properties.step, data: data20 };
+                  if (vErrors === null) {
+                    vErrors = [err35];
+                  } else {
+                    vErrors.push(err35);
+                  }
+                  errors2++;
+                }
+              }
+              if (data16.label !== void 0) {
+                let data21 = data16.label;
+                if (typeof data21 !== "string") {
+                  const err36 = { instancePath: instancePath + "/params/" + key2.replace(/~/g, "~0").replace(/\//g, "~1") + "/label", schemaPath: "#/properties/params/additionalProperties/properties/label/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema20.properties.params.additionalProperties.properties.label.type, parentSchema: schema20.properties.params.additionalProperties.properties.label, data: data21 };
+                  if (vErrors === null) {
+                    vErrors = [err36];
+                  } else {
+                    vErrors.push(err36);
+                  }
+                  errors2++;
+                }
+              }
+            }
           }
         } else {
-          const err27 = { instancePath: instancePath + "/params", schemaPath: "#/properties/params/type", keyword: "type", params: { type: "object" }, message: "must be object", schema: schema20.properties.params.type, parentSchema: schema20.properties.params, data: data15 };
+          const err37 = { instancePath: instancePath + "/params", schemaPath: "#/properties/params/type", keyword: "type", params: { type: "object" }, message: "must be object", schema: schema20.properties.params.type, parentSchema: schema20.properties.params, data: data15 };
           if (vErrors === null) {
-            vErrors = [err27];
+            vErrors = [err37];
           } else {
-            vErrors.push(err27);
+            vErrors.push(err37);
           }
           errors2++;
         }
       }
       if (data.samples !== void 0) {
-        let data17 = data.samples;
-        if (!(typeof data17 == "number" && (!(data17 % 1) && !isNaN(data17)) && isFinite(data17))) {
-          const err28 = { instancePath: instancePath + "/samples", schemaPath: "#/properties/samples/type", keyword: "type", params: { type: "integer" }, message: "must be integer", schema: schema20.properties.samples.type, parentSchema: schema20.properties.samples, data: data17 };
+        let data22 = data.samples;
+        if (!(typeof data22 == "number" && (!(data22 % 1) && !isNaN(data22)) && isFinite(data22))) {
+          const err38 = { instancePath: instancePath + "/samples", schemaPath: "#/properties/samples/type", keyword: "type", params: { type: "integer" }, message: "must be integer", schema: schema20.properties.samples.type, parentSchema: schema20.properties.samples, data: data22 };
           if (vErrors === null) {
-            vErrors = [err28];
+            vErrors = [err38];
           } else {
-            vErrors.push(err28);
+            vErrors.push(err38);
           }
           errors2++;
         }
-        if (typeof data17 == "number" && isFinite(data17)) {
-          if (data17 > 5e3 || isNaN(data17)) {
-            const err29 = { instancePath: instancePath + "/samples", schemaPath: "#/properties/samples/maximum", keyword: "maximum", params: { comparison: "<=", limit: 5e3 }, message: "must be <= 5000", schema: 5e3, parentSchema: schema20.properties.samples, data: data17 };
+        if (typeof data22 == "number" && isFinite(data22)) {
+          if (data22 > 5e3 || isNaN(data22)) {
+            const err39 = { instancePath: instancePath + "/samples", schemaPath: "#/properties/samples/maximum", keyword: "maximum", params: { comparison: "<=", limit: 5e3 }, message: "must be <= 5000", schema: 5e3, parentSchema: schema20.properties.samples, data: data22 };
             if (vErrors === null) {
-              vErrors = [err29];
+              vErrors = [err39];
             } else {
-              vErrors.push(err29);
+              vErrors.push(err39);
             }
             errors2++;
           }
-          if (data17 < 10 || isNaN(data17)) {
-            const err30 = { instancePath: instancePath + "/samples", schemaPath: "#/properties/samples/minimum", keyword: "minimum", params: { comparison: ">=", limit: 10 }, message: "must be >= 10", schema: 10, parentSchema: schema20.properties.samples, data: data17 };
+          if (data22 < 10 || isNaN(data22)) {
+            const err40 = { instancePath: instancePath + "/samples", schemaPath: "#/properties/samples/minimum", keyword: "minimum", params: { comparison: ">=", limit: 10 }, message: "must be >= 10", schema: 10, parentSchema: schema20.properties.samples, data: data22 };
             if (vErrors === null) {
-              vErrors = [err30];
+              vErrors = [err40];
             } else {
-              vErrors.push(err30);
+              vErrors.push(err40);
             }
             errors2++;
           }
         }
       }
       if (data.xlabel !== void 0) {
-        let data18 = data.xlabel;
-        if (typeof data18 !== "string") {
-          const err31 = { instancePath: instancePath + "/xlabel", schemaPath: "#/properties/xlabel/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema20.properties.xlabel.type, parentSchema: schema20.properties.xlabel, data: data18 };
+        let data23 = data.xlabel;
+        if (typeof data23 !== "string") {
+          const err41 = { instancePath: instancePath + "/xlabel", schemaPath: "#/properties/xlabel/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema20.properties.xlabel.type, parentSchema: schema20.properties.xlabel, data: data23 };
           if (vErrors === null) {
-            vErrors = [err31];
+            vErrors = [err41];
           } else {
-            vErrors.push(err31);
+            vErrors.push(err41);
           }
           errors2++;
         }
       }
       if (data.ylabel !== void 0) {
-        let data19 = data.ylabel;
-        if (typeof data19 !== "string") {
-          const err32 = { instancePath: instancePath + "/ylabel", schemaPath: "#/properties/ylabel/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema20.properties.ylabel.type, parentSchema: schema20.properties.ylabel, data: data19 };
+        let data24 = data.ylabel;
+        if (typeof data24 !== "string") {
+          const err42 = { instancePath: instancePath + "/ylabel", schemaPath: "#/properties/ylabel/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema20.properties.ylabel.type, parentSchema: schema20.properties.ylabel, data: data24 };
           if (vErrors === null) {
-            vErrors = [err32];
+            vErrors = [err42];
           } else {
-            vErrors.push(err32);
+            vErrors.push(err42);
           }
           errors2++;
         }
       }
       if (data.height !== void 0) {
-        let data20 = data.height;
-        if (!(typeof data20 == "number" && (!(data20 % 1) && !isNaN(data20)) && isFinite(data20))) {
-          const err33 = { instancePath: instancePath + "/height", schemaPath: "#/properties/height/type", keyword: "type", params: { type: "integer" }, message: "must be integer", schema: schema20.properties.height.type, parentSchema: schema20.properties.height, data: data20 };
+        let data25 = data.height;
+        if (!(typeof data25 == "number" && (!(data25 % 1) && !isNaN(data25)) && isFinite(data25))) {
+          const err43 = { instancePath: instancePath + "/height", schemaPath: "#/properties/height/type", keyword: "type", params: { type: "integer" }, message: "must be integer", schema: schema20.properties.height.type, parentSchema: schema20.properties.height, data: data25 };
           if (vErrors === null) {
-            vErrors = [err33];
+            vErrors = [err43];
           } else {
-            vErrors.push(err33);
+            vErrors.push(err43);
           }
           errors2++;
         }
-        if (typeof data20 == "number" && isFinite(data20)) {
-          if (data20 > 1200 || isNaN(data20)) {
-            const err34 = { instancePath: instancePath + "/height", schemaPath: "#/properties/height/maximum", keyword: "maximum", params: { comparison: "<=", limit: 1200 }, message: "must be <= 1200", schema: 1200, parentSchema: schema20.properties.height, data: data20 };
+        if (typeof data25 == "number" && isFinite(data25)) {
+          if (data25 > 1200 || isNaN(data25)) {
+            const err44 = { instancePath: instancePath + "/height", schemaPath: "#/properties/height/maximum", keyword: "maximum", params: { comparison: "<=", limit: 1200 }, message: "must be <= 1200", schema: 1200, parentSchema: schema20.properties.height, data: data25 };
             if (vErrors === null) {
-              vErrors = [err34];
+              vErrors = [err44];
             } else {
-              vErrors.push(err34);
+              vErrors.push(err44);
             }
             errors2++;
           }
-          if (data20 < 160 || isNaN(data20)) {
-            const err35 = { instancePath: instancePath + "/height", schemaPath: "#/properties/height/minimum", keyword: "minimum", params: { comparison: ">=", limit: 160 }, message: "must be >= 160", schema: 160, parentSchema: schema20.properties.height, data: data20 };
+          if (data25 < 160 || isNaN(data25)) {
+            const err45 = { instancePath: instancePath + "/height", schemaPath: "#/properties/height/minimum", keyword: "minimum", params: { comparison: ">=", limit: 160 }, message: "must be >= 160", schema: 160, parentSchema: schema20.properties.height, data: data25 };
             if (vErrors === null) {
-              vErrors = [err35];
+              vErrors = [err45];
             } else {
-              vErrors.push(err35);
+              vErrors.push(err45);
             }
             errors2++;
           }
         }
       }
-      let data21 = data.rotate;
-      if (typeof data21 !== "boolean") {
-        const err36 = { instancePath: instancePath + "/rotate", schemaPath: "#/properties/rotate/type", keyword: "type", params: { type: "boolean" }, message: "must be boolean", schema: schema20.properties.rotate.type, parentSchema: schema20.properties.rotate, data: data21 };
+      let data26 = data.rotate;
+      if (typeof data26 !== "boolean") {
+        const err46 = { instancePath: instancePath + "/rotate", schemaPath: "#/properties/rotate/type", keyword: "type", params: { type: "boolean" }, message: "must be boolean", schema: schema20.properties.rotate.type, parentSchema: schema20.properties.rotate, data: data26 };
         if (vErrors === null) {
-          vErrors = [err36];
+          vErrors = [err46];
         } else {
-          vErrors.push(err36);
+          vErrors.push(err46);
         }
         errors2++;
       }
     } else {
-      const err37 = { instancePath, schemaPath: "#/type", keyword: "type", params: { type: "object" }, message: "must be object", schema: schema20.type, parentSchema: schema20, data };
+      const err47 = { instancePath, schemaPath: "#/type", keyword: "type", params: { type: "object" }, message: "must be object", schema: schema20.type, parentSchema: schema20, data };
       if (vErrors === null) {
-        vErrors = [err37];
+        vErrors = [err47];
       } else {
-        vErrors.push(err37);
+        vErrors.push(err47);
       }
       errors2++;
     }
@@ -33954,14 +34797,23 @@ ${end.comment}` : end.comment;
     validate27.errors = vErrors;
     return errors2 === 0;
   }
-  var frontMatter = validate28;
-  var schema29 = { "type": "object", "additionalProperties": false, "properties": { "title": { "type": "string" } } };
+  var field = validate28;
+  var schema29 = { "type": "object", "additionalProperties": false, "properties": { "title": { "type": "string" }, "u": { "type": ["string", "number"], "description": 'x component, e.g. "y"' }, "v": { "type": ["string", "number"], "description": 'y component, e.g. "-sin(x) - b y"' }, "data": { "type": "string", "description": "relative path to a .npy array of shape (ny, nx, 2), rows from y min to y max" }, "x": { "type": "array", "items": { "type": "number" }, "minItems": 2, "maxItems": 2, "description": "x range (default [-5, 5])" }, "y": { "type": "array", "items": { "type": "number" }, "minItems": 2, "maxItems": 2, "description": "y range (default [-5, 5])" }, "background": { "type": "string", "description": 'scalar formula of x, y drawn as a colour map (potential, density), or "magnitude"' }, "style": { "enum": ["streamlines", "arrows", "both"], "default": "streamlines" }, "density": { "type": "integer", "minimum": 6, "maximum": 60, "default": 22, "description": "arrows / streamline seeds per axis" }, "params": { "type": "object", "additionalProperties": { "type": ["number", "object"], "additionalProperties": false, "required": ["value", "min", "max"], "properties": { "value": { "type": "number" }, "min": { "type": "number" }, "max": { "type": "number" }, "step": { "type": "number", "exclusiveMinimum": 0 }, "label": { "type": "string" } } }, "description": "named constants: a number (a: 2) or a slider (a: {value: 2, min: 0, max: 5, step: 0.1})" }, "xlabel": { "type": "string" }, "ylabel": { "type": "string" }, "height": { "type": "integer", "minimum": 200, "maximum": 1200, "default": 440 } } };
   function validate28(data, { instancePath = "", parentData, parentDataProperty, rootData = data } = {}) {
     let vErrors = null;
     let errors2 = 0;
     if (data && typeof data == "object" && !Array.isArray(data)) {
+      if (data.style === void 0) {
+        data.style = "streamlines";
+      }
+      if (data.density === void 0) {
+        data.density = 22;
+      }
+      if (data.height === void 0) {
+        data.height = 440;
+      }
       for (const key0 in data) {
-        if (!(key0 === "title")) {
+        if (!func2.call(schema29.properties, key0)) {
           const err0 = { instancePath, schemaPath: "#/additionalProperties", keyword: "additionalProperties", params: { additionalProperty: key0 }, message: "must NOT have additional properties", schema: false, parentSchema: schema29, data };
           if (vErrors === null) {
             vErrors = [err0];
@@ -33983,8 +34835,2065 @@ ${end.comment}` : end.comment;
           errors2++;
         }
       }
+      if (data.u !== void 0) {
+        let data1 = data.u;
+        if (typeof data1 !== "string" && !(typeof data1 == "number" && isFinite(data1))) {
+          const err2 = { instancePath: instancePath + "/u", schemaPath: "#/properties/u/type", keyword: "type", params: { type: schema29.properties.u.type }, message: "must be string,number", schema: schema29.properties.u.type, parentSchema: schema29.properties.u, data: data1 };
+          if (vErrors === null) {
+            vErrors = [err2];
+          } else {
+            vErrors.push(err2);
+          }
+          errors2++;
+        }
+      }
+      if (data.v !== void 0) {
+        let data2 = data.v;
+        if (typeof data2 !== "string" && !(typeof data2 == "number" && isFinite(data2))) {
+          const err3 = { instancePath: instancePath + "/v", schemaPath: "#/properties/v/type", keyword: "type", params: { type: schema29.properties.v.type }, message: "must be string,number", schema: schema29.properties.v.type, parentSchema: schema29.properties.v, data: data2 };
+          if (vErrors === null) {
+            vErrors = [err3];
+          } else {
+            vErrors.push(err3);
+          }
+          errors2++;
+        }
+      }
+      if (data.data !== void 0) {
+        let data3 = data.data;
+        if (typeof data3 !== "string") {
+          const err4 = { instancePath: instancePath + "/data", schemaPath: "#/properties/data/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema29.properties.data.type, parentSchema: schema29.properties.data, data: data3 };
+          if (vErrors === null) {
+            vErrors = [err4];
+          } else {
+            vErrors.push(err4);
+          }
+          errors2++;
+        }
+      }
+      if (data.x !== void 0) {
+        let data4 = data.x;
+        if (Array.isArray(data4)) {
+          if (data4.length > 2) {
+            const err5 = { instancePath: instancePath + "/x", schemaPath: "#/properties/x/maxItems", keyword: "maxItems", params: { limit: 2 }, message: "must NOT have more than 2 items", schema: 2, parentSchema: schema29.properties.x, data: data4 };
+            if (vErrors === null) {
+              vErrors = [err5];
+            } else {
+              vErrors.push(err5);
+            }
+            errors2++;
+          }
+          if (data4.length < 2) {
+            const err6 = { instancePath: instancePath + "/x", schemaPath: "#/properties/x/minItems", keyword: "minItems", params: { limit: 2 }, message: "must NOT have fewer than 2 items", schema: 2, parentSchema: schema29.properties.x, data: data4 };
+            if (vErrors === null) {
+              vErrors = [err6];
+            } else {
+              vErrors.push(err6);
+            }
+            errors2++;
+          }
+          const len0 = data4.length;
+          for (let i0 = 0; i0 < len0; i0++) {
+            let data5 = data4[i0];
+            if (!(typeof data5 == "number" && isFinite(data5))) {
+              const err7 = { instancePath: instancePath + "/x/" + i0, schemaPath: "#/properties/x/items/type", keyword: "type", params: { type: "number" }, message: "must be number", schema: schema29.properties.x.items.type, parentSchema: schema29.properties.x.items, data: data5 };
+              if (vErrors === null) {
+                vErrors = [err7];
+              } else {
+                vErrors.push(err7);
+              }
+              errors2++;
+            }
+          }
+        } else {
+          const err8 = { instancePath: instancePath + "/x", schemaPath: "#/properties/x/type", keyword: "type", params: { type: "array" }, message: "must be array", schema: schema29.properties.x.type, parentSchema: schema29.properties.x, data: data4 };
+          if (vErrors === null) {
+            vErrors = [err8];
+          } else {
+            vErrors.push(err8);
+          }
+          errors2++;
+        }
+      }
+      if (data.y !== void 0) {
+        let data6 = data.y;
+        if (Array.isArray(data6)) {
+          if (data6.length > 2) {
+            const err9 = { instancePath: instancePath + "/y", schemaPath: "#/properties/y/maxItems", keyword: "maxItems", params: { limit: 2 }, message: "must NOT have more than 2 items", schema: 2, parentSchema: schema29.properties.y, data: data6 };
+            if (vErrors === null) {
+              vErrors = [err9];
+            } else {
+              vErrors.push(err9);
+            }
+            errors2++;
+          }
+          if (data6.length < 2) {
+            const err10 = { instancePath: instancePath + "/y", schemaPath: "#/properties/y/minItems", keyword: "minItems", params: { limit: 2 }, message: "must NOT have fewer than 2 items", schema: 2, parentSchema: schema29.properties.y, data: data6 };
+            if (vErrors === null) {
+              vErrors = [err10];
+            } else {
+              vErrors.push(err10);
+            }
+            errors2++;
+          }
+          const len1 = data6.length;
+          for (let i1 = 0; i1 < len1; i1++) {
+            let data7 = data6[i1];
+            if (!(typeof data7 == "number" && isFinite(data7))) {
+              const err11 = { instancePath: instancePath + "/y/" + i1, schemaPath: "#/properties/y/items/type", keyword: "type", params: { type: "number" }, message: "must be number", schema: schema29.properties.y.items.type, parentSchema: schema29.properties.y.items, data: data7 };
+              if (vErrors === null) {
+                vErrors = [err11];
+              } else {
+                vErrors.push(err11);
+              }
+              errors2++;
+            }
+          }
+        } else {
+          const err12 = { instancePath: instancePath + "/y", schemaPath: "#/properties/y/type", keyword: "type", params: { type: "array" }, message: "must be array", schema: schema29.properties.y.type, parentSchema: schema29.properties.y, data: data6 };
+          if (vErrors === null) {
+            vErrors = [err12];
+          } else {
+            vErrors.push(err12);
+          }
+          errors2++;
+        }
+      }
+      if (data.background !== void 0) {
+        let data8 = data.background;
+        if (typeof data8 !== "string") {
+          const err13 = { instancePath: instancePath + "/background", schemaPath: "#/properties/background/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema29.properties.background.type, parentSchema: schema29.properties.background, data: data8 };
+          if (vErrors === null) {
+            vErrors = [err13];
+          } else {
+            vErrors.push(err13);
+          }
+          errors2++;
+        }
+      }
+      let data9 = data.style;
+      if (!(data9 === "streamlines" || data9 === "arrows" || data9 === "both")) {
+        const err14 = { instancePath: instancePath + "/style", schemaPath: "#/properties/style/enum", keyword: "enum", params: { allowedValues: schema29.properties.style.enum }, message: "must be equal to one of the allowed values", schema: schema29.properties.style.enum, parentSchema: schema29.properties.style, data: data9 };
+        if (vErrors === null) {
+          vErrors = [err14];
+        } else {
+          vErrors.push(err14);
+        }
+        errors2++;
+      }
+      let data10 = data.density;
+      if (!(typeof data10 == "number" && (!(data10 % 1) && !isNaN(data10)) && isFinite(data10))) {
+        const err15 = { instancePath: instancePath + "/density", schemaPath: "#/properties/density/type", keyword: "type", params: { type: "integer" }, message: "must be integer", schema: schema29.properties.density.type, parentSchema: schema29.properties.density, data: data10 };
+        if (vErrors === null) {
+          vErrors = [err15];
+        } else {
+          vErrors.push(err15);
+        }
+        errors2++;
+      }
+      if (typeof data10 == "number" && isFinite(data10)) {
+        if (data10 > 60 || isNaN(data10)) {
+          const err16 = { instancePath: instancePath + "/density", schemaPath: "#/properties/density/maximum", keyword: "maximum", params: { comparison: "<=", limit: 60 }, message: "must be <= 60", schema: 60, parentSchema: schema29.properties.density, data: data10 };
+          if (vErrors === null) {
+            vErrors = [err16];
+          } else {
+            vErrors.push(err16);
+          }
+          errors2++;
+        }
+        if (data10 < 6 || isNaN(data10)) {
+          const err17 = { instancePath: instancePath + "/density", schemaPath: "#/properties/density/minimum", keyword: "minimum", params: { comparison: ">=", limit: 6 }, message: "must be >= 6", schema: 6, parentSchema: schema29.properties.density, data: data10 };
+          if (vErrors === null) {
+            vErrors = [err17];
+          } else {
+            vErrors.push(err17);
+          }
+          errors2++;
+        }
+      }
+      if (data.params !== void 0) {
+        let data11 = data.params;
+        if (data11 && typeof data11 == "object" && !Array.isArray(data11)) {
+          for (const key1 in data11) {
+            let data12 = data11[key1];
+            if (!(typeof data12 == "number" && isFinite(data12)) && !(data12 && typeof data12 == "object" && !Array.isArray(data12))) {
+              const err18 = { instancePath: instancePath + "/params/" + key1.replace(/~/g, "~0").replace(/\//g, "~1"), schemaPath: "#/properties/params/additionalProperties/type", keyword: "type", params: { type: schema29.properties.params.additionalProperties.type }, message: "must be number,object", schema: schema29.properties.params.additionalProperties.type, parentSchema: schema29.properties.params.additionalProperties, data: data12 };
+              if (vErrors === null) {
+                vErrors = [err18];
+              } else {
+                vErrors.push(err18);
+              }
+              errors2++;
+            }
+            if (data12 && typeof data12 == "object" && !Array.isArray(data12)) {
+              if (data12.value === void 0) {
+                const err19 = { instancePath: instancePath + "/params/" + key1.replace(/~/g, "~0").replace(/\//g, "~1"), schemaPath: "#/properties/params/additionalProperties/required", keyword: "required", params: { missingProperty: "value" }, message: "must have required property 'value'", schema: schema29.properties.params.additionalProperties.required, parentSchema: schema29.properties.params.additionalProperties, data: data12 };
+                if (vErrors === null) {
+                  vErrors = [err19];
+                } else {
+                  vErrors.push(err19);
+                }
+                errors2++;
+              }
+              if (data12.min === void 0) {
+                const err20 = { instancePath: instancePath + "/params/" + key1.replace(/~/g, "~0").replace(/\//g, "~1"), schemaPath: "#/properties/params/additionalProperties/required", keyword: "required", params: { missingProperty: "min" }, message: "must have required property 'min'", schema: schema29.properties.params.additionalProperties.required, parentSchema: schema29.properties.params.additionalProperties, data: data12 };
+                if (vErrors === null) {
+                  vErrors = [err20];
+                } else {
+                  vErrors.push(err20);
+                }
+                errors2++;
+              }
+              if (data12.max === void 0) {
+                const err21 = { instancePath: instancePath + "/params/" + key1.replace(/~/g, "~0").replace(/\//g, "~1"), schemaPath: "#/properties/params/additionalProperties/required", keyword: "required", params: { missingProperty: "max" }, message: "must have required property 'max'", schema: schema29.properties.params.additionalProperties.required, parentSchema: schema29.properties.params.additionalProperties, data: data12 };
+                if (vErrors === null) {
+                  vErrors = [err21];
+                } else {
+                  vErrors.push(err21);
+                }
+                errors2++;
+              }
+              for (const key2 in data12) {
+                if (!(key2 === "value" || key2 === "min" || key2 === "max" || key2 === "step" || key2 === "label")) {
+                  const err22 = { instancePath: instancePath + "/params/" + key1.replace(/~/g, "~0").replace(/\//g, "~1"), schemaPath: "#/properties/params/additionalProperties/additionalProperties", keyword: "additionalProperties", params: { additionalProperty: key2 }, message: "must NOT have additional properties", schema: false, parentSchema: schema29.properties.params.additionalProperties, data: data12 };
+                  if (vErrors === null) {
+                    vErrors = [err22];
+                  } else {
+                    vErrors.push(err22);
+                  }
+                  errors2++;
+                }
+              }
+              if (data12.value !== void 0) {
+                let data13 = data12.value;
+                if (!(typeof data13 == "number" && isFinite(data13))) {
+                  const err23 = { instancePath: instancePath + "/params/" + key1.replace(/~/g, "~0").replace(/\//g, "~1") + "/value", schemaPath: "#/properties/params/additionalProperties/properties/value/type", keyword: "type", params: { type: "number" }, message: "must be number", schema: schema29.properties.params.additionalProperties.properties.value.type, parentSchema: schema29.properties.params.additionalProperties.properties.value, data: data13 };
+                  if (vErrors === null) {
+                    vErrors = [err23];
+                  } else {
+                    vErrors.push(err23);
+                  }
+                  errors2++;
+                }
+              }
+              if (data12.min !== void 0) {
+                let data14 = data12.min;
+                if (!(typeof data14 == "number" && isFinite(data14))) {
+                  const err24 = { instancePath: instancePath + "/params/" + key1.replace(/~/g, "~0").replace(/\//g, "~1") + "/min", schemaPath: "#/properties/params/additionalProperties/properties/min/type", keyword: "type", params: { type: "number" }, message: "must be number", schema: schema29.properties.params.additionalProperties.properties.min.type, parentSchema: schema29.properties.params.additionalProperties.properties.min, data: data14 };
+                  if (vErrors === null) {
+                    vErrors = [err24];
+                  } else {
+                    vErrors.push(err24);
+                  }
+                  errors2++;
+                }
+              }
+              if (data12.max !== void 0) {
+                let data15 = data12.max;
+                if (!(typeof data15 == "number" && isFinite(data15))) {
+                  const err25 = { instancePath: instancePath + "/params/" + key1.replace(/~/g, "~0").replace(/\//g, "~1") + "/max", schemaPath: "#/properties/params/additionalProperties/properties/max/type", keyword: "type", params: { type: "number" }, message: "must be number", schema: schema29.properties.params.additionalProperties.properties.max.type, parentSchema: schema29.properties.params.additionalProperties.properties.max, data: data15 };
+                  if (vErrors === null) {
+                    vErrors = [err25];
+                  } else {
+                    vErrors.push(err25);
+                  }
+                  errors2++;
+                }
+              }
+              if (data12.step !== void 0) {
+                let data16 = data12.step;
+                if (typeof data16 == "number" && isFinite(data16)) {
+                  if (data16 <= 0 || isNaN(data16)) {
+                    const err26 = { instancePath: instancePath + "/params/" + key1.replace(/~/g, "~0").replace(/\//g, "~1") + "/step", schemaPath: "#/properties/params/additionalProperties/properties/step/exclusiveMinimum", keyword: "exclusiveMinimum", params: { comparison: ">", limit: 0 }, message: "must be > 0", schema: 0, parentSchema: schema29.properties.params.additionalProperties.properties.step, data: data16 };
+                    if (vErrors === null) {
+                      vErrors = [err26];
+                    } else {
+                      vErrors.push(err26);
+                    }
+                    errors2++;
+                  }
+                } else {
+                  const err27 = { instancePath: instancePath + "/params/" + key1.replace(/~/g, "~0").replace(/\//g, "~1") + "/step", schemaPath: "#/properties/params/additionalProperties/properties/step/type", keyword: "type", params: { type: "number" }, message: "must be number", schema: schema29.properties.params.additionalProperties.properties.step.type, parentSchema: schema29.properties.params.additionalProperties.properties.step, data: data16 };
+                  if (vErrors === null) {
+                    vErrors = [err27];
+                  } else {
+                    vErrors.push(err27);
+                  }
+                  errors2++;
+                }
+              }
+              if (data12.label !== void 0) {
+                let data17 = data12.label;
+                if (typeof data17 !== "string") {
+                  const err28 = { instancePath: instancePath + "/params/" + key1.replace(/~/g, "~0").replace(/\//g, "~1") + "/label", schemaPath: "#/properties/params/additionalProperties/properties/label/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema29.properties.params.additionalProperties.properties.label.type, parentSchema: schema29.properties.params.additionalProperties.properties.label, data: data17 };
+                  if (vErrors === null) {
+                    vErrors = [err28];
+                  } else {
+                    vErrors.push(err28);
+                  }
+                  errors2++;
+                }
+              }
+            }
+          }
+        } else {
+          const err29 = { instancePath: instancePath + "/params", schemaPath: "#/properties/params/type", keyword: "type", params: { type: "object" }, message: "must be object", schema: schema29.properties.params.type, parentSchema: schema29.properties.params, data: data11 };
+          if (vErrors === null) {
+            vErrors = [err29];
+          } else {
+            vErrors.push(err29);
+          }
+          errors2++;
+        }
+      }
+      if (data.xlabel !== void 0) {
+        let data18 = data.xlabel;
+        if (typeof data18 !== "string") {
+          const err30 = { instancePath: instancePath + "/xlabel", schemaPath: "#/properties/xlabel/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema29.properties.xlabel.type, parentSchema: schema29.properties.xlabel, data: data18 };
+          if (vErrors === null) {
+            vErrors = [err30];
+          } else {
+            vErrors.push(err30);
+          }
+          errors2++;
+        }
+      }
+      if (data.ylabel !== void 0) {
+        let data19 = data.ylabel;
+        if (typeof data19 !== "string") {
+          const err31 = { instancePath: instancePath + "/ylabel", schemaPath: "#/properties/ylabel/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema29.properties.ylabel.type, parentSchema: schema29.properties.ylabel, data: data19 };
+          if (vErrors === null) {
+            vErrors = [err31];
+          } else {
+            vErrors.push(err31);
+          }
+          errors2++;
+        }
+      }
+      let data20 = data.height;
+      if (!(typeof data20 == "number" && (!(data20 % 1) && !isNaN(data20)) && isFinite(data20))) {
+        const err32 = { instancePath: instancePath + "/height", schemaPath: "#/properties/height/type", keyword: "type", params: { type: "integer" }, message: "must be integer", schema: schema29.properties.height.type, parentSchema: schema29.properties.height, data: data20 };
+        if (vErrors === null) {
+          vErrors = [err32];
+        } else {
+          vErrors.push(err32);
+        }
+        errors2++;
+      }
+      if (typeof data20 == "number" && isFinite(data20)) {
+        if (data20 > 1200 || isNaN(data20)) {
+          const err33 = { instancePath: instancePath + "/height", schemaPath: "#/properties/height/maximum", keyword: "maximum", params: { comparison: "<=", limit: 1200 }, message: "must be <= 1200", schema: 1200, parentSchema: schema29.properties.height, data: data20 };
+          if (vErrors === null) {
+            vErrors = [err33];
+          } else {
+            vErrors.push(err33);
+          }
+          errors2++;
+        }
+        if (data20 < 200 || isNaN(data20)) {
+          const err34 = { instancePath: instancePath + "/height", schemaPath: "#/properties/height/minimum", keyword: "minimum", params: { comparison: ">=", limit: 200 }, message: "must be >= 200", schema: 200, parentSchema: schema29.properties.height, data: data20 };
+          if (vErrors === null) {
+            vErrors = [err34];
+          } else {
+            vErrors.push(err34);
+          }
+          errors2++;
+        }
+      }
     } else {
-      const err2 = { instancePath, schemaPath: "#/type", keyword: "type", params: { type: "object" }, message: "must be object", schema: schema29.type, parentSchema: schema29, data };
+      const err35 = { instancePath, schemaPath: "#/type", keyword: "type", params: { type: "object" }, message: "must be object", schema: schema29.type, parentSchema: schema29, data };
+      if (vErrors === null) {
+        vErrors = [err35];
+      } else {
+        vErrors.push(err35);
+      }
+      errors2++;
+    }
+    validate28.errors = vErrors;
+    return errors2 === 0;
+  }
+  var animation = validate29;
+  var schema30 = { "type": "object", "additionalProperties": false, "properties": { "title": { "type": "string" }, "functions": { "type": "array", "minItems": 1, "maxItems": 8, "items": { "type": ["string", "object"], "additionalProperties": false, "required": ["y"], "properties": { "y": { "type": "string" }, "label": { "type": "string" } } }, "description": "curves y(x, t)" }, "points": { "type": "array", "minItems": 1, "maxItems": 12, "items": { "type": "object", "additionalProperties": false, "required": ["x", "y"], "properties": { "x": { "type": ["string", "number"] }, "y": { "type": ["string", "number"] }, "label": { "type": "string" }, "trail": { "type": "boolean", "default": true } } }, "description": "moving points x(t), y(t)" }, "data": { "type": "string", "description": "relative path to a .npy of shape (frames, n) or (frames, ny, nx)" }, "t": { "type": "array", "items": { "type": "number" }, "minItems": 2, "maxItems": 2, "description": "time range (default [0, 10]; for data: the time of the first and last frame)" }, "duration": { "type": "number", "minimum": 1, "maximum": 300, "default": 8, "description": "seconds to play the whole range" }, "loop": { "type": "boolean", "default": true }, "x": { "type": "array", "items": { "type": "number" }, "minItems": 2, "maxItems": 2, "description": "x range (curves: the domain, default [-10, 10]; points: the view, default automatic)" }, "y": { "type": "array", "items": { "type": "number" }, "minItems": 2, "maxItems": 2, "description": "y range of the view (default automatic)" }, "params": { "type": "object", "additionalProperties": { "type": ["number", "object"], "additionalProperties": false, "required": ["value", "min", "max"], "properties": { "value": { "type": "number" }, "min": { "type": "number" }, "max": { "type": "number" }, "step": { "type": "number", "exclusiveMinimum": 0 }, "label": { "type": "string" } } }, "description": "named constants: a number (a: 2) or a slider (a: {value: 2, min: 0, max: 5, step: 0.1})" }, "xlabel": { "type": "string" }, "ylabel": { "type": "string" }, "height": { "type": "integer", "minimum": 200, "maximum": 1200, "default": 380 } } };
+  function validate29(data, { instancePath = "", parentData, parentDataProperty, rootData = data } = {}) {
+    let vErrors = null;
+    let errors2 = 0;
+    if (data && typeof data == "object" && !Array.isArray(data)) {
+      if (data.duration === void 0) {
+        data.duration = 8;
+      }
+      if (data.loop === void 0) {
+        data.loop = true;
+      }
+      if (data.height === void 0) {
+        data.height = 380;
+      }
+      for (const key0 in data) {
+        if (!func2.call(schema30.properties, key0)) {
+          const err0 = { instancePath, schemaPath: "#/additionalProperties", keyword: "additionalProperties", params: { additionalProperty: key0 }, message: "must NOT have additional properties", schema: false, parentSchema: schema30, data };
+          if (vErrors === null) {
+            vErrors = [err0];
+          } else {
+            vErrors.push(err0);
+          }
+          errors2++;
+        }
+      }
+      if (data.title !== void 0) {
+        let data0 = data.title;
+        if (typeof data0 !== "string") {
+          const err1 = { instancePath: instancePath + "/title", schemaPath: "#/properties/title/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema30.properties.title.type, parentSchema: schema30.properties.title, data: data0 };
+          if (vErrors === null) {
+            vErrors = [err1];
+          } else {
+            vErrors.push(err1);
+          }
+          errors2++;
+        }
+      }
+      if (data.functions !== void 0) {
+        let data1 = data.functions;
+        if (Array.isArray(data1)) {
+          if (data1.length > 8) {
+            const err2 = { instancePath: instancePath + "/functions", schemaPath: "#/properties/functions/maxItems", keyword: "maxItems", params: { limit: 8 }, message: "must NOT have more than 8 items", schema: 8, parentSchema: schema30.properties.functions, data: data1 };
+            if (vErrors === null) {
+              vErrors = [err2];
+            } else {
+              vErrors.push(err2);
+            }
+            errors2++;
+          }
+          if (data1.length < 1) {
+            const err3 = { instancePath: instancePath + "/functions", schemaPath: "#/properties/functions/minItems", keyword: "minItems", params: { limit: 1 }, message: "must NOT have fewer than 1 items", schema: 1, parentSchema: schema30.properties.functions, data: data1 };
+            if (vErrors === null) {
+              vErrors = [err3];
+            } else {
+              vErrors.push(err3);
+            }
+            errors2++;
+          }
+          const len0 = data1.length;
+          for (let i0 = 0; i0 < len0; i0++) {
+            let data2 = data1[i0];
+            if (typeof data2 !== "string" && !(data2 && typeof data2 == "object" && !Array.isArray(data2))) {
+              const err4 = { instancePath: instancePath + "/functions/" + i0, schemaPath: "#/properties/functions/items/type", keyword: "type", params: { type: schema30.properties.functions.items.type }, message: "must be string,object", schema: schema30.properties.functions.items.type, parentSchema: schema30.properties.functions.items, data: data2 };
+              if (vErrors === null) {
+                vErrors = [err4];
+              } else {
+                vErrors.push(err4);
+              }
+              errors2++;
+            }
+            if (data2 && typeof data2 == "object" && !Array.isArray(data2)) {
+              if (data2.y === void 0) {
+                const err5 = { instancePath: instancePath + "/functions/" + i0, schemaPath: "#/properties/functions/items/required", keyword: "required", params: { missingProperty: "y" }, message: "must have required property 'y'", schema: schema30.properties.functions.items.required, parentSchema: schema30.properties.functions.items, data: data2 };
+                if (vErrors === null) {
+                  vErrors = [err5];
+                } else {
+                  vErrors.push(err5);
+                }
+                errors2++;
+              }
+              for (const key1 in data2) {
+                if (!(key1 === "y" || key1 === "label")) {
+                  const err6 = { instancePath: instancePath + "/functions/" + i0, schemaPath: "#/properties/functions/items/additionalProperties", keyword: "additionalProperties", params: { additionalProperty: key1 }, message: "must NOT have additional properties", schema: false, parentSchema: schema30.properties.functions.items, data: data2 };
+                  if (vErrors === null) {
+                    vErrors = [err6];
+                  } else {
+                    vErrors.push(err6);
+                  }
+                  errors2++;
+                }
+              }
+              if (data2.y !== void 0) {
+                let data3 = data2.y;
+                if (typeof data3 !== "string") {
+                  const err7 = { instancePath: instancePath + "/functions/" + i0 + "/y", schemaPath: "#/properties/functions/items/properties/y/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema30.properties.functions.items.properties.y.type, parentSchema: schema30.properties.functions.items.properties.y, data: data3 };
+                  if (vErrors === null) {
+                    vErrors = [err7];
+                  } else {
+                    vErrors.push(err7);
+                  }
+                  errors2++;
+                }
+              }
+              if (data2.label !== void 0) {
+                let data4 = data2.label;
+                if (typeof data4 !== "string") {
+                  const err8 = { instancePath: instancePath + "/functions/" + i0 + "/label", schemaPath: "#/properties/functions/items/properties/label/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema30.properties.functions.items.properties.label.type, parentSchema: schema30.properties.functions.items.properties.label, data: data4 };
+                  if (vErrors === null) {
+                    vErrors = [err8];
+                  } else {
+                    vErrors.push(err8);
+                  }
+                  errors2++;
+                }
+              }
+            }
+          }
+        } else {
+          const err9 = { instancePath: instancePath + "/functions", schemaPath: "#/properties/functions/type", keyword: "type", params: { type: "array" }, message: "must be array", schema: schema30.properties.functions.type, parentSchema: schema30.properties.functions, data: data1 };
+          if (vErrors === null) {
+            vErrors = [err9];
+          } else {
+            vErrors.push(err9);
+          }
+          errors2++;
+        }
+      }
+      if (data.points !== void 0) {
+        let data5 = data.points;
+        if (Array.isArray(data5)) {
+          if (data5.length > 12) {
+            const err10 = { instancePath: instancePath + "/points", schemaPath: "#/properties/points/maxItems", keyword: "maxItems", params: { limit: 12 }, message: "must NOT have more than 12 items", schema: 12, parentSchema: schema30.properties.points, data: data5 };
+            if (vErrors === null) {
+              vErrors = [err10];
+            } else {
+              vErrors.push(err10);
+            }
+            errors2++;
+          }
+          if (data5.length < 1) {
+            const err11 = { instancePath: instancePath + "/points", schemaPath: "#/properties/points/minItems", keyword: "minItems", params: { limit: 1 }, message: "must NOT have fewer than 1 items", schema: 1, parentSchema: schema30.properties.points, data: data5 };
+            if (vErrors === null) {
+              vErrors = [err11];
+            } else {
+              vErrors.push(err11);
+            }
+            errors2++;
+          }
+          const len1 = data5.length;
+          for (let i1 = 0; i1 < len1; i1++) {
+            let data6 = data5[i1];
+            if (data6 && typeof data6 == "object" && !Array.isArray(data6)) {
+              if (data6.trail === void 0) {
+                data6.trail = true;
+              }
+              if (data6.x === void 0) {
+                const err12 = { instancePath: instancePath + "/points/" + i1, schemaPath: "#/properties/points/items/required", keyword: "required", params: { missingProperty: "x" }, message: "must have required property 'x'", schema: schema30.properties.points.items.required, parentSchema: schema30.properties.points.items, data: data6 };
+                if (vErrors === null) {
+                  vErrors = [err12];
+                } else {
+                  vErrors.push(err12);
+                }
+                errors2++;
+              }
+              if (data6.y === void 0) {
+                const err13 = { instancePath: instancePath + "/points/" + i1, schemaPath: "#/properties/points/items/required", keyword: "required", params: { missingProperty: "y" }, message: "must have required property 'y'", schema: schema30.properties.points.items.required, parentSchema: schema30.properties.points.items, data: data6 };
+                if (vErrors === null) {
+                  vErrors = [err13];
+                } else {
+                  vErrors.push(err13);
+                }
+                errors2++;
+              }
+              for (const key2 in data6) {
+                if (!(key2 === "x" || key2 === "y" || key2 === "label" || key2 === "trail")) {
+                  const err14 = { instancePath: instancePath + "/points/" + i1, schemaPath: "#/properties/points/items/additionalProperties", keyword: "additionalProperties", params: { additionalProperty: key2 }, message: "must NOT have additional properties", schema: false, parentSchema: schema30.properties.points.items, data: data6 };
+                  if (vErrors === null) {
+                    vErrors = [err14];
+                  } else {
+                    vErrors.push(err14);
+                  }
+                  errors2++;
+                }
+              }
+              if (data6.x !== void 0) {
+                let data7 = data6.x;
+                if (typeof data7 !== "string" && !(typeof data7 == "number" && isFinite(data7))) {
+                  const err15 = { instancePath: instancePath + "/points/" + i1 + "/x", schemaPath: "#/properties/points/items/properties/x/type", keyword: "type", params: { type: schema30.properties.points.items.properties.x.type }, message: "must be string,number", schema: schema30.properties.points.items.properties.x.type, parentSchema: schema30.properties.points.items.properties.x, data: data7 };
+                  if (vErrors === null) {
+                    vErrors = [err15];
+                  } else {
+                    vErrors.push(err15);
+                  }
+                  errors2++;
+                }
+              }
+              if (data6.y !== void 0) {
+                let data8 = data6.y;
+                if (typeof data8 !== "string" && !(typeof data8 == "number" && isFinite(data8))) {
+                  const err16 = { instancePath: instancePath + "/points/" + i1 + "/y", schemaPath: "#/properties/points/items/properties/y/type", keyword: "type", params: { type: schema30.properties.points.items.properties.y.type }, message: "must be string,number", schema: schema30.properties.points.items.properties.y.type, parentSchema: schema30.properties.points.items.properties.y, data: data8 };
+                  if (vErrors === null) {
+                    vErrors = [err16];
+                  } else {
+                    vErrors.push(err16);
+                  }
+                  errors2++;
+                }
+              }
+              if (data6.label !== void 0) {
+                let data9 = data6.label;
+                if (typeof data9 !== "string") {
+                  const err17 = { instancePath: instancePath + "/points/" + i1 + "/label", schemaPath: "#/properties/points/items/properties/label/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema30.properties.points.items.properties.label.type, parentSchema: schema30.properties.points.items.properties.label, data: data9 };
+                  if (vErrors === null) {
+                    vErrors = [err17];
+                  } else {
+                    vErrors.push(err17);
+                  }
+                  errors2++;
+                }
+              }
+              let data10 = data6.trail;
+              if (typeof data10 !== "boolean") {
+                const err18 = { instancePath: instancePath + "/points/" + i1 + "/trail", schemaPath: "#/properties/points/items/properties/trail/type", keyword: "type", params: { type: "boolean" }, message: "must be boolean", schema: schema30.properties.points.items.properties.trail.type, parentSchema: schema30.properties.points.items.properties.trail, data: data10 };
+                if (vErrors === null) {
+                  vErrors = [err18];
+                } else {
+                  vErrors.push(err18);
+                }
+                errors2++;
+              }
+            } else {
+              const err19 = { instancePath: instancePath + "/points/" + i1, schemaPath: "#/properties/points/items/type", keyword: "type", params: { type: "object" }, message: "must be object", schema: schema30.properties.points.items.type, parentSchema: schema30.properties.points.items, data: data6 };
+              if (vErrors === null) {
+                vErrors = [err19];
+              } else {
+                vErrors.push(err19);
+              }
+              errors2++;
+            }
+          }
+        } else {
+          const err20 = { instancePath: instancePath + "/points", schemaPath: "#/properties/points/type", keyword: "type", params: { type: "array" }, message: "must be array", schema: schema30.properties.points.type, parentSchema: schema30.properties.points, data: data5 };
+          if (vErrors === null) {
+            vErrors = [err20];
+          } else {
+            vErrors.push(err20);
+          }
+          errors2++;
+        }
+      }
+      if (data.data !== void 0) {
+        let data11 = data.data;
+        if (typeof data11 !== "string") {
+          const err21 = { instancePath: instancePath + "/data", schemaPath: "#/properties/data/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema30.properties.data.type, parentSchema: schema30.properties.data, data: data11 };
+          if (vErrors === null) {
+            vErrors = [err21];
+          } else {
+            vErrors.push(err21);
+          }
+          errors2++;
+        }
+      }
+      if (data.t !== void 0) {
+        let data12 = data.t;
+        if (Array.isArray(data12)) {
+          if (data12.length > 2) {
+            const err22 = { instancePath: instancePath + "/t", schemaPath: "#/properties/t/maxItems", keyword: "maxItems", params: { limit: 2 }, message: "must NOT have more than 2 items", schema: 2, parentSchema: schema30.properties.t, data: data12 };
+            if (vErrors === null) {
+              vErrors = [err22];
+            } else {
+              vErrors.push(err22);
+            }
+            errors2++;
+          }
+          if (data12.length < 2) {
+            const err23 = { instancePath: instancePath + "/t", schemaPath: "#/properties/t/minItems", keyword: "minItems", params: { limit: 2 }, message: "must NOT have fewer than 2 items", schema: 2, parentSchema: schema30.properties.t, data: data12 };
+            if (vErrors === null) {
+              vErrors = [err23];
+            } else {
+              vErrors.push(err23);
+            }
+            errors2++;
+          }
+          const len2 = data12.length;
+          for (let i2 = 0; i2 < len2; i2++) {
+            let data13 = data12[i2];
+            if (!(typeof data13 == "number" && isFinite(data13))) {
+              const err24 = { instancePath: instancePath + "/t/" + i2, schemaPath: "#/properties/t/items/type", keyword: "type", params: { type: "number" }, message: "must be number", schema: schema30.properties.t.items.type, parentSchema: schema30.properties.t.items, data: data13 };
+              if (vErrors === null) {
+                vErrors = [err24];
+              } else {
+                vErrors.push(err24);
+              }
+              errors2++;
+            }
+          }
+        } else {
+          const err25 = { instancePath: instancePath + "/t", schemaPath: "#/properties/t/type", keyword: "type", params: { type: "array" }, message: "must be array", schema: schema30.properties.t.type, parentSchema: schema30.properties.t, data: data12 };
+          if (vErrors === null) {
+            vErrors = [err25];
+          } else {
+            vErrors.push(err25);
+          }
+          errors2++;
+        }
+      }
+      let data14 = data.duration;
+      if (typeof data14 == "number" && isFinite(data14)) {
+        if (data14 > 300 || isNaN(data14)) {
+          const err26 = { instancePath: instancePath + "/duration", schemaPath: "#/properties/duration/maximum", keyword: "maximum", params: { comparison: "<=", limit: 300 }, message: "must be <= 300", schema: 300, parentSchema: schema30.properties.duration, data: data14 };
+          if (vErrors === null) {
+            vErrors = [err26];
+          } else {
+            vErrors.push(err26);
+          }
+          errors2++;
+        }
+        if (data14 < 1 || isNaN(data14)) {
+          const err27 = { instancePath: instancePath + "/duration", schemaPath: "#/properties/duration/minimum", keyword: "minimum", params: { comparison: ">=", limit: 1 }, message: "must be >= 1", schema: 1, parentSchema: schema30.properties.duration, data: data14 };
+          if (vErrors === null) {
+            vErrors = [err27];
+          } else {
+            vErrors.push(err27);
+          }
+          errors2++;
+        }
+      } else {
+        const err28 = { instancePath: instancePath + "/duration", schemaPath: "#/properties/duration/type", keyword: "type", params: { type: "number" }, message: "must be number", schema: schema30.properties.duration.type, parentSchema: schema30.properties.duration, data: data14 };
+        if (vErrors === null) {
+          vErrors = [err28];
+        } else {
+          vErrors.push(err28);
+        }
+        errors2++;
+      }
+      let data15 = data.loop;
+      if (typeof data15 !== "boolean") {
+        const err29 = { instancePath: instancePath + "/loop", schemaPath: "#/properties/loop/type", keyword: "type", params: { type: "boolean" }, message: "must be boolean", schema: schema30.properties.loop.type, parentSchema: schema30.properties.loop, data: data15 };
+        if (vErrors === null) {
+          vErrors = [err29];
+        } else {
+          vErrors.push(err29);
+        }
+        errors2++;
+      }
+      if (data.x !== void 0) {
+        let data16 = data.x;
+        if (Array.isArray(data16)) {
+          if (data16.length > 2) {
+            const err30 = { instancePath: instancePath + "/x", schemaPath: "#/properties/x/maxItems", keyword: "maxItems", params: { limit: 2 }, message: "must NOT have more than 2 items", schema: 2, parentSchema: schema30.properties.x, data: data16 };
+            if (vErrors === null) {
+              vErrors = [err30];
+            } else {
+              vErrors.push(err30);
+            }
+            errors2++;
+          }
+          if (data16.length < 2) {
+            const err31 = { instancePath: instancePath + "/x", schemaPath: "#/properties/x/minItems", keyword: "minItems", params: { limit: 2 }, message: "must NOT have fewer than 2 items", schema: 2, parentSchema: schema30.properties.x, data: data16 };
+            if (vErrors === null) {
+              vErrors = [err31];
+            } else {
+              vErrors.push(err31);
+            }
+            errors2++;
+          }
+          const len3 = data16.length;
+          for (let i3 = 0; i3 < len3; i3++) {
+            let data17 = data16[i3];
+            if (!(typeof data17 == "number" && isFinite(data17))) {
+              const err32 = { instancePath: instancePath + "/x/" + i3, schemaPath: "#/properties/x/items/type", keyword: "type", params: { type: "number" }, message: "must be number", schema: schema30.properties.x.items.type, parentSchema: schema30.properties.x.items, data: data17 };
+              if (vErrors === null) {
+                vErrors = [err32];
+              } else {
+                vErrors.push(err32);
+              }
+              errors2++;
+            }
+          }
+        } else {
+          const err33 = { instancePath: instancePath + "/x", schemaPath: "#/properties/x/type", keyword: "type", params: { type: "array" }, message: "must be array", schema: schema30.properties.x.type, parentSchema: schema30.properties.x, data: data16 };
+          if (vErrors === null) {
+            vErrors = [err33];
+          } else {
+            vErrors.push(err33);
+          }
+          errors2++;
+        }
+      }
+      if (data.y !== void 0) {
+        let data18 = data.y;
+        if (Array.isArray(data18)) {
+          if (data18.length > 2) {
+            const err34 = { instancePath: instancePath + "/y", schemaPath: "#/properties/y/maxItems", keyword: "maxItems", params: { limit: 2 }, message: "must NOT have more than 2 items", schema: 2, parentSchema: schema30.properties.y, data: data18 };
+            if (vErrors === null) {
+              vErrors = [err34];
+            } else {
+              vErrors.push(err34);
+            }
+            errors2++;
+          }
+          if (data18.length < 2) {
+            const err35 = { instancePath: instancePath + "/y", schemaPath: "#/properties/y/minItems", keyword: "minItems", params: { limit: 2 }, message: "must NOT have fewer than 2 items", schema: 2, parentSchema: schema30.properties.y, data: data18 };
+            if (vErrors === null) {
+              vErrors = [err35];
+            } else {
+              vErrors.push(err35);
+            }
+            errors2++;
+          }
+          const len4 = data18.length;
+          for (let i4 = 0; i4 < len4; i4++) {
+            let data19 = data18[i4];
+            if (!(typeof data19 == "number" && isFinite(data19))) {
+              const err36 = { instancePath: instancePath + "/y/" + i4, schemaPath: "#/properties/y/items/type", keyword: "type", params: { type: "number" }, message: "must be number", schema: schema30.properties.y.items.type, parentSchema: schema30.properties.y.items, data: data19 };
+              if (vErrors === null) {
+                vErrors = [err36];
+              } else {
+                vErrors.push(err36);
+              }
+              errors2++;
+            }
+          }
+        } else {
+          const err37 = { instancePath: instancePath + "/y", schemaPath: "#/properties/y/type", keyword: "type", params: { type: "array" }, message: "must be array", schema: schema30.properties.y.type, parentSchema: schema30.properties.y, data: data18 };
+          if (vErrors === null) {
+            vErrors = [err37];
+          } else {
+            vErrors.push(err37);
+          }
+          errors2++;
+        }
+      }
+      if (data.params !== void 0) {
+        let data20 = data.params;
+        if (data20 && typeof data20 == "object" && !Array.isArray(data20)) {
+          for (const key3 in data20) {
+            let data21 = data20[key3];
+            if (!(typeof data21 == "number" && isFinite(data21)) && !(data21 && typeof data21 == "object" && !Array.isArray(data21))) {
+              const err38 = { instancePath: instancePath + "/params/" + key3.replace(/~/g, "~0").replace(/\//g, "~1"), schemaPath: "#/properties/params/additionalProperties/type", keyword: "type", params: { type: schema30.properties.params.additionalProperties.type }, message: "must be number,object", schema: schema30.properties.params.additionalProperties.type, parentSchema: schema30.properties.params.additionalProperties, data: data21 };
+              if (vErrors === null) {
+                vErrors = [err38];
+              } else {
+                vErrors.push(err38);
+              }
+              errors2++;
+            }
+            if (data21 && typeof data21 == "object" && !Array.isArray(data21)) {
+              if (data21.value === void 0) {
+                const err39 = { instancePath: instancePath + "/params/" + key3.replace(/~/g, "~0").replace(/\//g, "~1"), schemaPath: "#/properties/params/additionalProperties/required", keyword: "required", params: { missingProperty: "value" }, message: "must have required property 'value'", schema: schema30.properties.params.additionalProperties.required, parentSchema: schema30.properties.params.additionalProperties, data: data21 };
+                if (vErrors === null) {
+                  vErrors = [err39];
+                } else {
+                  vErrors.push(err39);
+                }
+                errors2++;
+              }
+              if (data21.min === void 0) {
+                const err40 = { instancePath: instancePath + "/params/" + key3.replace(/~/g, "~0").replace(/\//g, "~1"), schemaPath: "#/properties/params/additionalProperties/required", keyword: "required", params: { missingProperty: "min" }, message: "must have required property 'min'", schema: schema30.properties.params.additionalProperties.required, parentSchema: schema30.properties.params.additionalProperties, data: data21 };
+                if (vErrors === null) {
+                  vErrors = [err40];
+                } else {
+                  vErrors.push(err40);
+                }
+                errors2++;
+              }
+              if (data21.max === void 0) {
+                const err41 = { instancePath: instancePath + "/params/" + key3.replace(/~/g, "~0").replace(/\//g, "~1"), schemaPath: "#/properties/params/additionalProperties/required", keyword: "required", params: { missingProperty: "max" }, message: "must have required property 'max'", schema: schema30.properties.params.additionalProperties.required, parentSchema: schema30.properties.params.additionalProperties, data: data21 };
+                if (vErrors === null) {
+                  vErrors = [err41];
+                } else {
+                  vErrors.push(err41);
+                }
+                errors2++;
+              }
+              for (const key4 in data21) {
+                if (!(key4 === "value" || key4 === "min" || key4 === "max" || key4 === "step" || key4 === "label")) {
+                  const err42 = { instancePath: instancePath + "/params/" + key3.replace(/~/g, "~0").replace(/\//g, "~1"), schemaPath: "#/properties/params/additionalProperties/additionalProperties", keyword: "additionalProperties", params: { additionalProperty: key4 }, message: "must NOT have additional properties", schema: false, parentSchema: schema30.properties.params.additionalProperties, data: data21 };
+                  if (vErrors === null) {
+                    vErrors = [err42];
+                  } else {
+                    vErrors.push(err42);
+                  }
+                  errors2++;
+                }
+              }
+              if (data21.value !== void 0) {
+                let data22 = data21.value;
+                if (!(typeof data22 == "number" && isFinite(data22))) {
+                  const err43 = { instancePath: instancePath + "/params/" + key3.replace(/~/g, "~0").replace(/\//g, "~1") + "/value", schemaPath: "#/properties/params/additionalProperties/properties/value/type", keyword: "type", params: { type: "number" }, message: "must be number", schema: schema30.properties.params.additionalProperties.properties.value.type, parentSchema: schema30.properties.params.additionalProperties.properties.value, data: data22 };
+                  if (vErrors === null) {
+                    vErrors = [err43];
+                  } else {
+                    vErrors.push(err43);
+                  }
+                  errors2++;
+                }
+              }
+              if (data21.min !== void 0) {
+                let data23 = data21.min;
+                if (!(typeof data23 == "number" && isFinite(data23))) {
+                  const err44 = { instancePath: instancePath + "/params/" + key3.replace(/~/g, "~0").replace(/\//g, "~1") + "/min", schemaPath: "#/properties/params/additionalProperties/properties/min/type", keyword: "type", params: { type: "number" }, message: "must be number", schema: schema30.properties.params.additionalProperties.properties.min.type, parentSchema: schema30.properties.params.additionalProperties.properties.min, data: data23 };
+                  if (vErrors === null) {
+                    vErrors = [err44];
+                  } else {
+                    vErrors.push(err44);
+                  }
+                  errors2++;
+                }
+              }
+              if (data21.max !== void 0) {
+                let data24 = data21.max;
+                if (!(typeof data24 == "number" && isFinite(data24))) {
+                  const err45 = { instancePath: instancePath + "/params/" + key3.replace(/~/g, "~0").replace(/\//g, "~1") + "/max", schemaPath: "#/properties/params/additionalProperties/properties/max/type", keyword: "type", params: { type: "number" }, message: "must be number", schema: schema30.properties.params.additionalProperties.properties.max.type, parentSchema: schema30.properties.params.additionalProperties.properties.max, data: data24 };
+                  if (vErrors === null) {
+                    vErrors = [err45];
+                  } else {
+                    vErrors.push(err45);
+                  }
+                  errors2++;
+                }
+              }
+              if (data21.step !== void 0) {
+                let data25 = data21.step;
+                if (typeof data25 == "number" && isFinite(data25)) {
+                  if (data25 <= 0 || isNaN(data25)) {
+                    const err46 = { instancePath: instancePath + "/params/" + key3.replace(/~/g, "~0").replace(/\//g, "~1") + "/step", schemaPath: "#/properties/params/additionalProperties/properties/step/exclusiveMinimum", keyword: "exclusiveMinimum", params: { comparison: ">", limit: 0 }, message: "must be > 0", schema: 0, parentSchema: schema30.properties.params.additionalProperties.properties.step, data: data25 };
+                    if (vErrors === null) {
+                      vErrors = [err46];
+                    } else {
+                      vErrors.push(err46);
+                    }
+                    errors2++;
+                  }
+                } else {
+                  const err47 = { instancePath: instancePath + "/params/" + key3.replace(/~/g, "~0").replace(/\//g, "~1") + "/step", schemaPath: "#/properties/params/additionalProperties/properties/step/type", keyword: "type", params: { type: "number" }, message: "must be number", schema: schema30.properties.params.additionalProperties.properties.step.type, parentSchema: schema30.properties.params.additionalProperties.properties.step, data: data25 };
+                  if (vErrors === null) {
+                    vErrors = [err47];
+                  } else {
+                    vErrors.push(err47);
+                  }
+                  errors2++;
+                }
+              }
+              if (data21.label !== void 0) {
+                let data26 = data21.label;
+                if (typeof data26 !== "string") {
+                  const err48 = { instancePath: instancePath + "/params/" + key3.replace(/~/g, "~0").replace(/\//g, "~1") + "/label", schemaPath: "#/properties/params/additionalProperties/properties/label/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema30.properties.params.additionalProperties.properties.label.type, parentSchema: schema30.properties.params.additionalProperties.properties.label, data: data26 };
+                  if (vErrors === null) {
+                    vErrors = [err48];
+                  } else {
+                    vErrors.push(err48);
+                  }
+                  errors2++;
+                }
+              }
+            }
+          }
+        } else {
+          const err49 = { instancePath: instancePath + "/params", schemaPath: "#/properties/params/type", keyword: "type", params: { type: "object" }, message: "must be object", schema: schema30.properties.params.type, parentSchema: schema30.properties.params, data: data20 };
+          if (vErrors === null) {
+            vErrors = [err49];
+          } else {
+            vErrors.push(err49);
+          }
+          errors2++;
+        }
+      }
+      if (data.xlabel !== void 0) {
+        let data27 = data.xlabel;
+        if (typeof data27 !== "string") {
+          const err50 = { instancePath: instancePath + "/xlabel", schemaPath: "#/properties/xlabel/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema30.properties.xlabel.type, parentSchema: schema30.properties.xlabel, data: data27 };
+          if (vErrors === null) {
+            vErrors = [err50];
+          } else {
+            vErrors.push(err50);
+          }
+          errors2++;
+        }
+      }
+      if (data.ylabel !== void 0) {
+        let data28 = data.ylabel;
+        if (typeof data28 !== "string") {
+          const err51 = { instancePath: instancePath + "/ylabel", schemaPath: "#/properties/ylabel/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema30.properties.ylabel.type, parentSchema: schema30.properties.ylabel, data: data28 };
+          if (vErrors === null) {
+            vErrors = [err51];
+          } else {
+            vErrors.push(err51);
+          }
+          errors2++;
+        }
+      }
+      let data29 = data.height;
+      if (!(typeof data29 == "number" && (!(data29 % 1) && !isNaN(data29)) && isFinite(data29))) {
+        const err52 = { instancePath: instancePath + "/height", schemaPath: "#/properties/height/type", keyword: "type", params: { type: "integer" }, message: "must be integer", schema: schema30.properties.height.type, parentSchema: schema30.properties.height, data: data29 };
+        if (vErrors === null) {
+          vErrors = [err52];
+        } else {
+          vErrors.push(err52);
+        }
+        errors2++;
+      }
+      if (typeof data29 == "number" && isFinite(data29)) {
+        if (data29 > 1200 || isNaN(data29)) {
+          const err53 = { instancePath: instancePath + "/height", schemaPath: "#/properties/height/maximum", keyword: "maximum", params: { comparison: "<=", limit: 1200 }, message: "must be <= 1200", schema: 1200, parentSchema: schema30.properties.height, data: data29 };
+          if (vErrors === null) {
+            vErrors = [err53];
+          } else {
+            vErrors.push(err53);
+          }
+          errors2++;
+        }
+        if (data29 < 200 || isNaN(data29)) {
+          const err54 = { instancePath: instancePath + "/height", schemaPath: "#/properties/height/minimum", keyword: "minimum", params: { comparison: ">=", limit: 200 }, message: "must be >= 200", schema: 200, parentSchema: schema30.properties.height, data: data29 };
+          if (vErrors === null) {
+            vErrors = [err54];
+          } else {
+            vErrors.push(err54);
+          }
+          errors2++;
+        }
+      }
+    } else {
+      const err55 = { instancePath, schemaPath: "#/type", keyword: "type", params: { type: "object" }, message: "must be object", schema: schema30.type, parentSchema: schema30, data };
+      if (vErrors === null) {
+        vErrors = [err55];
+      } else {
+        vErrors.push(err55);
+      }
+      errors2++;
+    }
+    validate29.errors = vErrors;
+    return errors2 === 0;
+  }
+  var volume = validate30;
+  var schema31 = { "type": "object", "additionalProperties": false, "required": ["data"], "properties": { "title": { "type": "string" }, "data": { "type": "string", "description": "relative path to a .npy (shape (nx, ny, nz)) or a .cube file" }, "levels": { "type": "array", "minItems": 1, "maxItems": 6, "items": { "type": ["number", "object"], "additionalProperties": false, "required": ["value"], "properties": { "value": { "type": "number" }, "color": { "type": "string" }, "opacity": { "type": "number", "minimum": 0.05, "maximum": 1 } } }, "description": "isosurface values (default: \xB1 a third of the largest |value| for signed data, else half the maximum)" }, "spacing": { "type": "array", "items": { "type": "number", "exclusiveMinimum": 0 }, "minItems": 3, "maxItems": 3, "description": ".npy voxel size [dx, dy, dz] (default [1, 1, 1])" }, "view": { "enum": ["both", "isosurface", "slices"], "default": "both" }, "height": { "type": "integer", "minimum": 240, "maximum": 1200, "default": 420 } } };
+  function validate30(data, { instancePath = "", parentData, parentDataProperty, rootData = data } = {}) {
+    let vErrors = null;
+    let errors2 = 0;
+    if (data && typeof data == "object" && !Array.isArray(data)) {
+      if (data.view === void 0) {
+        data.view = "both";
+      }
+      if (data.height === void 0) {
+        data.height = 420;
+      }
+      if (data.data === void 0) {
+        const err0 = { instancePath, schemaPath: "#/required", keyword: "required", params: { missingProperty: "data" }, message: "must have required property 'data'", schema: schema31.required, parentSchema: schema31, data };
+        if (vErrors === null) {
+          vErrors = [err0];
+        } else {
+          vErrors.push(err0);
+        }
+        errors2++;
+      }
+      for (const key0 in data) {
+        if (!(key0 === "title" || key0 === "data" || key0 === "levels" || key0 === "spacing" || key0 === "view" || key0 === "height")) {
+          const err1 = { instancePath, schemaPath: "#/additionalProperties", keyword: "additionalProperties", params: { additionalProperty: key0 }, message: "must NOT have additional properties", schema: false, parentSchema: schema31, data };
+          if (vErrors === null) {
+            vErrors = [err1];
+          } else {
+            vErrors.push(err1);
+          }
+          errors2++;
+        }
+      }
+      if (data.title !== void 0) {
+        let data0 = data.title;
+        if (typeof data0 !== "string") {
+          const err2 = { instancePath: instancePath + "/title", schemaPath: "#/properties/title/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema31.properties.title.type, parentSchema: schema31.properties.title, data: data0 };
+          if (vErrors === null) {
+            vErrors = [err2];
+          } else {
+            vErrors.push(err2);
+          }
+          errors2++;
+        }
+      }
+      if (data.data !== void 0) {
+        let data1 = data.data;
+        if (typeof data1 !== "string") {
+          const err3 = { instancePath: instancePath + "/data", schemaPath: "#/properties/data/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema31.properties.data.type, parentSchema: schema31.properties.data, data: data1 };
+          if (vErrors === null) {
+            vErrors = [err3];
+          } else {
+            vErrors.push(err3);
+          }
+          errors2++;
+        }
+      }
+      if (data.levels !== void 0) {
+        let data2 = data.levels;
+        if (Array.isArray(data2)) {
+          if (data2.length > 6) {
+            const err4 = { instancePath: instancePath + "/levels", schemaPath: "#/properties/levels/maxItems", keyword: "maxItems", params: { limit: 6 }, message: "must NOT have more than 6 items", schema: 6, parentSchema: schema31.properties.levels, data: data2 };
+            if (vErrors === null) {
+              vErrors = [err4];
+            } else {
+              vErrors.push(err4);
+            }
+            errors2++;
+          }
+          if (data2.length < 1) {
+            const err5 = { instancePath: instancePath + "/levels", schemaPath: "#/properties/levels/minItems", keyword: "minItems", params: { limit: 1 }, message: "must NOT have fewer than 1 items", schema: 1, parentSchema: schema31.properties.levels, data: data2 };
+            if (vErrors === null) {
+              vErrors = [err5];
+            } else {
+              vErrors.push(err5);
+            }
+            errors2++;
+          }
+          const len0 = data2.length;
+          for (let i0 = 0; i0 < len0; i0++) {
+            let data3 = data2[i0];
+            if (!(typeof data3 == "number" && isFinite(data3)) && !(data3 && typeof data3 == "object" && !Array.isArray(data3))) {
+              const err6 = { instancePath: instancePath + "/levels/" + i0, schemaPath: "#/properties/levels/items/type", keyword: "type", params: { type: schema31.properties.levels.items.type }, message: "must be number,object", schema: schema31.properties.levels.items.type, parentSchema: schema31.properties.levels.items, data: data3 };
+              if (vErrors === null) {
+                vErrors = [err6];
+              } else {
+                vErrors.push(err6);
+              }
+              errors2++;
+            }
+            if (data3 && typeof data3 == "object" && !Array.isArray(data3)) {
+              if (data3.value === void 0) {
+                const err7 = { instancePath: instancePath + "/levels/" + i0, schemaPath: "#/properties/levels/items/required", keyword: "required", params: { missingProperty: "value" }, message: "must have required property 'value'", schema: schema31.properties.levels.items.required, parentSchema: schema31.properties.levels.items, data: data3 };
+                if (vErrors === null) {
+                  vErrors = [err7];
+                } else {
+                  vErrors.push(err7);
+                }
+                errors2++;
+              }
+              for (const key1 in data3) {
+                if (!(key1 === "value" || key1 === "color" || key1 === "opacity")) {
+                  const err8 = { instancePath: instancePath + "/levels/" + i0, schemaPath: "#/properties/levels/items/additionalProperties", keyword: "additionalProperties", params: { additionalProperty: key1 }, message: "must NOT have additional properties", schema: false, parentSchema: schema31.properties.levels.items, data: data3 };
+                  if (vErrors === null) {
+                    vErrors = [err8];
+                  } else {
+                    vErrors.push(err8);
+                  }
+                  errors2++;
+                }
+              }
+              if (data3.value !== void 0) {
+                let data4 = data3.value;
+                if (!(typeof data4 == "number" && isFinite(data4))) {
+                  const err9 = { instancePath: instancePath + "/levels/" + i0 + "/value", schemaPath: "#/properties/levels/items/properties/value/type", keyword: "type", params: { type: "number" }, message: "must be number", schema: schema31.properties.levels.items.properties.value.type, parentSchema: schema31.properties.levels.items.properties.value, data: data4 };
+                  if (vErrors === null) {
+                    vErrors = [err9];
+                  } else {
+                    vErrors.push(err9);
+                  }
+                  errors2++;
+                }
+              }
+              if (data3.color !== void 0) {
+                let data5 = data3.color;
+                if (typeof data5 !== "string") {
+                  const err10 = { instancePath: instancePath + "/levels/" + i0 + "/color", schemaPath: "#/properties/levels/items/properties/color/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema31.properties.levels.items.properties.color.type, parentSchema: schema31.properties.levels.items.properties.color, data: data5 };
+                  if (vErrors === null) {
+                    vErrors = [err10];
+                  } else {
+                    vErrors.push(err10);
+                  }
+                  errors2++;
+                }
+              }
+              if (data3.opacity !== void 0) {
+                let data6 = data3.opacity;
+                if (typeof data6 == "number" && isFinite(data6)) {
+                  if (data6 > 1 || isNaN(data6)) {
+                    const err11 = { instancePath: instancePath + "/levels/" + i0 + "/opacity", schemaPath: "#/properties/levels/items/properties/opacity/maximum", keyword: "maximum", params: { comparison: "<=", limit: 1 }, message: "must be <= 1", schema: 1, parentSchema: schema31.properties.levels.items.properties.opacity, data: data6 };
+                    if (vErrors === null) {
+                      vErrors = [err11];
+                    } else {
+                      vErrors.push(err11);
+                    }
+                    errors2++;
+                  }
+                  if (data6 < 0.05 || isNaN(data6)) {
+                    const err12 = { instancePath: instancePath + "/levels/" + i0 + "/opacity", schemaPath: "#/properties/levels/items/properties/opacity/minimum", keyword: "minimum", params: { comparison: ">=", limit: 0.05 }, message: "must be >= 0.05", schema: 0.05, parentSchema: schema31.properties.levels.items.properties.opacity, data: data6 };
+                    if (vErrors === null) {
+                      vErrors = [err12];
+                    } else {
+                      vErrors.push(err12);
+                    }
+                    errors2++;
+                  }
+                } else {
+                  const err13 = { instancePath: instancePath + "/levels/" + i0 + "/opacity", schemaPath: "#/properties/levels/items/properties/opacity/type", keyword: "type", params: { type: "number" }, message: "must be number", schema: schema31.properties.levels.items.properties.opacity.type, parentSchema: schema31.properties.levels.items.properties.opacity, data: data6 };
+                  if (vErrors === null) {
+                    vErrors = [err13];
+                  } else {
+                    vErrors.push(err13);
+                  }
+                  errors2++;
+                }
+              }
+            }
+          }
+        } else {
+          const err14 = { instancePath: instancePath + "/levels", schemaPath: "#/properties/levels/type", keyword: "type", params: { type: "array" }, message: "must be array", schema: schema31.properties.levels.type, parentSchema: schema31.properties.levels, data: data2 };
+          if (vErrors === null) {
+            vErrors = [err14];
+          } else {
+            vErrors.push(err14);
+          }
+          errors2++;
+        }
+      }
+      if (data.spacing !== void 0) {
+        let data7 = data.spacing;
+        if (Array.isArray(data7)) {
+          if (data7.length > 3) {
+            const err15 = { instancePath: instancePath + "/spacing", schemaPath: "#/properties/spacing/maxItems", keyword: "maxItems", params: { limit: 3 }, message: "must NOT have more than 3 items", schema: 3, parentSchema: schema31.properties.spacing, data: data7 };
+            if (vErrors === null) {
+              vErrors = [err15];
+            } else {
+              vErrors.push(err15);
+            }
+            errors2++;
+          }
+          if (data7.length < 3) {
+            const err16 = { instancePath: instancePath + "/spacing", schemaPath: "#/properties/spacing/minItems", keyword: "minItems", params: { limit: 3 }, message: "must NOT have fewer than 3 items", schema: 3, parentSchema: schema31.properties.spacing, data: data7 };
+            if (vErrors === null) {
+              vErrors = [err16];
+            } else {
+              vErrors.push(err16);
+            }
+            errors2++;
+          }
+          const len1 = data7.length;
+          for (let i1 = 0; i1 < len1; i1++) {
+            let data8 = data7[i1];
+            if (typeof data8 == "number" && isFinite(data8)) {
+              if (data8 <= 0 || isNaN(data8)) {
+                const err17 = { instancePath: instancePath + "/spacing/" + i1, schemaPath: "#/properties/spacing/items/exclusiveMinimum", keyword: "exclusiveMinimum", params: { comparison: ">", limit: 0 }, message: "must be > 0", schema: 0, parentSchema: schema31.properties.spacing.items, data: data8 };
+                if (vErrors === null) {
+                  vErrors = [err17];
+                } else {
+                  vErrors.push(err17);
+                }
+                errors2++;
+              }
+            } else {
+              const err18 = { instancePath: instancePath + "/spacing/" + i1, schemaPath: "#/properties/spacing/items/type", keyword: "type", params: { type: "number" }, message: "must be number", schema: schema31.properties.spacing.items.type, parentSchema: schema31.properties.spacing.items, data: data8 };
+              if (vErrors === null) {
+                vErrors = [err18];
+              } else {
+                vErrors.push(err18);
+              }
+              errors2++;
+            }
+          }
+        } else {
+          const err19 = { instancePath: instancePath + "/spacing", schemaPath: "#/properties/spacing/type", keyword: "type", params: { type: "array" }, message: "must be array", schema: schema31.properties.spacing.type, parentSchema: schema31.properties.spacing, data: data7 };
+          if (vErrors === null) {
+            vErrors = [err19];
+          } else {
+            vErrors.push(err19);
+          }
+          errors2++;
+        }
+      }
+      let data9 = data.view;
+      if (!(data9 === "both" || data9 === "isosurface" || data9 === "slices")) {
+        const err20 = { instancePath: instancePath + "/view", schemaPath: "#/properties/view/enum", keyword: "enum", params: { allowedValues: schema31.properties.view.enum }, message: "must be equal to one of the allowed values", schema: schema31.properties.view.enum, parentSchema: schema31.properties.view, data: data9 };
+        if (vErrors === null) {
+          vErrors = [err20];
+        } else {
+          vErrors.push(err20);
+        }
+        errors2++;
+      }
+      let data10 = data.height;
+      if (!(typeof data10 == "number" && (!(data10 % 1) && !isNaN(data10)) && isFinite(data10))) {
+        const err21 = { instancePath: instancePath + "/height", schemaPath: "#/properties/height/type", keyword: "type", params: { type: "integer" }, message: "must be integer", schema: schema31.properties.height.type, parentSchema: schema31.properties.height, data: data10 };
+        if (vErrors === null) {
+          vErrors = [err21];
+        } else {
+          vErrors.push(err21);
+        }
+        errors2++;
+      }
+      if (typeof data10 == "number" && isFinite(data10)) {
+        if (data10 > 1200 || isNaN(data10)) {
+          const err22 = { instancePath: instancePath + "/height", schemaPath: "#/properties/height/maximum", keyword: "maximum", params: { comparison: "<=", limit: 1200 }, message: "must be <= 1200", schema: 1200, parentSchema: schema31.properties.height, data: data10 };
+          if (vErrors === null) {
+            vErrors = [err22];
+          } else {
+            vErrors.push(err22);
+          }
+          errors2++;
+        }
+        if (data10 < 240 || isNaN(data10)) {
+          const err23 = { instancePath: instancePath + "/height", schemaPath: "#/properties/height/minimum", keyword: "minimum", params: { comparison: ">=", limit: 240 }, message: "must be >= 240", schema: 240, parentSchema: schema31.properties.height, data: data10 };
+          if (vErrors === null) {
+            vErrors = [err23];
+          } else {
+            vErrors.push(err23);
+          }
+          errors2++;
+        }
+      }
+    } else {
+      const err24 = { instancePath, schemaPath: "#/type", keyword: "type", params: { type: "object" }, message: "must be object", schema: schema31.type, parentSchema: schema31, data };
+      if (vErrors === null) {
+        vErrors = [err24];
+      } else {
+        vErrors.push(err24);
+      }
+      errors2++;
+    }
+    validate30.errors = vErrors;
+    return errors2 === 0;
+  }
+  var graph = validate31;
+  var schema32 = { "type": "object", "additionalProperties": false, "properties": { "title": { "type": "string" }, "data": { "type": "string", "description": "relative path to a .csv/.tsv edge list (source, target[, weight]) or a .json {nodes, edges}" }, "nodes": { "type": "array", "items": { "type": ["string", "number", "object"], "additionalProperties": false, "required": ["id"], "properties": { "id": { "type": ["string", "number"] }, "label": { "type": "string" }, "group": { "type": ["string", "number"] }, "value": { "type": "number" } } } }, "edges": { "type": "array", "items": { "type": ["array", "object"], "minItems": 2, "maxItems": 3, "items": { "type": ["string", "number"] }, "additionalProperties": false, "required": ["source", "target"], "properties": { "source": { "type": ["string", "number"] }, "target": { "type": ["string", "number"] }, "weight": { "type": "number" }, "label": { "type": "string" } } }, "description": "[a, b], [a, b, weight] or {source, target, weight, label}" }, "directed": { "type": "boolean", "default": false }, "layout": { "enum": ["force", "circular"], "default": "force" }, "size": { "enum": ["degree", "value", "uniform"], "default": "degree", "description": "node size" }, "labels": { "enum": ["auto", "all", "none"], "default": "auto", "description": "auto: labels when there are at most 60 nodes, else on hover" }, "height": { "type": "integer", "minimum": 200, "maximum": 1400, "default": 460 } } };
+  function validate31(data, { instancePath = "", parentData, parentDataProperty, rootData = data } = {}) {
+    let vErrors = null;
+    let errors2 = 0;
+    if (data && typeof data == "object" && !Array.isArray(data)) {
+      if (data.directed === void 0) {
+        data.directed = false;
+      }
+      if (data.layout === void 0) {
+        data.layout = "force";
+      }
+      if (data.size === void 0) {
+        data.size = "degree";
+      }
+      if (data.labels === void 0) {
+        data.labels = "auto";
+      }
+      if (data.height === void 0) {
+        data.height = 460;
+      }
+      for (const key0 in data) {
+        if (!func2.call(schema32.properties, key0)) {
+          const err0 = { instancePath, schemaPath: "#/additionalProperties", keyword: "additionalProperties", params: { additionalProperty: key0 }, message: "must NOT have additional properties", schema: false, parentSchema: schema32, data };
+          if (vErrors === null) {
+            vErrors = [err0];
+          } else {
+            vErrors.push(err0);
+          }
+          errors2++;
+        }
+      }
+      if (data.title !== void 0) {
+        let data0 = data.title;
+        if (typeof data0 !== "string") {
+          const err1 = { instancePath: instancePath + "/title", schemaPath: "#/properties/title/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema32.properties.title.type, parentSchema: schema32.properties.title, data: data0 };
+          if (vErrors === null) {
+            vErrors = [err1];
+          } else {
+            vErrors.push(err1);
+          }
+          errors2++;
+        }
+      }
+      if (data.data !== void 0) {
+        let data1 = data.data;
+        if (typeof data1 !== "string") {
+          const err2 = { instancePath: instancePath + "/data", schemaPath: "#/properties/data/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema32.properties.data.type, parentSchema: schema32.properties.data, data: data1 };
+          if (vErrors === null) {
+            vErrors = [err2];
+          } else {
+            vErrors.push(err2);
+          }
+          errors2++;
+        }
+      }
+      if (data.nodes !== void 0) {
+        let data2 = data.nodes;
+        if (Array.isArray(data2)) {
+          const len0 = data2.length;
+          for (let i0 = 0; i0 < len0; i0++) {
+            let data3 = data2[i0];
+            if (typeof data3 !== "string" && !(typeof data3 == "number" && isFinite(data3)) && !(data3 && typeof data3 == "object" && !Array.isArray(data3))) {
+              const err3 = { instancePath: instancePath + "/nodes/" + i0, schemaPath: "#/properties/nodes/items/type", keyword: "type", params: { type: schema32.properties.nodes.items.type }, message: "must be string,number,object", schema: schema32.properties.nodes.items.type, parentSchema: schema32.properties.nodes.items, data: data3 };
+              if (vErrors === null) {
+                vErrors = [err3];
+              } else {
+                vErrors.push(err3);
+              }
+              errors2++;
+            }
+            if (data3 && typeof data3 == "object" && !Array.isArray(data3)) {
+              if (data3.id === void 0) {
+                const err4 = { instancePath: instancePath + "/nodes/" + i0, schemaPath: "#/properties/nodes/items/required", keyword: "required", params: { missingProperty: "id" }, message: "must have required property 'id'", schema: schema32.properties.nodes.items.required, parentSchema: schema32.properties.nodes.items, data: data3 };
+                if (vErrors === null) {
+                  vErrors = [err4];
+                } else {
+                  vErrors.push(err4);
+                }
+                errors2++;
+              }
+              for (const key1 in data3) {
+                if (!(key1 === "id" || key1 === "label" || key1 === "group" || key1 === "value")) {
+                  const err5 = { instancePath: instancePath + "/nodes/" + i0, schemaPath: "#/properties/nodes/items/additionalProperties", keyword: "additionalProperties", params: { additionalProperty: key1 }, message: "must NOT have additional properties", schema: false, parentSchema: schema32.properties.nodes.items, data: data3 };
+                  if (vErrors === null) {
+                    vErrors = [err5];
+                  } else {
+                    vErrors.push(err5);
+                  }
+                  errors2++;
+                }
+              }
+              if (data3.id !== void 0) {
+                let data4 = data3.id;
+                if (typeof data4 !== "string" && !(typeof data4 == "number" && isFinite(data4))) {
+                  const err6 = { instancePath: instancePath + "/nodes/" + i0 + "/id", schemaPath: "#/properties/nodes/items/properties/id/type", keyword: "type", params: { type: schema32.properties.nodes.items.properties.id.type }, message: "must be string,number", schema: schema32.properties.nodes.items.properties.id.type, parentSchema: schema32.properties.nodes.items.properties.id, data: data4 };
+                  if (vErrors === null) {
+                    vErrors = [err6];
+                  } else {
+                    vErrors.push(err6);
+                  }
+                  errors2++;
+                }
+              }
+              if (data3.label !== void 0) {
+                let data5 = data3.label;
+                if (typeof data5 !== "string") {
+                  const err7 = { instancePath: instancePath + "/nodes/" + i0 + "/label", schemaPath: "#/properties/nodes/items/properties/label/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema32.properties.nodes.items.properties.label.type, parentSchema: schema32.properties.nodes.items.properties.label, data: data5 };
+                  if (vErrors === null) {
+                    vErrors = [err7];
+                  } else {
+                    vErrors.push(err7);
+                  }
+                  errors2++;
+                }
+              }
+              if (data3.group !== void 0) {
+                let data6 = data3.group;
+                if (typeof data6 !== "string" && !(typeof data6 == "number" && isFinite(data6))) {
+                  const err8 = { instancePath: instancePath + "/nodes/" + i0 + "/group", schemaPath: "#/properties/nodes/items/properties/group/type", keyword: "type", params: { type: schema32.properties.nodes.items.properties.group.type }, message: "must be string,number", schema: schema32.properties.nodes.items.properties.group.type, parentSchema: schema32.properties.nodes.items.properties.group, data: data6 };
+                  if (vErrors === null) {
+                    vErrors = [err8];
+                  } else {
+                    vErrors.push(err8);
+                  }
+                  errors2++;
+                }
+              }
+              if (data3.value !== void 0) {
+                let data7 = data3.value;
+                if (!(typeof data7 == "number" && isFinite(data7))) {
+                  const err9 = { instancePath: instancePath + "/nodes/" + i0 + "/value", schemaPath: "#/properties/nodes/items/properties/value/type", keyword: "type", params: { type: "number" }, message: "must be number", schema: schema32.properties.nodes.items.properties.value.type, parentSchema: schema32.properties.nodes.items.properties.value, data: data7 };
+                  if (vErrors === null) {
+                    vErrors = [err9];
+                  } else {
+                    vErrors.push(err9);
+                  }
+                  errors2++;
+                }
+              }
+            }
+          }
+        } else {
+          const err10 = { instancePath: instancePath + "/nodes", schemaPath: "#/properties/nodes/type", keyword: "type", params: { type: "array" }, message: "must be array", schema: schema32.properties.nodes.type, parentSchema: schema32.properties.nodes, data: data2 };
+          if (vErrors === null) {
+            vErrors = [err10];
+          } else {
+            vErrors.push(err10);
+          }
+          errors2++;
+        }
+      }
+      if (data.edges !== void 0) {
+        let data8 = data.edges;
+        if (Array.isArray(data8)) {
+          const len1 = data8.length;
+          for (let i1 = 0; i1 < len1; i1++) {
+            let data9 = data8[i1];
+            if (!data9 || typeof data9 != "object") {
+              const err11 = { instancePath: instancePath + "/edges/" + i1, schemaPath: "#/properties/edges/items/type", keyword: "type", params: { type: schema32.properties.edges.items.type }, message: "must be array,object", schema: schema32.properties.edges.items.type, parentSchema: schema32.properties.edges.items, data: data9 };
+              if (vErrors === null) {
+                vErrors = [err11];
+              } else {
+                vErrors.push(err11);
+              }
+              errors2++;
+            }
+            if (Array.isArray(data9)) {
+              if (data9.length > 3) {
+                const err12 = { instancePath: instancePath + "/edges/" + i1, schemaPath: "#/properties/edges/items/maxItems", keyword: "maxItems", params: { limit: 3 }, message: "must NOT have more than 3 items", schema: 3, parentSchema: schema32.properties.edges.items, data: data9 };
+                if (vErrors === null) {
+                  vErrors = [err12];
+                } else {
+                  vErrors.push(err12);
+                }
+                errors2++;
+              }
+              if (data9.length < 2) {
+                const err13 = { instancePath: instancePath + "/edges/" + i1, schemaPath: "#/properties/edges/items/minItems", keyword: "minItems", params: { limit: 2 }, message: "must NOT have fewer than 2 items", schema: 2, parentSchema: schema32.properties.edges.items, data: data9 };
+                if (vErrors === null) {
+                  vErrors = [err13];
+                } else {
+                  vErrors.push(err13);
+                }
+                errors2++;
+              }
+              const len2 = data9.length;
+              for (let i2 = 0; i2 < len2; i2++) {
+                let data10 = data9[i2];
+                if (typeof data10 !== "string" && !(typeof data10 == "number" && isFinite(data10))) {
+                  const err14 = { instancePath: instancePath + "/edges/" + i1 + "/" + i2, schemaPath: "#/properties/edges/items/items/type", keyword: "type", params: { type: schema32.properties.edges.items.items.type }, message: "must be string,number", schema: schema32.properties.edges.items.items.type, parentSchema: schema32.properties.edges.items.items, data: data10 };
+                  if (vErrors === null) {
+                    vErrors = [err14];
+                  } else {
+                    vErrors.push(err14);
+                  }
+                  errors2++;
+                }
+              }
+            }
+            if (data9 && typeof data9 == "object" && !Array.isArray(data9)) {
+              if (data9.source === void 0) {
+                const err15 = { instancePath: instancePath + "/edges/" + i1, schemaPath: "#/properties/edges/items/required", keyword: "required", params: { missingProperty: "source" }, message: "must have required property 'source'", schema: schema32.properties.edges.items.required, parentSchema: schema32.properties.edges.items, data: data9 };
+                if (vErrors === null) {
+                  vErrors = [err15];
+                } else {
+                  vErrors.push(err15);
+                }
+                errors2++;
+              }
+              if (data9.target === void 0) {
+                const err16 = { instancePath: instancePath + "/edges/" + i1, schemaPath: "#/properties/edges/items/required", keyword: "required", params: { missingProperty: "target" }, message: "must have required property 'target'", schema: schema32.properties.edges.items.required, parentSchema: schema32.properties.edges.items, data: data9 };
+                if (vErrors === null) {
+                  vErrors = [err16];
+                } else {
+                  vErrors.push(err16);
+                }
+                errors2++;
+              }
+              for (const key2 in data9) {
+                if (!(key2 === "source" || key2 === "target" || key2 === "weight" || key2 === "label")) {
+                  const err17 = { instancePath: instancePath + "/edges/" + i1, schemaPath: "#/properties/edges/items/additionalProperties", keyword: "additionalProperties", params: { additionalProperty: key2 }, message: "must NOT have additional properties", schema: false, parentSchema: schema32.properties.edges.items, data: data9 };
+                  if (vErrors === null) {
+                    vErrors = [err17];
+                  } else {
+                    vErrors.push(err17);
+                  }
+                  errors2++;
+                }
+              }
+              if (data9.source !== void 0) {
+                let data11 = data9.source;
+                if (typeof data11 !== "string" && !(typeof data11 == "number" && isFinite(data11))) {
+                  const err18 = { instancePath: instancePath + "/edges/" + i1 + "/source", schemaPath: "#/properties/edges/items/properties/source/type", keyword: "type", params: { type: schema32.properties.edges.items.properties.source.type }, message: "must be string,number", schema: schema32.properties.edges.items.properties.source.type, parentSchema: schema32.properties.edges.items.properties.source, data: data11 };
+                  if (vErrors === null) {
+                    vErrors = [err18];
+                  } else {
+                    vErrors.push(err18);
+                  }
+                  errors2++;
+                }
+              }
+              if (data9.target !== void 0) {
+                let data12 = data9.target;
+                if (typeof data12 !== "string" && !(typeof data12 == "number" && isFinite(data12))) {
+                  const err19 = { instancePath: instancePath + "/edges/" + i1 + "/target", schemaPath: "#/properties/edges/items/properties/target/type", keyword: "type", params: { type: schema32.properties.edges.items.properties.target.type }, message: "must be string,number", schema: schema32.properties.edges.items.properties.target.type, parentSchema: schema32.properties.edges.items.properties.target, data: data12 };
+                  if (vErrors === null) {
+                    vErrors = [err19];
+                  } else {
+                    vErrors.push(err19);
+                  }
+                  errors2++;
+                }
+              }
+              if (data9.weight !== void 0) {
+                let data13 = data9.weight;
+                if (!(typeof data13 == "number" && isFinite(data13))) {
+                  const err20 = { instancePath: instancePath + "/edges/" + i1 + "/weight", schemaPath: "#/properties/edges/items/properties/weight/type", keyword: "type", params: { type: "number" }, message: "must be number", schema: schema32.properties.edges.items.properties.weight.type, parentSchema: schema32.properties.edges.items.properties.weight, data: data13 };
+                  if (vErrors === null) {
+                    vErrors = [err20];
+                  } else {
+                    vErrors.push(err20);
+                  }
+                  errors2++;
+                }
+              }
+              if (data9.label !== void 0) {
+                let data14 = data9.label;
+                if (typeof data14 !== "string") {
+                  const err21 = { instancePath: instancePath + "/edges/" + i1 + "/label", schemaPath: "#/properties/edges/items/properties/label/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema32.properties.edges.items.properties.label.type, parentSchema: schema32.properties.edges.items.properties.label, data: data14 };
+                  if (vErrors === null) {
+                    vErrors = [err21];
+                  } else {
+                    vErrors.push(err21);
+                  }
+                  errors2++;
+                }
+              }
+            }
+          }
+        } else {
+          const err22 = { instancePath: instancePath + "/edges", schemaPath: "#/properties/edges/type", keyword: "type", params: { type: "array" }, message: "must be array", schema: schema32.properties.edges.type, parentSchema: schema32.properties.edges, data: data8 };
+          if (vErrors === null) {
+            vErrors = [err22];
+          } else {
+            vErrors.push(err22);
+          }
+          errors2++;
+        }
+      }
+      let data15 = data.directed;
+      if (typeof data15 !== "boolean") {
+        const err23 = { instancePath: instancePath + "/directed", schemaPath: "#/properties/directed/type", keyword: "type", params: { type: "boolean" }, message: "must be boolean", schema: schema32.properties.directed.type, parentSchema: schema32.properties.directed, data: data15 };
+        if (vErrors === null) {
+          vErrors = [err23];
+        } else {
+          vErrors.push(err23);
+        }
+        errors2++;
+      }
+      let data16 = data.layout;
+      if (!(data16 === "force" || data16 === "circular")) {
+        const err24 = { instancePath: instancePath + "/layout", schemaPath: "#/properties/layout/enum", keyword: "enum", params: { allowedValues: schema32.properties.layout.enum }, message: "must be equal to one of the allowed values", schema: schema32.properties.layout.enum, parentSchema: schema32.properties.layout, data: data16 };
+        if (vErrors === null) {
+          vErrors = [err24];
+        } else {
+          vErrors.push(err24);
+        }
+        errors2++;
+      }
+      let data17 = data.size;
+      if (!(data17 === "degree" || data17 === "value" || data17 === "uniform")) {
+        const err25 = { instancePath: instancePath + "/size", schemaPath: "#/properties/size/enum", keyword: "enum", params: { allowedValues: schema32.properties.size.enum }, message: "must be equal to one of the allowed values", schema: schema32.properties.size.enum, parentSchema: schema32.properties.size, data: data17 };
+        if (vErrors === null) {
+          vErrors = [err25];
+        } else {
+          vErrors.push(err25);
+        }
+        errors2++;
+      }
+      let data18 = data.labels;
+      if (!(data18 === "auto" || data18 === "all" || data18 === "none")) {
+        const err26 = { instancePath: instancePath + "/labels", schemaPath: "#/properties/labels/enum", keyword: "enum", params: { allowedValues: schema32.properties.labels.enum }, message: "must be equal to one of the allowed values", schema: schema32.properties.labels.enum, parentSchema: schema32.properties.labels, data: data18 };
+        if (vErrors === null) {
+          vErrors = [err26];
+        } else {
+          vErrors.push(err26);
+        }
+        errors2++;
+      }
+      let data19 = data.height;
+      if (!(typeof data19 == "number" && (!(data19 % 1) && !isNaN(data19)) && isFinite(data19))) {
+        const err27 = { instancePath: instancePath + "/height", schemaPath: "#/properties/height/type", keyword: "type", params: { type: "integer" }, message: "must be integer", schema: schema32.properties.height.type, parentSchema: schema32.properties.height, data: data19 };
+        if (vErrors === null) {
+          vErrors = [err27];
+        } else {
+          vErrors.push(err27);
+        }
+        errors2++;
+      }
+      if (typeof data19 == "number" && isFinite(data19)) {
+        if (data19 > 1400 || isNaN(data19)) {
+          const err28 = { instancePath: instancePath + "/height", schemaPath: "#/properties/height/maximum", keyword: "maximum", params: { comparison: "<=", limit: 1400 }, message: "must be <= 1400", schema: 1400, parentSchema: schema32.properties.height, data: data19 };
+          if (vErrors === null) {
+            vErrors = [err28];
+          } else {
+            vErrors.push(err28);
+          }
+          errors2++;
+        }
+        if (data19 < 200 || isNaN(data19)) {
+          const err29 = { instancePath: instancePath + "/height", schemaPath: "#/properties/height/minimum", keyword: "minimum", params: { comparison: ">=", limit: 200 }, message: "must be >= 200", schema: 200, parentSchema: schema32.properties.height, data: data19 };
+          if (vErrors === null) {
+            vErrors = [err29];
+          } else {
+            vErrors.push(err29);
+          }
+          errors2++;
+        }
+      }
+    } else {
+      const err30 = { instancePath, schemaPath: "#/type", keyword: "type", params: { type: "object" }, message: "must be object", schema: schema32.type, parentSchema: schema32, data };
+      if (vErrors === null) {
+        vErrors = [err30];
+      } else {
+        vErrors.push(err30);
+      }
+      errors2++;
+    }
+    validate31.errors = vErrors;
+    return errors2 === 0;
+  }
+  var diagram = validate32;
+  var schema33 = { "type": "object", "additionalProperties": false, "required": ["source"], "properties": { "title": { "type": "string" }, "source": { "type": "string", "description": 'the mermaid text, e.g. "flowchart LR\\n  A --> B"' }, "caption": { "type": "string", "description": "Markdown (inline) under the diagram" } } };
+  function validate32(data, { instancePath = "", parentData, parentDataProperty, rootData = data } = {}) {
+    let vErrors = null;
+    let errors2 = 0;
+    if (data && typeof data == "object" && !Array.isArray(data)) {
+      if (data.source === void 0) {
+        const err0 = { instancePath, schemaPath: "#/required", keyword: "required", params: { missingProperty: "source" }, message: "must have required property 'source'", schema: schema33.required, parentSchema: schema33, data };
+        if (vErrors === null) {
+          vErrors = [err0];
+        } else {
+          vErrors.push(err0);
+        }
+        errors2++;
+      }
+      for (const key0 in data) {
+        if (!(key0 === "title" || key0 === "source" || key0 === "caption")) {
+          const err1 = { instancePath, schemaPath: "#/additionalProperties", keyword: "additionalProperties", params: { additionalProperty: key0 }, message: "must NOT have additional properties", schema: false, parentSchema: schema33, data };
+          if (vErrors === null) {
+            vErrors = [err1];
+          } else {
+            vErrors.push(err1);
+          }
+          errors2++;
+        }
+      }
+      if (data.title !== void 0) {
+        let data0 = data.title;
+        if (typeof data0 !== "string") {
+          const err2 = { instancePath: instancePath + "/title", schemaPath: "#/properties/title/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema33.properties.title.type, parentSchema: schema33.properties.title, data: data0 };
+          if (vErrors === null) {
+            vErrors = [err2];
+          } else {
+            vErrors.push(err2);
+          }
+          errors2++;
+        }
+      }
+      if (data.source !== void 0) {
+        let data1 = data.source;
+        if (typeof data1 !== "string") {
+          const err3 = { instancePath: instancePath + "/source", schemaPath: "#/properties/source/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema33.properties.source.type, parentSchema: schema33.properties.source, data: data1 };
+          if (vErrors === null) {
+            vErrors = [err3];
+          } else {
+            vErrors.push(err3);
+          }
+          errors2++;
+        }
+      }
+      if (data.caption !== void 0) {
+        let data2 = data.caption;
+        if (typeof data2 !== "string") {
+          const err4 = { instancePath: instancePath + "/caption", schemaPath: "#/properties/caption/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema33.properties.caption.type, parentSchema: schema33.properties.caption, data: data2 };
+          if (vErrors === null) {
+            vErrors = [err4];
+          } else {
+            vErrors.push(err4);
+          }
+          errors2++;
+        }
+      }
+    } else {
+      const err5 = { instancePath, schemaPath: "#/type", keyword: "type", params: { type: "object" }, message: "must be object", schema: schema33.type, parentSchema: schema33, data };
+      if (vErrors === null) {
+        vErrors = [err5];
+      } else {
+        vErrors.push(err5);
+      }
+      errors2++;
+    }
+    validate32.errors = vErrors;
+    return errors2 === 0;
+  }
+  var map3 = validate33;
+  var schema34 = { "type": "object", "additionalProperties": false, "properties": { "title": { "type": "string" }, "data": { "type": "string", "description": "relative path to a .geojson / .json file (WGS84 longitude, latitude)" }, "color": { "type": "string", "description": "feature property to colour regions by (numeric: a colour ramp; text: categories)" }, "label": { "type": "string", "description": "feature property shown as the name in tooltips (default: name)" }, "points": { "type": "array", "maxItems": 5e3, "items": { "type": "object", "additionalProperties": false, "required": ["lat", "lon"], "properties": { "lat": { "type": "number", "minimum": -90, "maximum": 90 }, "lon": { "type": "number", "minimum": -180, "maximum": 180 }, "label": { "type": "string" }, "value": { "type": "number" } } }, "description": "markers; sized by value when given" }, "basemap": { "enum": ["world", "none"], "default": "world" }, "projection": { "enum": ["auto", "equal-earth", "natural-earth", "mercator", "equirectangular", "orthographic"], "default": "auto", "description": "auto: equal-earth for world-wide data, mercator for a region" }, "height": { "type": "integer", "minimum": 200, "maximum": 1400, "default": 460 } } };
+  function validate33(data, { instancePath = "", parentData, parentDataProperty, rootData = data } = {}) {
+    let vErrors = null;
+    let errors2 = 0;
+    if (data && typeof data == "object" && !Array.isArray(data)) {
+      if (data.basemap === void 0) {
+        data.basemap = "world";
+      }
+      if (data.projection === void 0) {
+        data.projection = "auto";
+      }
+      if (data.height === void 0) {
+        data.height = 460;
+      }
+      for (const key0 in data) {
+        if (!(key0 === "title" || key0 === "data" || key0 === "color" || key0 === "label" || key0 === "points" || key0 === "basemap" || key0 === "projection" || key0 === "height")) {
+          const err0 = { instancePath, schemaPath: "#/additionalProperties", keyword: "additionalProperties", params: { additionalProperty: key0 }, message: "must NOT have additional properties", schema: false, parentSchema: schema34, data };
+          if (vErrors === null) {
+            vErrors = [err0];
+          } else {
+            vErrors.push(err0);
+          }
+          errors2++;
+        }
+      }
+      if (data.title !== void 0) {
+        let data0 = data.title;
+        if (typeof data0 !== "string") {
+          const err1 = { instancePath: instancePath + "/title", schemaPath: "#/properties/title/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema34.properties.title.type, parentSchema: schema34.properties.title, data: data0 };
+          if (vErrors === null) {
+            vErrors = [err1];
+          } else {
+            vErrors.push(err1);
+          }
+          errors2++;
+        }
+      }
+      if (data.data !== void 0) {
+        let data1 = data.data;
+        if (typeof data1 !== "string") {
+          const err2 = { instancePath: instancePath + "/data", schemaPath: "#/properties/data/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema34.properties.data.type, parentSchema: schema34.properties.data, data: data1 };
+          if (vErrors === null) {
+            vErrors = [err2];
+          } else {
+            vErrors.push(err2);
+          }
+          errors2++;
+        }
+      }
+      if (data.color !== void 0) {
+        let data2 = data.color;
+        if (typeof data2 !== "string") {
+          const err3 = { instancePath: instancePath + "/color", schemaPath: "#/properties/color/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema34.properties.color.type, parentSchema: schema34.properties.color, data: data2 };
+          if (vErrors === null) {
+            vErrors = [err3];
+          } else {
+            vErrors.push(err3);
+          }
+          errors2++;
+        }
+      }
+      if (data.label !== void 0) {
+        let data3 = data.label;
+        if (typeof data3 !== "string") {
+          const err4 = { instancePath: instancePath + "/label", schemaPath: "#/properties/label/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema34.properties.label.type, parentSchema: schema34.properties.label, data: data3 };
+          if (vErrors === null) {
+            vErrors = [err4];
+          } else {
+            vErrors.push(err4);
+          }
+          errors2++;
+        }
+      }
+      if (data.points !== void 0) {
+        let data4 = data.points;
+        if (Array.isArray(data4)) {
+          if (data4.length > 5e3) {
+            const err5 = { instancePath: instancePath + "/points", schemaPath: "#/properties/points/maxItems", keyword: "maxItems", params: { limit: 5e3 }, message: "must NOT have more than 5000 items", schema: 5e3, parentSchema: schema34.properties.points, data: data4 };
+            if (vErrors === null) {
+              vErrors = [err5];
+            } else {
+              vErrors.push(err5);
+            }
+            errors2++;
+          }
+          const len0 = data4.length;
+          for (let i0 = 0; i0 < len0; i0++) {
+            let data5 = data4[i0];
+            if (data5 && typeof data5 == "object" && !Array.isArray(data5)) {
+              if (data5.lat === void 0) {
+                const err6 = { instancePath: instancePath + "/points/" + i0, schemaPath: "#/properties/points/items/required", keyword: "required", params: { missingProperty: "lat" }, message: "must have required property 'lat'", schema: schema34.properties.points.items.required, parentSchema: schema34.properties.points.items, data: data5 };
+                if (vErrors === null) {
+                  vErrors = [err6];
+                } else {
+                  vErrors.push(err6);
+                }
+                errors2++;
+              }
+              if (data5.lon === void 0) {
+                const err7 = { instancePath: instancePath + "/points/" + i0, schemaPath: "#/properties/points/items/required", keyword: "required", params: { missingProperty: "lon" }, message: "must have required property 'lon'", schema: schema34.properties.points.items.required, parentSchema: schema34.properties.points.items, data: data5 };
+                if (vErrors === null) {
+                  vErrors = [err7];
+                } else {
+                  vErrors.push(err7);
+                }
+                errors2++;
+              }
+              for (const key1 in data5) {
+                if (!(key1 === "lat" || key1 === "lon" || key1 === "label" || key1 === "value")) {
+                  const err8 = { instancePath: instancePath + "/points/" + i0, schemaPath: "#/properties/points/items/additionalProperties", keyword: "additionalProperties", params: { additionalProperty: key1 }, message: "must NOT have additional properties", schema: false, parentSchema: schema34.properties.points.items, data: data5 };
+                  if (vErrors === null) {
+                    vErrors = [err8];
+                  } else {
+                    vErrors.push(err8);
+                  }
+                  errors2++;
+                }
+              }
+              if (data5.lat !== void 0) {
+                let data6 = data5.lat;
+                if (typeof data6 == "number" && isFinite(data6)) {
+                  if (data6 > 90 || isNaN(data6)) {
+                    const err9 = { instancePath: instancePath + "/points/" + i0 + "/lat", schemaPath: "#/properties/points/items/properties/lat/maximum", keyword: "maximum", params: { comparison: "<=", limit: 90 }, message: "must be <= 90", schema: 90, parentSchema: schema34.properties.points.items.properties.lat, data: data6 };
+                    if (vErrors === null) {
+                      vErrors = [err9];
+                    } else {
+                      vErrors.push(err9);
+                    }
+                    errors2++;
+                  }
+                  if (data6 < -90 || isNaN(data6)) {
+                    const err10 = { instancePath: instancePath + "/points/" + i0 + "/lat", schemaPath: "#/properties/points/items/properties/lat/minimum", keyword: "minimum", params: { comparison: ">=", limit: -90 }, message: "must be >= -90", schema: -90, parentSchema: schema34.properties.points.items.properties.lat, data: data6 };
+                    if (vErrors === null) {
+                      vErrors = [err10];
+                    } else {
+                      vErrors.push(err10);
+                    }
+                    errors2++;
+                  }
+                } else {
+                  const err11 = { instancePath: instancePath + "/points/" + i0 + "/lat", schemaPath: "#/properties/points/items/properties/lat/type", keyword: "type", params: { type: "number" }, message: "must be number", schema: schema34.properties.points.items.properties.lat.type, parentSchema: schema34.properties.points.items.properties.lat, data: data6 };
+                  if (vErrors === null) {
+                    vErrors = [err11];
+                  } else {
+                    vErrors.push(err11);
+                  }
+                  errors2++;
+                }
+              }
+              if (data5.lon !== void 0) {
+                let data7 = data5.lon;
+                if (typeof data7 == "number" && isFinite(data7)) {
+                  if (data7 > 180 || isNaN(data7)) {
+                    const err12 = { instancePath: instancePath + "/points/" + i0 + "/lon", schemaPath: "#/properties/points/items/properties/lon/maximum", keyword: "maximum", params: { comparison: "<=", limit: 180 }, message: "must be <= 180", schema: 180, parentSchema: schema34.properties.points.items.properties.lon, data: data7 };
+                    if (vErrors === null) {
+                      vErrors = [err12];
+                    } else {
+                      vErrors.push(err12);
+                    }
+                    errors2++;
+                  }
+                  if (data7 < -180 || isNaN(data7)) {
+                    const err13 = { instancePath: instancePath + "/points/" + i0 + "/lon", schemaPath: "#/properties/points/items/properties/lon/minimum", keyword: "minimum", params: { comparison: ">=", limit: -180 }, message: "must be >= -180", schema: -180, parentSchema: schema34.properties.points.items.properties.lon, data: data7 };
+                    if (vErrors === null) {
+                      vErrors = [err13];
+                    } else {
+                      vErrors.push(err13);
+                    }
+                    errors2++;
+                  }
+                } else {
+                  const err14 = { instancePath: instancePath + "/points/" + i0 + "/lon", schemaPath: "#/properties/points/items/properties/lon/type", keyword: "type", params: { type: "number" }, message: "must be number", schema: schema34.properties.points.items.properties.lon.type, parentSchema: schema34.properties.points.items.properties.lon, data: data7 };
+                  if (vErrors === null) {
+                    vErrors = [err14];
+                  } else {
+                    vErrors.push(err14);
+                  }
+                  errors2++;
+                }
+              }
+              if (data5.label !== void 0) {
+                let data8 = data5.label;
+                if (typeof data8 !== "string") {
+                  const err15 = { instancePath: instancePath + "/points/" + i0 + "/label", schemaPath: "#/properties/points/items/properties/label/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema34.properties.points.items.properties.label.type, parentSchema: schema34.properties.points.items.properties.label, data: data8 };
+                  if (vErrors === null) {
+                    vErrors = [err15];
+                  } else {
+                    vErrors.push(err15);
+                  }
+                  errors2++;
+                }
+              }
+              if (data5.value !== void 0) {
+                let data9 = data5.value;
+                if (!(typeof data9 == "number" && isFinite(data9))) {
+                  const err16 = { instancePath: instancePath + "/points/" + i0 + "/value", schemaPath: "#/properties/points/items/properties/value/type", keyword: "type", params: { type: "number" }, message: "must be number", schema: schema34.properties.points.items.properties.value.type, parentSchema: schema34.properties.points.items.properties.value, data: data9 };
+                  if (vErrors === null) {
+                    vErrors = [err16];
+                  } else {
+                    vErrors.push(err16);
+                  }
+                  errors2++;
+                }
+              }
+            } else {
+              const err17 = { instancePath: instancePath + "/points/" + i0, schemaPath: "#/properties/points/items/type", keyword: "type", params: { type: "object" }, message: "must be object", schema: schema34.properties.points.items.type, parentSchema: schema34.properties.points.items, data: data5 };
+              if (vErrors === null) {
+                vErrors = [err17];
+              } else {
+                vErrors.push(err17);
+              }
+              errors2++;
+            }
+          }
+        } else {
+          const err18 = { instancePath: instancePath + "/points", schemaPath: "#/properties/points/type", keyword: "type", params: { type: "array" }, message: "must be array", schema: schema34.properties.points.type, parentSchema: schema34.properties.points, data: data4 };
+          if (vErrors === null) {
+            vErrors = [err18];
+          } else {
+            vErrors.push(err18);
+          }
+          errors2++;
+        }
+      }
+      let data10 = data.basemap;
+      if (!(data10 === "world" || data10 === "none")) {
+        const err19 = { instancePath: instancePath + "/basemap", schemaPath: "#/properties/basemap/enum", keyword: "enum", params: { allowedValues: schema34.properties.basemap.enum }, message: "must be equal to one of the allowed values", schema: schema34.properties.basemap.enum, parentSchema: schema34.properties.basemap, data: data10 };
+        if (vErrors === null) {
+          vErrors = [err19];
+        } else {
+          vErrors.push(err19);
+        }
+        errors2++;
+      }
+      let data11 = data.projection;
+      if (!(data11 === "auto" || data11 === "equal-earth" || data11 === "natural-earth" || data11 === "mercator" || data11 === "equirectangular" || data11 === "orthographic")) {
+        const err20 = { instancePath: instancePath + "/projection", schemaPath: "#/properties/projection/enum", keyword: "enum", params: { allowedValues: schema34.properties.projection.enum }, message: "must be equal to one of the allowed values", schema: schema34.properties.projection.enum, parentSchema: schema34.properties.projection, data: data11 };
+        if (vErrors === null) {
+          vErrors = [err20];
+        } else {
+          vErrors.push(err20);
+        }
+        errors2++;
+      }
+      let data12 = data.height;
+      if (!(typeof data12 == "number" && (!(data12 % 1) && !isNaN(data12)) && isFinite(data12))) {
+        const err21 = { instancePath: instancePath + "/height", schemaPath: "#/properties/height/type", keyword: "type", params: { type: "integer" }, message: "must be integer", schema: schema34.properties.height.type, parentSchema: schema34.properties.height, data: data12 };
+        if (vErrors === null) {
+          vErrors = [err21];
+        } else {
+          vErrors.push(err21);
+        }
+        errors2++;
+      }
+      if (typeof data12 == "number" && isFinite(data12)) {
+        if (data12 > 1400 || isNaN(data12)) {
+          const err22 = { instancePath: instancePath + "/height", schemaPath: "#/properties/height/maximum", keyword: "maximum", params: { comparison: "<=", limit: 1400 }, message: "must be <= 1400", schema: 1400, parentSchema: schema34.properties.height, data: data12 };
+          if (vErrors === null) {
+            vErrors = [err22];
+          } else {
+            vErrors.push(err22);
+          }
+          errors2++;
+        }
+        if (data12 < 200 || isNaN(data12)) {
+          const err23 = { instancePath: instancePath + "/height", schemaPath: "#/properties/height/minimum", keyword: "minimum", params: { comparison: ">=", limit: 200 }, message: "must be >= 200", schema: 200, parentSchema: schema34.properties.height, data: data12 };
+          if (vErrors === null) {
+            vErrors = [err23];
+          } else {
+            vErrors.push(err23);
+          }
+          errors2++;
+        }
+      }
+    } else {
+      const err24 = { instancePath, schemaPath: "#/type", keyword: "type", params: { type: "object" }, message: "must be object", schema: schema34.type, parentSchema: schema34, data };
+      if (vErrors === null) {
+        vErrors = [err24];
+      } else {
+        vErrors.push(err24);
+      }
+      errors2++;
+    }
+    validate33.errors = vErrors;
+    return errors2 === 0;
+  }
+  var frontMatter = validate34;
+  var schema35 = { "type": "object", "additionalProperties": false, "properties": { "title": { "type": "string" } } };
+  function validate34(data, { instancePath = "", parentData, parentDataProperty, rootData = data } = {}) {
+    let vErrors = null;
+    let errors2 = 0;
+    if (data && typeof data == "object" && !Array.isArray(data)) {
+      for (const key0 in data) {
+        if (!(key0 === "title")) {
+          const err0 = { instancePath, schemaPath: "#/additionalProperties", keyword: "additionalProperties", params: { additionalProperty: key0 }, message: "must NOT have additional properties", schema: false, parentSchema: schema35, data };
+          if (vErrors === null) {
+            vErrors = [err0];
+          } else {
+            vErrors.push(err0);
+          }
+          errors2++;
+        }
+      }
+      if (data.title !== void 0) {
+        let data0 = data.title;
+        if (typeof data0 !== "string") {
+          const err1 = { instancePath: instancePath + "/title", schemaPath: "#/properties/title/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema35.properties.title.type, parentSchema: schema35.properties.title, data: data0 };
+          if (vErrors === null) {
+            vErrors = [err1];
+          } else {
+            vErrors.push(err1);
+          }
+          errors2++;
+        }
+      }
+    } else {
+      const err2 = { instancePath, schemaPath: "#/type", keyword: "type", params: { type: "object" }, message: "must be object", schema: schema35.type, parentSchema: schema35, data };
       if (vErrors === null) {
         vErrors = [err2];
       } else {
@@ -33992,7 +36901,7 @@ ${end.comment}` : end.comment;
       }
       errors2++;
     }
-    validate28.errors = vErrors;
+    validate34.errors = vErrors;
     return errors2 === 0;
   }
 
@@ -34032,7 +36941,8 @@ ${end.comment}` : end.comment;
       let j = i + 1;
       while (j < lines.length && !closes(lines[j])) j++;
       const closed = j < lines.length;
-      if (!/^nebula:/i.test(info)) {
+      const mermaid = /^mermaid$/i.test(info);
+      if (!mermaid && !/^nebula:/i.test(info)) {
         if (!text3.length) textStart = i + 1;
         text3.push(...lines.slice(i, closed ? j + 1 : j));
         if (!closed) problems.push({ line: i + 1, message: `code fence ${fence2} is never closed`, hint: `close it with ${fence2}`, severity: "warning" });
@@ -34041,7 +36951,9 @@ ${end.comment}` : end.comment;
       }
       flushText();
       const [tag, ...attrs] = info.split(/\s+/);
-      const block3 = { type: "component", component: tag.slice("nebula:".length).toLowerCase(), line: i + 1, bodyLine: i + 2, endLine: closed ? j + 1 : j, body: lines.slice(i + 1, j).join("\n"), attrs, fence: fence2 };
+      const component = mermaid ? "diagram" : tag.slice("nebula:".length).toLowerCase();
+      const block3 = { type: "component", component, line: i + 1, bodyLine: i + 2, endLine: closed ? j + 1 : j, body: lines.slice(i + 1, j).join("\n"), attrs, fence: fence2 };
+      if (mermaid) block3.raw = "source";
       if (!closed) block3.unclosed = true;
       blocks.push(block3);
       i = closed ? j + 1 : j;
@@ -34278,11 +37190,11 @@ ${end.comment}` : end.comment;
     }
     for (const a of b.attrs) {
       if (/^#[A-Za-z][\w-]*$/.test(a)) {
-        const id = a.slice(1);
-        if (ids.has(id)) diagnostics.push({ severity: "error", line: b.line, block: index, component: tag, message: `duplicate block id "#${id}" (also on line ${ids.get(id)})` });
+        const id2 = a.slice(1);
+        if (ids.has(id2)) diagnostics.push({ severity: "error", line: b.line, block: index, component: tag, message: `duplicate block id "#${id2}" (also on line ${ids.get(id2)})` });
         else {
-          ids.set(id, b.line);
-          block3.id = id;
+          ids.set(id2, b.line);
+          block3.id = id2;
         }
       } else diagnostics.push({ severity: "warning", line: b.line, block: index, component: tag, message: `ignored "${a}" after ${tag}`, hint: "only a block id like #plan may follow the component name" });
     }
@@ -34298,7 +37210,7 @@ ${end.comment}` : end.comment;
       });
       return;
     }
-    const parsed = parseYaml(b.body, b.bodyLine, tag, diagnostics);
+    const parsed = b.raw ? { value: { [b.raw]: b.body }, lineOf: () => b.line, doc: { contents: null } } : parseYaml(b.body, b.bodyLine, tag, diagnostics);
     if (!parsed) return;
     let data = parsed.value;
     let strip = 0;

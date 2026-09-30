@@ -104,7 +104,7 @@ function build(tokens, allowed) {
       if (!op && startsPrimary(t)) op = 'implicit';
       if (op === '(' ) op = 'implicit';
       const bp = { '+': 1, '-': 1, '*': 2, '/': 2, '%': 2, implicit: 2, '^': 4 }[op];
-      if (bp === undefined || bp < minBp || (bp === minBp && op !== '^')) break;
+      if (bp === undefined || bp < minBp) break;   // the right operand is parsed at bp + 1, which makes + - * / left associative
       if (op !== 'implicit') next();
       const right = expr(op === '^' ? bp : bp + 1);
       const l = left;

@@ -29,11 +29,14 @@ function append(el, children) {
 
 // Text of a document file served by nebula-view:. XMLHttpRequest rather than fetch(): Chromium only lets fetch()
 // reach a custom scheme registered with FetchApiAllowed, which Qt added in 6.6, and nebula supports 6.5.
-export function readFile(url) {
+// type 'arraybuffer' resolves to the bytes (Uint8Array).
+export function readFile(url, type = 'text') {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     xhr.open('GET', url);
-    xhr.onload = () => (xhr.status === 200 || xhr.status === 0 ? resolve(xhr.responseText) : reject(new Error(`${url}: HTTP ${xhr.status}`)));
+    xhr.responseType = type;
+    const body = () => (type === 'arraybuffer' ? new Uint8Array(xhr.response) : xhr.response);
+    xhr.onload = () => (xhr.status === 200 || xhr.status === 0 ? resolve(body()) : reject(new Error(`${url}: HTTP ${xhr.status}`)));
     xhr.onerror = () => reject(new Error(`could not read ${decodeURIComponent(url.split('/').pop())}`));
     xhr.send();
   });

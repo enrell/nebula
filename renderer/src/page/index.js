@@ -52,7 +52,8 @@ function render(doc) {
   issues.length = 0;
   files = new Set(doc?.refs ?? []);
   const root = document.getElementById('doc');
-  root.querySelectorAll('.chart-box').forEach((el) => el.nebulaDispose?.());
+  // charts, 3D viewers and animations hold observers, timers and GL contexts: release them before redrawing
+  root.querySelectorAll('.live').forEach((el) => el.nebulaDispose?.());
   const blocks = doc?.blocks ?? [];
   // the title belongs to the chrome around the page (pane title bar or modal header), not to the page itself
   const slots = blocks.map((b) => h('div.slot', { 'data-block': b.index }));

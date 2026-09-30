@@ -1,16 +1,17 @@
 // Charts: ECharts (canvas) for 2D, echarts-gl (WebGL) for 3D. Colours come from the nebula theme (CSS variables),
 // so a chart re-created after a theme change matches the new theme.
-import { BarChart, BoxplotChart, CustomChart, HeatmapChart, LineChart, PieChart, ScatterChart } from 'echarts/charts';
+import { BarChart, BoxplotChart, CustomChart, GraphChart, HeatmapChart, LineChart, PieChart, ScatterChart } from 'echarts/charts';
 import { DataZoomComponent, GridComponent, LegendComponent, PolarComponent, TitleComponent, TooltipComponent, VisualMapComponent } from 'echarts/components';
 import * as echarts from 'echarts/core';
 import { CanvasRenderer } from 'echarts/renderers';
 import { parse } from '../../core/expr.js';
 import { fit } from '../../core/fit.js';
+import { sliderBar } from '../controls.js';
 import { card, h } from '../dom.js';
 import { Bar3DChart, Line3DChart, Scatter3DChart, SurfaceChart } from 'echarts-gl/charts';
 import { Grid3DComponent } from 'echarts-gl/components';
 
-echarts.use([LineChart, BarChart, PieChart, ScatterChart, BoxplotChart, CustomChart, HeatmapChart, GridComponent, TooltipComponent, LegendComponent, TitleComponent,
+echarts.use([LineChart, BarChart, PieChart, ScatterChart, BoxplotChart, CustomChart, HeatmapChart, GraphChart, GridComponent, TooltipComponent, LegendComponent, TitleComponent,
   DataZoomComponent, VisualMapComponent, PolarComponent, CanvasRenderer, Scatter3DChart, Bar3DChart, Line3DChart, SurfaceChart, Grid3DComponent]);
 
 const tick = (v) => Number(Number(v).toPrecision(4)).toString();
@@ -37,6 +38,7 @@ function mount(el, option) {
   chart.setOption(option);
   const ro = new ResizeObserver(() => chart.resize());
   ro.observe(el);
+  el.classList.add('live');
   el.nebulaDispose = () => { ro.disconnect(); chart.dispose(); };
   return chart;
 }
@@ -294,70 +296,77 @@ function breakJumps(points, yRange) {
 
 export function plot(p, ctx) {
   const box = h('div.chart-box', { style: { height: `${p.height}px` } });
-  ctx.afterMount(() => (p.type === 'surface' ? plotSurface(box, p) : plot2d(box, p)));
-  return card('chart-card', p.title, box, p.type === 'surface' ? h('footer.card-foot', 'drag to rotate · scroll to zoom') : null);
+  const env = { ...p.params };
+  let update;
+  ctx.afterMount(() => { update = p.type === 'surface' ? plotSurface(box, p, env) : plot2d(box, p, env); });
+  const controls = p.sliders.length ? sliderBar(p.sliders, (name, v) => { env[name] = v; update?.(); }) : null;
+  return card('chart-card', p.title, controls, box, p.type === 'surface' ? h('footer.card-foot', 'drag to rotate · scroll to zoom') : null);
 }
 
-function plot2d(el, p) {
+// Draws the curves for the parameters in `env`; returns a function that re-samples them after env changes.
+// The axes keep the range of the first drawing, so dragging a slider moves the curve, not the frame.
+function plot2d(el, p, env) {
   const b = base();
-  const env = { ...p.params };
-  const series = p.functions.map((f) => {
-    let data;
-    if (p.type === 'function') {
-      const fy = compile(p, f.y);
-      data = linspace(p.x[0], p.x[1], p.samples).map((x) => [x, fy({ ...env, x })]);
-    } else if (p.type === 'parametric') {
-      const fx = compile(p, f.x), fy = compile(p, f.y);
-      data = linspace(p.t[0], p.t[1], p.samples).map((t) => { const v = { ...env, t }; return [fx(v), fy(v)]; });
-    } else {
-      const fr = compile(p, f.r);
-      data = linspace(p.t[0], p.t[1], p.samples).map((t) => {
-        const r = fr({ ...env, t, theta: t });
-        const deg = (t * 180) / Math.PI;
-        return r < 0 ? [-r, deg + 180] : [r, deg];
-      });
-    }
-    return { name: f.label, data };
+  const fns = p.functions.map((f) => (p.type === 'function' ? { y: compile(p, f.y) } : p.type === 'parametric' ? { x: compile(p, f.x), y: compile(p, f.y) } : { r: compile(p, f.r) }));
+  const sample = () => fns.map((f) => {
+    if (p.type === 'function') return linspace(p.x[0], p.x[1], p.samples).map((x) => [x, f.y({ ...env, x })]);
+    if (p.type === 'parametric') return linspace(p.t[0], p.t[1], p.samples).map((t) => { const v = { ...env, t }; return [f.x(v), f.y(v)]; });
+    return linspace(p.t[0], p.t[1], p.samples).map((t) => {
+      const r = f.r({ ...env, t, theta: t });
+      const deg = (t * 180) / Math.PI;
+      return r < 0 ? [-r, deg + 180] : [r, deg];
+    });
   });
+  const first = sample();
+  const names = p.functions.map((f) => f.label);
   if (p.type === 'polar') {
-    return mount(el, {
+    const chart = mount(el, {
       color: palette(), textStyle: b.textStyle, tooltip: { ...b.tooltip, trigger: 'item' },
-      legend: series.length > 1 ? { top: 0, textStyle: { color: b.muted } } : undefined,
+      legend: names.length > 1 ? { top: 0, textStyle: { color: b.muted } } : undefined,
       polar: { radius: '78%', center: ['50%', '54%'] },
       angleAxis: { type: 'value', min: 0, max: 360, startAngle: 0, clockwise: false, interval: 30, ...b.axis, splitLine: { show: true, lineStyle: { color: b.border } } },
       radiusAxis: { type: 'value', splitNumber: 3, ...b.axis, axisLabel: { ...b.axis.axisLabel, formatter: tick } },
-      series: series.map((s) => ({ name: s.name, type: 'line', coordinateSystem: 'polar', showSymbol: false, data: s.data, lineStyle: { width: 2 } })),
+      series: first.map((data, i) => ({ name: names[i], type: 'line', coordinateSystem: 'polar', showSymbol: false, data, lineStyle: { width: 2 } })),
     });
+    return () => chart.setOption({ series: sample().map((data) => ({ data })) });
   }
-  const yRange = p.y ?? autoRange(series.flatMap((s) => s.data.map((d) => d[1])));
-  const xs = series.flatMap((s) => s.data.map((d) => d[0])).filter(Number.isFinite);
-  const xRange = p.type === 'function' ? p.x : autoRange(xs);
-  return mount(el, {
+  const yRange = p.y ?? autoRange(first.flatMap((d) => d.map((q) => q[1])));
+  const xRange = p.type === 'function' ? p.x : autoRange(first.flatMap((d) => d.map((q) => q[0])).filter(Number.isFinite));
+  const shape = (data) => (p.type === 'function' ? breakJumps(data, yRange) : data);
+  const chart = mount(el, {
     color: palette(), textStyle: b.textStyle,
     tooltip: { ...b.tooltip, trigger: 'axis', valueFormatter: (v) => (v === null || v === undefined ? '–' : Number(v).toPrecision(5)) },
-    legend: series.length > 1 ? { top: 0, textStyle: { color: b.muted }, type: 'scroll' } : undefined,
-    grid: { left: 12, right: 18, top: series.length > 1 ? 34 : 14, bottom: 30, containLabel: true },
+    legend: names.length > 1 ? { top: 0, textStyle: { color: b.muted }, type: 'scroll' } : undefined,
+    grid: { left: 12, right: 18, top: names.length > 1 ? 34 : 14, bottom: 30, containLabel: true },
     xAxis: { type: 'value', min: xRange[0], max: xRange[1], name: p.xlabel, nameLocation: 'middle', nameGap: 26, ...b.axis,
       splitLine: { show: true, ...b.axis.splitLine }, axisLabel: { ...b.axis.axisLabel, formatter: tick } },
     yAxis: { type: 'value', min: yRange[0], max: yRange[1], name: p.ylabel, ...b.axis, axisLabel: { ...b.axis.axisLabel, formatter: tick } },
     dataZoom: [{ type: 'inside', xAxisIndex: 0, filterMode: 'none' }, { type: 'inside', yAxisIndex: 0, filterMode: 'none' }],
-    series: series.map((s) => ({ name: s.name, type: 'line', showSymbol: false, connectNulls: false, lineStyle: { width: 2 }, clip: true,
-      data: p.type === 'function' ? breakJumps(s.data, yRange) : s.data })),
+    series: first.map((data, i) => ({ name: names[i], type: 'line', showSymbol: false, connectNulls: false, lineStyle: { width: 2 }, clip: true, data: shape(data) })),
   });
+  return () => chart.setOption({ series: sample().map((data) => ({ data: shape(data) })) });
 }
 
-function plotSurface(el, p) {
+function plotSurface(el, p, env) {
   const fz = compile(p, p.functions[0].z);
   const n = p.samples;
-  const points = [];
-  for (const y of linspace(p.y[0], p.y[1], n))
-    for (const x of linspace(p.x[0], p.x[1], n)) {
-      const z = fz({ ...p.params, x, y });
-      points.push([x, y, Number.isFinite(z) ? z : null, Number.isFinite(z) ? z : null]);
-    }
-  const zs = points.map((q) => q[2]).filter((z) => z !== null);
-  return render3d(el, { type: 'surface', names: { x: p.xlabel ?? 'x', y: p.ylabel ?? 'y', z: 'z', color: 'z' },
-    points, colorRange: zs.length ? [Math.min(...zs), Math.max(...zs)] : [0, 1], rotate: p.rotate });
+  const sample = () => {
+    const points = [];
+    for (const y of linspace(p.y[0], p.y[1], n))
+      for (const x of linspace(p.x[0], p.x[1], n)) {
+        const z = fz({ ...env, x, y });
+        points.push([x, y, Number.isFinite(z) ? z : null, Number.isFinite(z) ? z : null]);
+      }
+    return points;
+  };
+  const range = (points) => { const zs = points.map((q) => q[2]).filter((z) => z !== null); return zs.length ? [Math.min(...zs), Math.max(...zs)] : [0, 1]; };
+  const points = sample();
+  const chart = render3d(el, { type: 'surface', names: { x: p.xlabel ?? 'x', y: p.ylabel ?? 'y', z: 'z', color: 'z' }, points, colorRange: range(points), rotate: p.rotate });
+  return () => {
+    const next = sample();
+    const [min, max] = range(next);
+    chart.setOption({ visualMap: { min, max }, series: [{ data: next.map((q) => q.slice(0, 3)) }] });
+  };
 }
 
 // ---- matrix: heatmap, contour lines (marching squares) or a WebGL surface
@@ -432,4 +441,52 @@ function matrixSurface(el, p) {
   const points = [];
   p.grid.forEach((r, i) => r.forEach((v, j) => points.push([j, i, v, v])));
   return render3d(el, { type: 'surface', names: { x: 'column', y: 'row', z: 'value', color: 'value' }, points, colorRange: [p.min, p.max] });
+}
+
+// ---- graph: networks with a force or circular layout
+
+export function graph(p, ctx) {
+  const box = h('div.chart-box', { style: { height: `${p.height}px` } });
+  ctx.afterMount(() => drawGraph(box, p));
+  const foot = `${p.nodes.length} node${p.nodes.length === 1 ? '' : 's'} · ${p.edges.length} edge${p.edges.length === 1 ? '' : 's'} · drag nodes · scroll to zoom`;
+  return card('chart-card', p.title, box, h('footer.card-foot', foot));
+}
+
+function drawGraph(el, p) {
+  const b = base();
+  const colors = palette();
+  const n = p.nodes.length;
+  const metric = (node) => (p.size === 'degree' ? node.degree : p.size === 'value' ? node.value ?? 0 : 1);
+  const values = p.nodes.map(metric);
+  const lo = Math.min(...values), hi = Math.max(...values);
+  const unit = Math.max(6, Math.min(18, 260 / Math.sqrt(n)));
+  const sizeOf = (v) => (hi > lo ? unit * (0.7 + (1.3 * (v - lo)) / (hi - lo)) : unit);
+  const weights = p.edges.map((e) => e.w).filter((w) => w !== undefined);
+  const wlo = Math.min(...weights), whi = Math.max(...weights);
+  const widthOf = (w) => (w === undefined || !(whi > wlo) ? 1.2 : 0.8 + (3.2 * (w - wlo)) / (whi - wlo));
+  const categories = p.groups.length ? p.groups.map((name) => ({ name })) : [{ name: 'nodes' }];
+  return mount(el, {
+    color: colors, textStyle: b.textStyle,
+    tooltip: { ...b.tooltip, formatter: (i) => (i.dataType === 'edge'
+      ? `${i.data.source} ${p.directed ? '→' : '—'} ${i.data.target}${i.data.w !== undefined ? `<br>weight ${tick(i.data.w)}` : ''}${i.data.label ? `<br>${i.data.label}` : ''}`
+      : `${i.data.label}${i.data.group !== undefined ? `<br>group ${i.data.group}` : ''}<br>degree ${i.data.degree}${i.data.v !== undefined ? `<br>value ${tick(i.data.v)}` : ''}`) },
+    legend: p.groups.length ? { top: 0, textStyle: { color: b.muted }, type: 'scroll' } : undefined,
+    series: [{
+      type: 'graph', layout: p.layout, roam: true, draggable: true, categories,
+      top: p.groups.length ? 34 : 16, bottom: 16, left: 16, right: 16,
+      circular: { rotateLabel: true },
+      force: { repulsion: Math.max(60, 2400 / Math.sqrt(n)), edgeLength: [30, Math.max(50, 600 / Math.sqrt(n))], gravity: 0.08, friction: 0.15, layoutAnimation: n <= 400 },
+      edgeSymbol: p.directed ? ['none', 'arrow'] : ['none', 'none'], edgeSymbolSize: 7,
+      label: { show: p.labels === 'all', position: 'right', color: b.fg, fontSize: 11 },
+      labelLayout: { hideOverlap: true },
+      emphasis: { focus: 'adjacency', label: { show: true }, lineStyle: { width: 3 } },
+      lineStyle: { color: b.muted, opacity: 0.55, curveness: p.directed ? 0.12 : 0 },
+      itemStyle: { borderColor: css('panel'), borderWidth: 1 },
+      data: p.nodes.map((node, i) => ({ id: node.id, name: node.id, label: node.label, group: node.group, degree: node.degree, v: node.value,
+        category: p.groups.length ? p.groups.indexOf(node.group) : 0, symbolSize: sizeOf(values[i]),
+        itemStyle: p.groups.length && node.group === undefined ? { color: b.muted } : undefined,
+        ...(p.labels === 'all' ? { label: { formatter: node.label } } : {}) })),
+      links: p.edges.map((e) => ({ source: e.s, target: e.t, w: e.w, label: e.label, lineStyle: { width: widthOf(e.w) } })),
+    }],
+  });
 }

@@ -1,7 +1,8 @@
 // Plots of formulas: y = f(x), parametric (x(t), y(t)), polar r(t) and surfaces z = f(x, y).
 // Expressions use the safe language in core/expr.js; the checker validates them, the page samples them (so a later
 // slider can change a parameter without asking the agent again).
-import { constantNames, functionNames, parse } from '../core/expr.js';
+import { parse } from '../core/expr.js';
+import { PARAMS_SCHEMA, resolveParams } from '../core/params.js';
 
 const VARS = { function: ['x'], parametric: ['t'], polar: ['t', 'theta'], surface: ['x', 'y'] };
 const FIELDS = { function: ['y'], parametric: ['x', 'y'], polar: ['r'], surface: ['z'] };
@@ -9,7 +10,7 @@ const range = (d) => ({ type: 'array', items: { type: 'number' }, minItems: 2, m
 
 export default {
   name: 'plot',
-  summary: 'Plot formulas: type function (y: "sin(x)/x"), parametric (x, y of t), polar (r of t) or surface (z of x, y, WebGL). Functions: sin cos tan exp ln log sqrt abs gamma erf …; constants pi e; params for named constants.',
+  summary: 'Plot formulas: type function (y: "sin(x)/x"), parametric (x, y of t), polar (r of t) or surface (z of x, y, WebGL). Functions: sin cos tan exp ln log sqrt abs gamma erf …; constants pi e; params are named constants or sliders the reader can drag.',
   shorthand: { array: 'functions', scalar: 'functions' },
   schema: {
     type: 'object',
@@ -32,7 +33,7 @@ export default {
       x: range('x range (function, surface; default [-10, 10])'),
       y: range('y range: the view for functions (default: automatic), the domain for surfaces'),
       t: range('parameter range for parametric and polar (default [0, 2pi])'),
-      params: { type: 'object', additionalProperties: { type: 'number' }, description: 'named constants, e.g. {a: 2, k: 0.5}' },
+      params: PARAMS_SCHEMA,
       samples: { type: 'integer', minimum: 10, maximum: 5000, description: 'points per curve (default 600) or grid size per axis for surfaces (default 60, max 150)' },
       xlabel: { type: 'string' },
       ylabel: { type: 'string' },
@@ -40,15 +41,12 @@ export default {
       rotate: { type: 'boolean', default: false, description: 'surfaces: turn slowly until the user drags' },
     },
   },
-  example: 'title: Damped oscillation\nx: [0, 20]\nparams: {a: 0.15, w: 2}\nfunctions:\n  - {y: "exp(-a x) cos(w x)", label: signal}\n  - {y: "exp(-a x)", label: envelope}',
+  example: 'title: Damped oscillation\nx: [0, 20]\nparams:\n  a: {value: 0.15, min: 0, max: 1}\n  w: 2\nfunctions:\n  - {y: "exp(-a x) cos(w x)", label: signal}\n  - {y: "exp(-a x)", label: envelope}',
   resolve(props, ctx) {
     const type = props.type;
-    const params = props.params ?? {};
-    for (const name of Object.keys(params)) {
-      if (!/^[A-Za-z_]\w*$/.test(name)) return ctx.error(`/params/${name}`, `"${name}" is not a valid name`);
-      if (functionNames.includes(name) || constantNames.includes(name) || VARS[type].includes(name))
-        return ctx.error(`/params/${name}`, `"${name}" is already a ${functionNames.includes(name) ? 'function' : constantNames.includes(name) ? 'constant' : 'variable'} name`);
-    }
+    const resolved = resolveParams(props.params, VARS[type], ctx);
+    if (!resolved) return undefined;
+    const params = resolved.values;
     const allowed = [...VARS[type], ...Object.keys(params)];
     const list = [].concat(props.functions);
     if (type === 'surface' && list.length !== 1) return ctx.error('/functions', 'a surface plot takes exactly one function');
@@ -74,7 +72,7 @@ export default {
     if (type === 'surface' && props.samples > 150) return ctx.error('/samples', 'surfaces take at most 150 samples per axis');
     const surfaceY = props.y ?? [-10, 10];
     return {
-      type, title: props.title, functions, params,
+      type, title: props.title, functions, params, sliders: resolved.sliders,
       x: props.x ?? [-10, 10], y: type === 'surface' ? surfaceY : props.y, t: props.t ?? [0, 2 * Math.PI],
       samples: props.samples ?? (type === 'surface' ? 60 : 600),
       xlabel: props.xlabel ?? (type === 'polar' ? undefined : 'x'), ylabel: props.ylabel ?? (type === 'surface' ? 'y' : undefined),

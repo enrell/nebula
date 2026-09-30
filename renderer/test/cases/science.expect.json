@@ -1,0 +1,13 @@
+{ "ok": [true, true, false, false, true, false, true, false, true, false, true, false, true, false, true, false],
+  "errors": [
+    [14, "2 is outside 0…1"],
+    [18, "field.npy: .npy array has 2 dimensions (shape 6×8); expected 3"],
+    [30, "y = sin(x - tt): unknown name \"tt\" (did you mean \"t\"?); variables here: x, t (column 9)"],
+    [38, "field.npy: .npy array has 2 dimensions (shape 6×8); expected 3"],
+    [49, "node \"betta\" is not in nodes"],
+    [58, "\"sequenceDiagramm\" is not a mermaid diagram type"],
+    [70, "no feature has the property \"warmth\""],
+    [81, "\"tiny\" is not a pixel size"]
+  ],
+  "warnings": [],
+  "refs": ["density.npy", "regions.geojson", "img/cells.png", "img/cells-segmented.png"] }

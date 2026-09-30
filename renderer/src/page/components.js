@@ -2,6 +2,7 @@
 // resolved) and returns a DOM node. They never see raw YAML or unchecked input.
 import { card, h } from './dom.js';
 import { highlight } from './highlight.js';
+import { image } from './image.js';
 import { sandboxFrame } from './sandbox.js';
 
 const tones = { good: 'good', bad: 'bad', neutral: 'neutral' };
@@ -68,12 +69,6 @@ function code(p) {
   return card('code-card', p.title ? `${p.title}${range}` : null, h('div.code-scroll', gutter, body));
 }
 
-function image(p, ctx) {
-  const img = h('img', { src: ctx.fileUrl(p.src), alt: p.alt ?? '', loading: 'lazy', style: p.width ? { maxWidth: `${p.width}px` } : null });
-  img.addEventListener('error', () => ctx.issue(`image ${p.src} could not be displayed`));
-  return h('figure.image', img, p.caption ? h('figcaption', ctx.inline(p.caption)) : null);
-}
-
 function html(p, ctx, block) {
   return card('html-card', p.title, sandboxFrame(ctx.sandboxUrl(block.index), p.height));
 }
@@ -85,6 +80,10 @@ const charts = () => import('./lazy/charts.js');
 const mathChunk = () => import('./lazy/math.js');
 const chem = () => import('./lazy/chem.js');
 const bio = () => import('./lazy/bio.js');
+const physics = () => import('./lazy/physics.js');
+const diagrams = () => import('./lazy/diagram.js');
+const maps = () => import('./lazy/map.js');
+const volumes = () => import('./lazy/volume.js');
 
 export const renderers = {
   callout, stats, table, checklist, code, image, html,
@@ -98,5 +97,11 @@ export const renderers = {
   structure: lazy(chem, 'structure'),
   sequence: lazy(bio, 'sequence'),
   tree: lazy(bio, 'tree'),
+  field: lazy(physics, 'field'),
+  animation: lazy(physics, 'animation'),
+  graph: lazy(charts, 'graph'),
+  diagram: lazy(diagrams, 'diagram'),
+  map: lazy(maps, 'map'),
+  volume: lazy(volumes, 'volume'),
   tracks: lazy(bio, 'tracks'),
 };

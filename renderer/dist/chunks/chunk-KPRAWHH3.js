@@ -1,0 +1,1 @@
+import{__name}from"./chunk-EJOC5VXF.js";function populateCommonDb(ast,db){ast.accDescr&&db.setAccDescription?.(ast.accDescr),ast.accTitle&&db.setAccTitle?.(ast.accTitle),ast.title&&db.setDiagramTitle?.(ast.title)}__name(populateCommonDb,"populateCommonDb");export{populateCommonDb};

@@ -92,6 +92,7 @@ export function structure(p, ctx) {
     viewer.render();
     const ro = new ResizeObserver(() => { viewer.resize(); viewer.render(); });
     ro.observe(box);
+    box.classList.add('live');
     box.nebulaDispose = () => { ro.disconnect(); viewer.clear(); };
   });
   return card('chart-card', p.title, box, h('footer.card-foot', info));
