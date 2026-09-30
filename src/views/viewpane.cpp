@@ -9,6 +9,7 @@
 #include <QFileInfo>
 #include <QHash>
 #include <QJsonDocument>
+#include <QQuickWindow>
 #include <QRegularExpression>
 #include <QSaveFile>
 #include <QUrl>
@@ -250,8 +251,13 @@ int ViewPane::startSnapshot(int block) {
 
 void ViewPane::readyForSnapshot(int request) { emit grabRequested(request); }
 
-void ViewPane::snapshotTaken(int request, const QVariant &image) {
-    const QImage img = image.value<QImage>();
+void ViewPane::snapshotRegion(int request, QQuickWindow *window, const QRectF &rect) {
+    QImage img;
+    if (window) {
+        const QImage whole = window->grabWindow();
+        const qreal dpr = whole.devicePixelRatio();
+        img = whole.copy(QRectF(rect.topLeft() * dpr, rect.size() * dpr).toAlignedRect().intersected(whole.rect()));
+    }
     if (img.isNull()) { emit taskFinished(request, {{"ok", false}, {"error", "the view could not be captured"}}); return; }
     m_snapshots.insert(request, img);
     emit taskFinished(request, {{"ok", true}});

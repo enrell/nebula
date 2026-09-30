@@ -9,6 +9,7 @@
 #include <QSet>
 #include <QTimer>
 
+class QQuickWindow;
 class Theme;
 
 // A pane that shows a view document (Markdown + nebula components) instead of a terminal.
@@ -75,7 +76,7 @@ public:
     int startSnapshot(int block);                                   // block index, or -1 for what is on screen
     QImage takeSnapshot(int request) { return m_snapshots.take(request); }
     Q_INVOKABLE void pdfFinished(int request, bool ok);             // QML: WebEngineView.printToPdf finished
-    Q_INVOKABLE void snapshotTaken(int request, const QVariant &image);   // QML: grabToImage result
+    Q_INVOKABLE void snapshotRegion(int request, QQuickWindow *window, const QRectF &rect);   // QML: where the view is
 
 public slots:
     // page -> nebula (QWebChannel)

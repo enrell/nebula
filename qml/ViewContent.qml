@@ -24,9 +24,10 @@ Item {
             root.pdfRequest = request
             web.printToPdf(path)
         }
+        // the window is grabbed and cropped to the view: grabbing the web view item itself (grabToImage) leaves
+        // the page unresponsive on recent Qt WebEngine versions
         function onGrabRequested(request) {
-            if (!web.grabToImage((result) => root.pane.snapshotTaken(request, result.image)))
-                root.pane.snapshotTaken(request, null)
+            root.pane.snapshotRegion(request, web.Window.window, web.mapToItem(null, 0, 0, web.width, web.height))
         }
     }
 
