@@ -19,5 +19,8 @@ constexpr qint64 kMaxTextBytes = 5 * 1024 * 1024;
 // JSON strings handed to the checker: {"ok":true,"text":...} / {"ok":true,"size":N} / {"ok":false,"error":...}
 QString readTextJson(const QString &baseDir, const QString &relative);
 QString statJson(const QString &baseDir, const QString &relative);
+QString readBase64Json(const QString &baseDir, const QString &relative);   // binary files (e.g. .npy): {"ok":true,"base64":...}
+
+constexpr qint64 kMaxBinaryBytes = 16 * 1024 * 1024;
 
 } // namespace ViewFiles

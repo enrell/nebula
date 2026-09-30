@@ -12203,53 +12203,140 @@ ${end.comment}` : end.comment;
     return out;
   }
 
+  // src/core/fit.js
+  var FITS = ["linear", "quadratic", "cubic", "exponential", "log", "power"];
+
   // src/components/chart.js
-  var TYPES = ["line", "bar", "area", "scatter", "pie"];
+  var TYPES = ["line", "bar", "area", "scatter", "pie", "histogram", "box", "heatmap"];
+  var cols = (v) => [].concat(v != null ? v : []);
   var chart_default = {
     name: "chart",
-    summary: "Line, bar, area, scatter or pie chart from a data file or inline rows: x names the category/x column, y one or more numeric columns (one series each).",
+    summary: "Charts from a data file or inline rows: line, bar, area, scatter, pie, histogram, box, heatmap. x names the category/x column, y the numeric column(s). Extras: error bars (error), confidence band (band), fitted curve with R\xB2 (fit), log axes.",
     schema: {
       type: "object",
       additionalProperties: false,
-      required: ["type", "x", "y"],
+      required: ["type"],
       properties: __spreadProps(__spreadValues({
         type: { enum: TYPES },
         title: { type: "string" }
       }, dataProps), {
         columns: { type: "array", items: { type: "string" }, minItems: 1, description: "names for list rows" },
-        x: { type: "string", description: "column for the x axis (pie: slice labels)" },
-        y: { type: ["string", "array"], items: { type: "string" }, minItems: 1, description: "numeric column(s), one series each" },
+        x: { type: "string", description: "x / category column (pie: labels; box: optional group column; heatmap: columns of the grid)" },
+        y: { type: ["string", "array"], items: { type: "string" }, minItems: 1, description: "numeric column(s), one series each (heatmap: rows of the grid)" },
+        value: { type: "string", description: "heatmap: the numeric column coloured in each cell" },
+        error: { type: ["string", "array"], items: { type: "string" }, description: "\xB1 error column per y column: error bars (line, scatter, bar)" },
+        band: {
+          type: "object",
+          additionalProperties: false,
+          required: ["low", "high"],
+          properties: { low: { type: "string" }, high: { type: "string" }, label: { type: "string" } },
+          description: "shaded band between two columns, e.g. a 95% confidence interval"
+        },
+        fit: { enum: FITS, description: "least-squares curve through each y series, with its equation and R\xB2 (numeric x)" },
+        bins: { type: "integer", minimum: 2, maximum: 200, description: "histogram bins (default: Freedman\u2013Diaconis)" },
+        logx: { type: "boolean", default: false },
+        logy: { type: "boolean", default: false },
         stack: { type: "boolean", default: false, description: "stack the series (bar, area)" },
         horizontal: { type: "boolean", default: false, description: "horizontal bars" },
         unit: { type: "string", description: "suffix for values, e.g. ms or %" },
         height: { type: "integer", minimum: 160, maximum: 900, default: 300 }
       })
     },
-    example: "type: line\ntitle: Latency per run\ndata: bench.csv\nx: run\ny: [before_ms, after_ms]\nunit: ms",
+    example: "type: scatter\ntitle: Calibration\ndata: calibration.csv\nx: concentration\ny: absorbance\nerror: sd\nfit: linear",
     resolve(props, ctx) {
-      var _a2;
+      var _a2, _b;
       const d = loadRecords(props, ctx);
       if (!d) return void 0;
-      const ys = [].concat(props.y);
-      if (!requireColumn(props.x, d, ctx, "/x", props.data)) return void 0;
-      for (let i = 0; i < ys.length; i++) if (!requireColumn(ys[i], d, ctx, Array.isArray(props.y) ? `/y/${i}` : "/y", props.data)) return void 0;
-      if (props.type === "pie" && ys.length !== 1) return ctx.error("/y", "a pie chart takes exactly one y column");
-      if (d.records.length > MAX_ROWS) return ctx.error(props.data ? "/data" : "/rows", `${d.records.length} rows is too many to chart (max ${MAX_ROWS})`, "aggregate the data first");
-      if (!d.records.length) ctx.warn(props.data ? "/data" : "/rows", "no rows: the chart is empty");
+      const t = props.type;
+      const src = props.data;
+      const where = (field, i) => Array.isArray(props[field]) ? `/${field}/${i}` : `/${field}`;
+      const need = (field) => props[field] === void 0 && ctx.error("", `a ${t} chart needs "${field}"`);
+      if (t === "histogram" || t === "box") {
+        if (need("y")) return void 0;
+      } else if (t === "heatmap") {
+        if (need("x") || need("y") || need("value")) return void 0;
+      } else if (need("x") || need("y")) return void 0;
+      const ys = cols(props.y);
+      if (props.x !== void 0 && !requireColumn(props.x, d, ctx, "/x", src)) return void 0;
+      for (let i = 0; i < ys.length; i++) if (!requireColumn(ys[i], d, ctx, where("y", i), src)) return void 0;
+      if (d.records.length > MAX_ROWS * 4) return ctx.error(src ? "/data" : "/rows", `${d.records.length} rows is too many to chart (max ${MAX_ROWS * 4})`, "aggregate the data first");
+      if (!d.records.length) ctx.warn(src ? "/data" : "/rows", "no rows: the chart is empty");
+      const num = (col, path2) => numericColumn(col, d, ctx, path2);
+      const text3 = (col) => d.records.map((r) => r[col] === null || r[col] === void 0 ? "" : String(r[col]));
+      const base2 = { type: t, title: props.title, unit: (_a2 = props.unit) != null ? _a2 : "", height: props.height, logx: props.logx, logy: props.logy };
+      const positive = (vals, path2, axis) => vals.some((v) => v !== null && v <= 0) ? ctx.error(path2, `a log ${axis} axis needs positive values`) : true;
+      if (t === "pie") {
+        if (ys.length !== 1) return ctx.error("/y", "a pie chart takes exactly one y column");
+        const values = num(ys[0], "/y");
+        return values && __spreadProps(__spreadValues({}, base2), { xs: text3(props.x), series: [{ name: ys[0], values }] });
+      }
+      if (t === "histogram") {
+        const series2 = [];
+        for (let i = 0; i < ys.length; i++) {
+          const v = num(ys[i], where("y", i));
+          if (!v) return void 0;
+          series2.push({ name: ys[i], values: v.filter((x) => x !== null) });
+        }
+        return __spreadProps(__spreadValues({}, base2), { series: series2, bins: props.bins });
+      }
+      if (t === "box") {
+        if (props.x !== void 0) {
+          if (ys.length !== 1) return ctx.error("/y", "with x as the group column, give one y column");
+          const v = num(ys[0], "/y");
+          if (!v) return void 0;
+          const groups2 = /* @__PURE__ */ new Map();
+          text3(props.x).forEach((g, i) => {
+            var _a3;
+            if (v[i] !== null) ((_a3 = groups2.get(g)) != null ? _a3 : groups2.set(g, []).get(g)).push(v[i]);
+          });
+          return __spreadProps(__spreadValues({}, base2), { groups: [...groups2].map(([name, values]) => ({ name, values })), yName: ys[0] });
+        }
+        const groups = [];
+        for (let i = 0; i < ys.length; i++) {
+          const v = num(ys[i], where("y", i));
+          if (!v) return void 0;
+          groups.push({ name: ys[i], values: v.filter((x) => x !== null) });
+        }
+        return __spreadProps(__spreadValues({}, base2), { groups });
+      }
+      if (t === "heatmap") {
+        if (ys.length !== 1) return ctx.error("/y", "a heatmap takes one y (row) column");
+        if (!requireColumn(props.value, d, ctx, "/value", src)) return void 0;
+        const v = num(props.value, "/value");
+        if (!v) return void 0;
+        const xs2 = text3(props.x), rows = text3(ys[0]);
+        return __spreadProps(__spreadValues({}, base2), { xs: [...new Set(xs2)], ysCat: [...new Set(rows)], cells: v.map((z, i) => [xs2[i], rows[i], z]), xName: props.x, yName: ys[0], valueName: props.value });
+      }
+      const errs = cols(props.error);
+      if (errs.length && errs.length !== ys.length) return ctx.error("/error", `give one error column per y column (${ys.length})`);
+      if (errs.length && t === "area") ctx.warn("/error", "error bars are not drawn on area charts");
+      const numericX = t === "scatter" || props.fit !== void 0 || props.logx || props.band !== void 0;
+      let xs = numericX ? num(props.x, "/x") : text3(props.x);
+      if (!xs) return void 0;
+      if (props.logx && positive(xs, "/x", "x") !== true) return void 0;
       const series = [];
       for (let i = 0; i < ys.length; i++) {
-        const values = numericColumn(ys[i], d, ctx, Array.isArray(props.y) ? `/y/${i}` : "/y");
+        const values = num(ys[i], where("y", i));
         if (!values) return void 0;
-        series.push({ name: ys[i], values });
+        if (props.logy && positive(values, where("y", i), "y") !== true) return void 0;
+        const s = { name: ys[i], values };
+        if (errs[i]) {
+          if (!requireColumn(errs[i], d, ctx, where("error", i), src)) return void 0;
+          s.errors = num(errs[i], where("error", i));
+          if (!s.errors) return void 0;
+          if (s.errors.some((e) => e !== null && e < 0)) return ctx.error(where("error", i), `column "${errs[i]}" has negative errors`);
+        }
+        series.push(s);
       }
-      let xs = d.records.map((r) => r[props.x]);
-      const xNumeric = props.type === "scatter";
-      if (xNumeric) {
-        xs = numericColumn(props.x, d, ctx, "/x");
-        if (!xs) return void 0;
-      } else xs = xs.map((v) => v === null || v === void 0 ? "" : String(v));
-      if ((props.stack || props.horizontal) && !["bar", "area", "line"].includes(props.type)) ctx.warn(props.stack ? "/stack" : "/horizontal", `ignored for ${props.type} charts`);
-      return { type: props.type, title: props.title, xName: props.x, xs, xNumeric, series, stack: props.stack, horizontal: props.horizontal, unit: (_a2 = props.unit) != null ? _a2 : "", height: props.height };
+      let band;
+      if (props.band) {
+        for (const k of ["low", "high"]) if (!requireColumn(props.band[k], d, ctx, `/band/${k}`, src)) return void 0;
+        const low = num(props.band.low, "/band/low"), high = num(props.band.high, "/band/high");
+        if (!low || !high) return void 0;
+        band = { low, high, label: (_b = props.band.label) != null ? _b : `${props.band.low} \u2013 ${props.band.high}` };
+      }
+      if ((props.stack || props.horizontal) && !["bar", "area", "line"].includes(t)) ctx.warn(props.stack ? "/stack" : "/horizontal", `ignored for ${t} charts`);
+      return __spreadProps(__spreadValues({}, base2), { xName: props.x, xs, xNumeric: numericX, series, band, fit: props.fit, stack: props.stack, horizontal: props.horizontal });
     }
   };
 
@@ -12280,16 +12367,16 @@ ${end.comment}` : end.comment;
       const d = loadRecords(props, ctx);
       if (!d) return void 0;
       const axes = ["x", "y", "z"].concat(props.color ? ["color"] : []);
-      const cols = {};
+      const cols2 = {};
       for (const a of axes) {
         if (!requireColumn(props[a], d, ctx, `/${a}`, props.data)) return void 0;
-        cols[a] = numericColumn(props[a], d, ctx, `/${a}`);
-        if (!cols[a]) return void 0;
+        cols2[a] = numericColumn(props[a], d, ctx, `/${a}`);
+        if (!cols2[a]) return void 0;
       }
       if (d.records.length > MAX_ROWS * 4) return ctx.error(props.data ? "/data" : "/rows", `${d.records.length} points is too many (max ${MAX_ROWS * 4})`);
       const points = d.records.map((_, i) => {
         var _a3;
-        return [cols.x[i], cols.y[i], cols.z[i], ((_a3 = cols.color) != null ? _a3 : cols.z)[i]];
+        return [cols2.x[i], cols2.y[i], cols2.z[i], ((_a3 = cols2.color) != null ? _a3 : cols2.z)[i]];
       }).filter((p) => p.every((v) => v !== null));
       if (points.length < d.records.length) ctx.warn("", `${d.records.length - points.length} rows with empty cells were left out`);
       if (props.type === "surface" && props.color && props.color !== props.z) ctx.warn("/color", "a surface is coloured by z; color is ignored");
@@ -19184,7 +19271,7 @@ ${end.comment}` : end.comment;
     }
     parser.gullet.endGroup();
     parser.gullet.endGroup();
-    var cols = new Array(body[0].length).fill({
+    var cols2 = new Array(body[0].length).fill({
       type: "align",
       align: "c",
       pregap: 0.25,
@@ -19199,7 +19286,7 @@ ${end.comment}` : end.comment;
       arraystretch: 1,
       addJot: true,
       rowGaps: [null],
-      cols,
+      cols: cols2,
       colSeparationType: "CD",
       hLinesBeforeRow: new Array(body.length + 1).fill([])
     };
@@ -20784,7 +20871,7 @@ ${end.comment}` : end.comment;
     var {
       hskipBeforeAndAfter,
       addJot,
-      cols,
+      cols: cols2,
       arraystretch,
       colSeparationType,
       autoTag,
@@ -20893,7 +20980,7 @@ ${end.comment}` : end.comment;
       addJot,
       arraystretch,
       body,
-      cols,
+      cols: cols2,
       rowGaps,
       hskipBeforeAndAfter,
       hLinesBeforeRow,
@@ -20997,7 +21084,7 @@ ${end.comment}` : end.comment;
     }
     var offset = totalHeight / 2 + options.fontMetrics().axisHeight;
     var colDescriptions = group.cols || [];
-    var cols = [];
+    var cols2 = [];
     var colSep;
     var colDescrNum;
     var tagSpans = [];
@@ -21038,7 +21125,7 @@ ${end.comment}` : end.comment;
         if (!firstSeparator) {
           colSep = makeSpan(["arraycolsep"], []);
           colSep.style.width = makeEm(options.fontMetrics().doubleRuleSep);
-          cols.push(colSep);
+          cols2.push(colSep);
         }
         if (colDescr.separator === "|" || colDescr.separator === ":") {
           var lineType = colDescr.separator === "|" ? "solid" : "dashed";
@@ -21051,7 +21138,7 @@ ${end.comment}` : end.comment;
           if (_shift) {
             separator.style.verticalAlign = makeEm(-_shift);
           }
-          cols.push(separator);
+          cols2.push(separator);
         } else {
           throw new ParseError("Invalid separator type: " + colDescr.separator);
         }
@@ -21069,7 +21156,7 @@ ${end.comment}` : end.comment;
         if (sepwidth !== 0) {
           colSep = makeSpan(["arraycolsep"], []);
           colSep.style.width = makeEm(sepwidth);
-          cols.push(colSep);
+          cols2.push(colSep);
         }
       }
       var colElems = [];
@@ -21093,18 +21180,18 @@ ${end.comment}` : end.comment;
         children: colElems
       });
       var colSpan = makeSpan(["col-align-" + (((_colDescr3 = colDescr) == null ? void 0 : _colDescr3.align) || "c")], [colVList]);
-      cols.push(colSpan);
+      cols2.push(colSpan);
       if (c < nc - 1 || group.hskipBeforeAndAfter) {
         var _colDescr$postgap, _colDescr4;
         sepwidth = (_colDescr$postgap = (_colDescr4 = colDescr) == null ? void 0 : _colDescr4.postgap) != null ? _colDescr$postgap : arraycolsep;
         if (sepwidth !== 0) {
           colSep = makeSpan(["arraycolsep"], []);
           colSep.style.width = makeEm(sepwidth);
-          cols.push(colSep);
+          cols2.push(colSep);
         }
       }
     }
-    var tableBody = makeSpan(["mtable"], cols);
+    var tableBody = makeSpan(["mtable"], cols2);
     if (hlines.length > 0) {
       var line = makeLineSpan("hline", options, ruleThickness);
       var dashes = makeLineSpan("hdashline", options, ruleThickness);
@@ -21178,21 +21265,21 @@ ${end.comment}` : end.comment;
     var menclose = "";
     var align = "";
     if (group.cols && group.cols.length > 0) {
-      var cols = group.cols;
+      var cols2 = group.cols;
       var columnLines = "";
       var prevTypeWasAlign = false;
       var iStart = 0;
-      var iEnd = cols.length;
-      if (cols[0].type === "separator") {
+      var iEnd = cols2.length;
+      if (cols2[0].type === "separator") {
         menclose += "top ";
         iStart = 1;
       }
-      if (cols[cols.length - 1].type === "separator") {
+      if (cols2[cols2.length - 1].type === "separator") {
         menclose += "bottom ";
         iEnd -= 1;
       }
       for (var _i = iStart; _i < iEnd; _i++) {
-        var col = cols[_i];
+        var col = cols2[_i];
         if (col.type === "align") {
           align += alignMap[col.align];
           if (prevTypeWasAlign) {
@@ -21251,11 +21338,11 @@ ${end.comment}` : end.comment;
     if (!context.envName.includes("ed")) {
       validateAmsEnvironmentContext(context);
     }
-    var cols = [];
+    var cols2 = [];
     var separationType = context.envName.includes("at") ? "alignat" : "align";
     var isSplit = context.envName === "split";
     var res = parseArray(context.parser, {
-      cols,
+      cols: cols2,
       addJot: true,
       autoTag: isSplit ? void 0 : getAutoTag(context.envName),
       emptySingleRow: true,
@@ -21303,7 +21390,7 @@ ${end.comment}` : end.comment;
       } else if (_i5 > 0 && isAligned) {
         pregap = 1;
       }
-      cols[_i5] = {
+      cols2[_i5] = {
         type: "align",
         align,
         pregap,
@@ -21322,7 +21409,7 @@ ${end.comment}` : end.comment;
     handler(context, args) {
       var symNode = checkSymbolNodeType(args[0]);
       var colalign = symNode ? [args[0]] : assertNodeType(args[0], "ordgroup").body;
-      var cols = colalign.map(function(nde) {
+      var cols2 = colalign.map(function(nde) {
         var node = assertSymbolNodeType(nde);
         var ca = node.text;
         if ("lcr".includes(ca)) {
@@ -21344,10 +21431,10 @@ ${end.comment}` : end.comment;
         throw new ParseError("Unknown column alignment: " + ca, nde);
       });
       var res = {
-        cols,
+        cols: cols2,
         hskipBeforeAndAfter: true,
         // \@preamble in lttab.dtx
-        maxNumCols: cols.length
+        maxNumCols: cols2.length
       };
       return parseArray(context.parser, res, dCellStyle(context.envName));
     },
@@ -21442,7 +21529,7 @@ ${end.comment}` : end.comment;
     handler(context, args) {
       var symNode = checkSymbolNodeType(args[0]);
       var colalign = symNode ? [args[0]] : assertNodeType(args[0], "ordgroup").body;
-      var cols = colalign.map(function(nde) {
+      var cols2 = colalign.map(function(nde) {
         var node = assertSymbolNodeType(nde);
         var ca = node.text;
         if ("lc".includes(ca)) {
@@ -21453,11 +21540,11 @@ ${end.comment}` : end.comment;
         }
         throw new ParseError("Unknown column alignment: " + ca, nde);
       });
-      if (cols.length > 1) {
+      if (cols2.length > 1) {
         throw new ParseError("{subarray} can contain only one column");
       }
       var payload = {
-        cols,
+        cols: cols2,
         hskipBeforeAndAfter: false,
         arraystretch: 0.5
       };
@@ -27036,6 +27123,170 @@ ${end.comment}` : end.comment;
     }
   };
 
+  // src/core/npy.js
+  var B64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+  var LOOKUP = (() => {
+    const t = new Int16Array(128).fill(-1);
+    for (let i = 0; i < 64; i++) t[B64.charCodeAt(i)] = i;
+    return t;
+  })();
+  function base64ToBytes(s) {
+    const clean = s.replace(/[^A-Za-z0-9+/]/g, "");
+    const out = new Uint8Array(Math.floor(clean.length * 3 / 4));
+    let o = 0;
+    for (let i = 0; i + 1 < clean.length; i += 4) {
+      const n = LOOKUP[clean.charCodeAt(i)] << 18 | LOOKUP[clean.charCodeAt(i + 1)] << 12 | (LOOKUP[clean.charCodeAt(i + 2)] & 63) << 6 | LOOKUP[clean.charCodeAt(i + 3)] & 63;
+      out[o++] = n >> 16 & 255;
+      if (i + 2 < clean.length) out[o++] = n >> 8 & 255;
+      if (i + 3 < clean.length) out[o++] = n & 255;
+    }
+    return out.subarray(0, o);
+  }
+  function parseNpy(bytes) {
+    var _a2, _b;
+    const magic = [147, 78, 85, 77, 80, 89];
+    if (bytes.length < 10 || magic.some((b, i) => bytes[i] !== b)) return { error: "not a .npy file (bad magic)" };
+    const major = bytes[6];
+    const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+    const headerLen = major === 1 ? view.getUint16(8, true) : view.getUint32(8, true);
+    const start = major === 1 ? 10 : 12;
+    let header = "";
+    for (let i = start; i < start + headerLen; i++) header += String.fromCharCode(bytes[i]);
+    const descr = (_a2 = /'descr':\s*'([^']+)'/.exec(header)) == null ? void 0 : _a2[1];
+    const fortran = /'fortran_order':\s*True/.test(header);
+    const shapeText = (_b = /'shape':\s*\(([^)]*)\)/.exec(header)) == null ? void 0 : _b[1];
+    if (!descr || shapeText === void 0) return { error: "unreadable .npy header" };
+    const shape = shapeText.split(",").map((s) => s.trim()).filter(Boolean).map(Number);
+    if (shape.length < 1 || shape.length > 2) return { error: `.npy array has ${shape.length} dimensions; 1 or 2 are supported` };
+    const m = /^([<>|=])([fiub])(\d+)$/.exec(descr);
+    if (!m) return { error: `.npy dtype ${descr} is not supported (numeric arrays only)` };
+    const little = m[1] !== ">";
+    const kind = m[2], size = Number(m[3]);
+    const readers = {
+      f4: (o) => view.getFloat32(o, little),
+      f8: (o) => view.getFloat64(o, little),
+      i1: (o) => view.getInt8(o),
+      i2: (o) => view.getInt16(o, little),
+      i4: (o) => view.getInt32(o, little),
+      u1: (o) => view.getUint8(o),
+      u2: (o) => view.getUint16(o, little),
+      u4: (o) => view.getUint32(o, little),
+      b1: (o) => view.getUint8(o),
+      i8: (o) => {
+        const lo = view.getUint32(o + (little ? 0 : 4), little), hi = view.getInt32(o + (little ? 4 : 0), little);
+        return hi * 4294967296 + lo;
+      },
+      u8: (o) => {
+        const lo = view.getUint32(o + (little ? 0 : 4), little), hi = view.getUint32(o + (little ? 4 : 0), little);
+        return hi * 4294967296 + lo;
+      }
+    };
+    const read = readers[`${kind}${size}`];
+    if (!read) return { error: `.npy dtype ${descr} is not supported` };
+    const count = shape.reduce((a, b) => a * b, 1);
+    const offset = start + headerLen;
+    if (offset + count * size > bytes.length) return { error: ".npy file is truncated" };
+    const flat2 = new Array(count);
+    for (let i = 0; i < count; i++) flat2[i] = read(offset + i * size);
+    if (shape.length === 2 && fortran) {
+      const [r, c] = shape, out = new Array(count);
+      for (let i = 0; i < r; i++) for (let j = 0; j < c; j++) out[i * c + j] = flat2[j * r + i];
+      return { shape, data: out };
+    }
+    return { shape, data: flat2 };
+  }
+
+  // src/components/matrix.js
+  var MAX_CELLS = 25e4;
+  var matrix_default = {
+    name: "matrix",
+    summary: "A numeric grid as a heatmap, contour lines or a WebGL surface: correlation/confusion matrices, fields, images of data. From a .csv/.tsv grid (row/column labels detected), a NumPy .npy file or inline values.",
+    schema: {
+      type: "object",
+      additionalProperties: false,
+      properties: {
+        title: { type: "string" },
+        data: { type: "string", description: "relative path to a .csv, .tsv or .npy (1-D or 2-D) file" },
+        values: { type: "array", items: { type: "array", items: { type: ["number", "null"] } }, description: "inline rows of numbers" },
+        rows: { type: "array", items: { type: ["string", "number"] }, description: "row labels" },
+        cols: { type: "array", items: { type: ["string", "number"] }, description: "column labels" },
+        style: { enum: ["heatmap", "contour", "surface"], default: "heatmap" },
+        scale: { enum: ["sequential", "diverging"], description: "colour scale; diverging centres on 0 (default: diverging when values have both signs)" },
+        levels: { type: "integer", minimum: 2, maximum: 40, default: 10, description: "contour levels" },
+        annotate: { type: "boolean", description: "print values in the cells (default: when there are at most 150 cells)" },
+        digits: { type: "integer", minimum: 1, maximum: 8, default: 3, description: "significant figures in cells and tooltips" },
+        unit: { type: "string" },
+        height: { type: "integer", minimum: 160, maximum: 1200 }
+      }
+    },
+    example: "title: Feature correlation\ndata: corr.csv\nscale: diverging\nannotate: true",
+    resolve(props, ctx) {
+      var _a2, _b, _c, _d, _e, _f, _g, _h;
+      if (props.data === void 0 === (props.values === void 0)) return ctx.error("", 'give exactly one of "data" or "values"');
+      let grid, rows = props.rows, cols2 = props.cols;
+      if (props.values) {
+        grid = props.values;
+        const w = (_b = (_a2 = grid[0]) == null ? void 0 : _a2.length) != null ? _b : 0;
+        const bad = grid.findIndex((r) => r.length !== w);
+        if (!grid.length || !w) return ctx.error("/values", "values must be a non-empty list of rows");
+        if (bad >= 0) return ctx.error(`/values/${bad}`, `row has ${grid[bad].length} values, the first row has ${w}`);
+      } else {
+        const ext = extname(props.data);
+        if (ext === "npy") {
+          const f = ctx.readBase64(props.data);
+          if (!f.ok) return ctx.error("/data", f.error);
+          const a = parseNpy(base64ToBytes(f.base64));
+          if (a.error) return ctx.error("/data", `${props.data}: ${a.error}`);
+          const [r, c = 1] = a.shape.length === 1 ? [1, a.shape[0]] : a.shape;
+          grid = Array.from({ length: r }, (_, i) => a.data.slice(i * c, (i + 1) * c).map((v) => Number.isFinite(v) ? v : null));
+        } else if (ext === "csv" || ext === "tsv") {
+          const f = ctx.readText(props.data);
+          if (!f.ok) return ctx.error("/data", f.error);
+          let table3 = parseDelimited(f.text, ext === "tsv" ? "	" : ",");
+          if (!table3.length) return ctx.error("/data", `${props.data} is empty`);
+          const numericRow = (r, from) => r.slice(from).every((v) => v.trim() === "" || isNumeric(v));
+          const hasColLabels = !numericRow(table3[0], 1);
+          const body = hasColLabels ? table3.slice(1) : table3;
+          const hasRowLabels = body.length > 0 && body.some((r) => r[0].trim() !== "" && !isNumeric(r[0]));
+          if (hasColLabels) cols2 != null ? cols2 : cols2 = table3[0].slice(hasRowLabels ? 1 : 0);
+          if (hasRowLabels) rows != null ? rows : rows = body.map((r) => r[0]);
+          const start = hasRowLabels ? 1 : 0;
+          for (let i = 0; i < body.length; i++) {
+            const bad2 = body[i].slice(start).findIndex((v) => v.trim() !== "" && !isNumeric(v));
+            if (bad2 >= 0) return ctx.error("/data", `${props.data} row ${i + 1 + (hasColLabels ? 1 : 0)}: "${body[i][start + bad2]}" is not a number`);
+          }
+          grid = body.map((r) => r.slice(start).map((v) => v.trim() === "" ? null : Number(v)));
+          const w = (_d = (_c = grid[0]) == null ? void 0 : _c.length) != null ? _d : 0;
+          const bad = grid.findIndex((r) => r.length !== w);
+          if (bad >= 0) return ctx.error("/data", `${props.data} row ${bad + 1 + (hasColLabels ? 1 : 0)} has ${grid[bad].length} values, expected ${w}`);
+        } else return ctx.error("/data", `unsupported matrix file ".${ext}"`, "use a .csv, .tsv or .npy file");
+      }
+      const nr = grid.length, nc = grid[0].length;
+      if (nr * nc > MAX_CELLS) return ctx.error(props.data ? "/data" : "/values", `${nr}\xD7${nc} is ${nr * nc} cells (max ${MAX_CELLS})`, "downsample first");
+      if (rows && rows.length !== nr) return ctx.error("/rows", `${rows.length} row labels for ${nr} rows`);
+      if (cols2 && cols2.length !== nc) return ctx.error("/cols", `${cols2.length} column labels for ${nc} columns`);
+      if (props.style === "contour" && (nr < 2 || nc < 2)) return ctx.error("/style", "contours need at least 2 rows and 2 columns");
+      const finite = grid.flat().filter((v) => v !== null);
+      if (!finite.length) return ctx.error(props.data ? "/data" : "/values", "no numeric values");
+      const min = Math.min(...finite), max = Math.max(...finite);
+      return {
+        title: props.title,
+        grid,
+        rows: rows == null ? void 0 : rows.map(String),
+        cols: cols2 == null ? void 0 : cols2.map(String),
+        style: props.style,
+        levels: props.levels,
+        scale: (_e = props.scale) != null ? _e : min < 0 && max > 0 ? "diverging" : "sequential",
+        min,
+        max,
+        annotate: (_f = props.annotate) != null ? _f : nr * nc <= 150,
+        digits: props.digits,
+        unit: (_g = props.unit) != null ? _g : "",
+        height: (_h = props.height) != null ? _h : props.style === "surface" ? 440 : Math.min(640, Math.max(220, nr * 34 + 80))
+      };
+    }
+  };
+
   // src/core/expr.js
   var FUNCS = {
     sin: Math.sin,
@@ -27319,6 +27570,30 @@ ${end.comment}` : end.comment;
     }
   };
 
+  // src/core/numfmt.js
+  function sig(v, digits) {
+    if (!Number.isFinite(v) || v === 0) return String(v);
+    const s = Number(v.toPrecision(digits));
+    return Math.abs(s) >= 1e6 || Math.abs(s) < 1e-4 ? s.toExponential(Math.max(0, digits - 1)) : String(s);
+  }
+  function withError(v, e) {
+    if (!Number.isFinite(v)) return String(v);
+    if (!Number.isFinite(e) || e <= 0) return String(v);
+    const exp = Math.floor(Math.log10(e)) - 1;
+    const decimals = Math.max(0, -exp);
+    const scale = 10 ** exp;
+    const r = (x) => exp < 0 ? x.toFixed(decimals) : String(Math.round(x / scale) * scale);
+    return `${r(v)} \xB1 ${r(e)}`;
+  }
+  function formatValue(v, { error: error2, unit, digits } = {}) {
+    let s;
+    if (typeof v !== "number") s = String(v);
+    else if (error2 !== void 0) s = withError(v, error2);
+    else if (digits) s = sig(v, digits);
+    else s = String(v);
+    return unit ? `${s} ${unit}` : s;
+  }
+
   // src/components/stats.js
   var stats_default = {
     name: "stats",
@@ -27341,6 +27616,9 @@ ${end.comment}` : end.comment;
             properties: {
               label: { type: "string" },
               value: { type: ["string", "number"] },
+              error: { type: "number", minimum: 0, description: "\xB1 uncertainty; the value is rounded to its precision" },
+              unit: { type: "string" },
+              digits: { type: "integer", minimum: 1, maximum: 12, description: "significant figures" },
               delta: { type: ["string", "number"], description: "change, e.g. +12% or -3" },
               tone: { enum: ["good", "bad", "neutral"], default: "neutral" },
               hint: { type: "string", description: "small text under the value" }
@@ -27352,9 +27630,9 @@ ${end.comment}` : end.comment;
     // YAML reads `delta: +18` as the number 18; keep the sign that the author clearly meant to show.
     resolve(props) {
       const signed = (d) => typeof d === "number" && d > 0 ? `+${d}` : d === void 0 ? void 0 : String(d);
-      return __spreadProps(__spreadValues({}, props), { items: props.items.map((it) => __spreadProps(__spreadValues({}, it), { value: String(it.value), delta: signed(it.delta) })) });
+      return __spreadProps(__spreadValues({}, props), { items: props.items.map((it) => __spreadProps(__spreadValues({}, it), { value: formatValue(it.value, it), delta: signed(it.delta) })) });
     },
-    example: "- {label: Tests, value: 142, delta: +18, tone: good}\n- {label: p95 latency, value: 38ms, delta: -41%, tone: good}\n- {label: Open issues, value: 3}"
+    example: "- {label: g, value: 9.8134, error: 0.0021, unit: m/s\xB2}\n- {label: Tests, value: 142, delta: +18, tone: good}\n- {label: p95 latency, value: 38ms, delta: -41%, tone: good}\n- {label: Open issues, value: 3}"
   };
 
   // src/components/table.js
@@ -27376,7 +27654,10 @@ ${end.comment}` : end.comment;
             properties: {
               key: { type: "string", description: "field name (object rows / data files) or header (list rows)" },
               label: { type: "string" },
-              align: { enum: ["left", "right", "center"] }
+              align: { enum: ["left", "right", "center"] },
+              unit: { type: "string", description: "shown in the header" },
+              error: { type: "string", description: "column holding the \xB1 uncertainty of this one" },
+              digits: { type: "integer", minimum: 1, maximum: 12, description: "significant figures" }
             }
           },
           description: "columns to show, in order; default: every field"
@@ -27396,18 +27677,25 @@ ${end.comment}` : end.comment;
       var _a2;
       const d = loadRecords(props, ctx);
       if (!d) return void 0;
-      const cols = ((_a2 = props.columns) == null ? void 0 : _a2.length) ? props.columns.map((c) => typeof c === "string" ? { key: c } : c) : d.keys.map((key) => ({ key }));
-      const missing = cols.filter((c) => !d.keys.includes(c.key));
+      const cols2 = ((_a2 = props.columns) == null ? void 0 : _a2.length) ? props.columns.map((c) => typeof c === "string" ? { key: c } : c) : d.keys.map((key) => ({ key }));
+      const missing = cols2.filter((c) => !d.keys.includes(c.key));
       if (missing.length)
         return ctx.error("/columns", `column${missing.length > 1 ? "s" : ""} ${missing.map((c) => `"${c.key}"`).join(", ")} not found${props.data ? ` in ${props.data}` : ""}`, didYouMean(missing[0].key, d.keys));
       const records = d.records;
+      for (const [i, c] of cols2.entries())
+        if (c.error !== void 0 && !d.keys.includes(c.error)) return ctx.error(`/columns/${i}/error`, `"${c.error}" is not a column`, didYouMean(c.error, d.keys));
       const cell = (v) => v === null || v === void 0 ? "" : typeof v === "object" ? JSON.stringify(v) : v;
-      let rows = records.map((r) => cols.map((c) => cell(r[c.key])));
-      const numeric = cols.map((_, i) => rows.length > 0 && rows.every((r) => r[i] === "" || isNumeric(r[i])));
+      let rows = records.map((r) => cols2.map((c) => {
+        const v = cell(r[c.key]);
+        if (c.error === void 0 && c.digits === void 0 || v === "" || !isNumeric(v)) return v;
+        const e = c.error !== void 0 && isNumeric(r[c.error]) ? Number(r[c.error]) : void 0;
+        return formatValue(Number(v), { error: e, digits: c.digits });
+      }));
+      const numeric = cols2.map((c, i) => rows.length > 0 && rows.every((r) => r[i] === "" || isNumeric(r[i]) || c.error !== void 0 && / ± /.test(r[i])));
       let sort;
       if (props.sort) {
-        const i = cols.findIndex((c) => c.key === props.sort.by);
-        if (i < 0) return ctx.error("/sort/by", `"${props.sort.by}" is not a column`, didYouMean(props.sort.by, cols.map((c) => c.key)));
+        const i = cols2.findIndex((c) => c.key === props.sort.by);
+        if (i < 0) return ctx.error("/sort/by", `"${props.sort.by}" is not a column`, didYouMean(props.sort.by, cols2.map((c) => c.key)));
         sort = { column: i, desc: props.sort.desc };
       }
       if (rows.length > props.limit) {
@@ -27416,9 +27704,9 @@ ${end.comment}` : end.comment;
       }
       return {
         title: props.title,
-        columns: cols.map((c, i) => {
+        columns: cols2.map((c, i) => {
           var _a3, _b;
-          return { key: c.key, label: (_a3 = c.label) != null ? _a3 : c.key, align: (_b = c.align) != null ? _b : numeric[i] ? "right" : "left", numeric: numeric[i] };
+          return { key: c.key, label: ((_a3 = c.label) != null ? _a3 : c.key) + (c.unit ? ` (${c.unit})` : ""), align: (_b = c.align) != null ? _b : numeric[i] ? "right" : "left", numeric: numeric[i] };
         }),
         rows,
         sort
@@ -27427,7 +27715,7 @@ ${end.comment}` : end.comment;
   };
 
   // src/components/index.js
-  var components = [callout_default, stats_default, table_default, chart_default, chart3d_default, plot_default, math_default, checklist_default, code_default, image_default, html_default];
+  var components = [callout_default, stats_default, table_default, chart_default, chart3d_default, plot_default, matrix_default, math_default, checklist_default, code_default, image_default, html_default];
   var byName = Object.fromEntries(components.map((c) => [c.name, c]));
 
   // src/core/validators.generated.js
@@ -27442,6 +27730,7 @@ ${end.comment}` : end.comment;
     html: () => html,
     image: () => image2,
     math: () => math2,
+    matrix: () => matrix,
     plot: () => plot,
     stats: () => stats,
     table: () => table2
@@ -27522,7 +27811,7 @@ ${end.comment}` : end.comment;
     return errors2 === 0;
   }
   var stats = validate11;
-  var schema12 = { "type": "object", "additionalProperties": false, "required": ["items"], "properties": { "title": { "type": "string" }, "items": { "type": "array", "minItems": 1, "maxItems": 12, "items": { "type": "object", "additionalProperties": false, "required": ["label", "value"], "properties": { "label": { "type": "string" }, "value": { "type": ["string", "number"] }, "delta": { "type": ["string", "number"], "description": "change, e.g. +12% or -3" }, "tone": { "enum": ["good", "bad", "neutral"], "default": "neutral" }, "hint": { "type": "string", "description": "small text under the value" } } } } } };
+  var schema12 = { "type": "object", "additionalProperties": false, "required": ["items"], "properties": { "title": { "type": "string" }, "items": { "type": "array", "minItems": 1, "maxItems": 12, "items": { "type": "object", "additionalProperties": false, "required": ["label", "value"], "properties": { "label": { "type": "string" }, "value": { "type": ["string", "number"] }, "error": { "type": "number", "minimum": 0, "description": "\xB1 uncertainty; the value is rounded to its precision" }, "unit": { "type": "string" }, "digits": { "type": "integer", "minimum": 1, "maximum": 12, "description": "significant figures" }, "delta": { "type": ["string", "number"], "description": "change, e.g. +12% or -3" }, "tone": { "enum": ["good", "bad", "neutral"], "default": "neutral" }, "hint": { "type": "string", "description": "small text under the value" } } } } } };
   function validate11(data, { instancePath = "", parentData, parentDataProperty, rootData = data } = {}) {
     let vErrors = null;
     let errors2 = 0;
@@ -27606,7 +27895,7 @@ ${end.comment}` : end.comment;
                 errors2++;
               }
               for (const key1 in data2) {
-                if (!(key1 === "label" || key1 === "value" || key1 === "delta" || key1 === "tone" || key1 === "hint")) {
+                if (!(key1 === "label" || key1 === "value" || key1 === "error" || key1 === "unit" || key1 === "digits" || key1 === "delta" || key1 === "tone" || key1 === "hint")) {
                   const err7 = { instancePath: instancePath + "/items/" + i0, schemaPath: "#/properties/items/items/additionalProperties", keyword: "additionalProperties", params: { additionalProperty: key1 }, message: "must NOT have additional properties", schema: false, parentSchema: schema12.properties.items.items, data: data2 };
                   if (vErrors === null) {
                     vErrors = [err7];
@@ -27640,32 +27929,32 @@ ${end.comment}` : end.comment;
                   errors2++;
                 }
               }
-              if (data2.delta !== void 0) {
-                let data5 = data2.delta;
-                if (typeof data5 !== "string" && !(typeof data5 == "number" && isFinite(data5))) {
-                  const err10 = { instancePath: instancePath + "/items/" + i0 + "/delta", schemaPath: "#/properties/items/items/properties/delta/type", keyword: "type", params: { type: schema12.properties.items.items.properties.delta.type }, message: "must be string,number", schema: schema12.properties.items.items.properties.delta.type, parentSchema: schema12.properties.items.items.properties.delta, data: data5 };
+              if (data2.error !== void 0) {
+                let data5 = data2.error;
+                if (typeof data5 == "number" && isFinite(data5)) {
+                  if (data5 < 0 || isNaN(data5)) {
+                    const err10 = { instancePath: instancePath + "/items/" + i0 + "/error", schemaPath: "#/properties/items/items/properties/error/minimum", keyword: "minimum", params: { comparison: ">=", limit: 0 }, message: "must be >= 0", schema: 0, parentSchema: schema12.properties.items.items.properties.error, data: data5 };
+                    if (vErrors === null) {
+                      vErrors = [err10];
+                    } else {
+                      vErrors.push(err10);
+                    }
+                    errors2++;
+                  }
+                } else {
+                  const err11 = { instancePath: instancePath + "/items/" + i0 + "/error", schemaPath: "#/properties/items/items/properties/error/type", keyword: "type", params: { type: "number" }, message: "must be number", schema: schema12.properties.items.items.properties.error.type, parentSchema: schema12.properties.items.items.properties.error, data: data5 };
                   if (vErrors === null) {
-                    vErrors = [err10];
+                    vErrors = [err11];
                   } else {
-                    vErrors.push(err10);
+                    vErrors.push(err11);
                   }
                   errors2++;
                 }
               }
-              let data6 = data2.tone;
-              if (!(data6 === "good" || data6 === "bad" || data6 === "neutral")) {
-                const err11 = { instancePath: instancePath + "/items/" + i0 + "/tone", schemaPath: "#/properties/items/items/properties/tone/enum", keyword: "enum", params: { allowedValues: schema12.properties.items.items.properties.tone.enum }, message: "must be equal to one of the allowed values", schema: schema12.properties.items.items.properties.tone.enum, parentSchema: schema12.properties.items.items.properties.tone, data: data6 };
-                if (vErrors === null) {
-                  vErrors = [err11];
-                } else {
-                  vErrors.push(err11);
-                }
-                errors2++;
-              }
-              if (data2.hint !== void 0) {
-                let data7 = data2.hint;
-                if (typeof data7 !== "string") {
-                  const err12 = { instancePath: instancePath + "/items/" + i0 + "/hint", schemaPath: "#/properties/items/items/properties/hint/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema12.properties.items.items.properties.hint.type, parentSchema: schema12.properties.items.items.properties.hint, data: data7 };
+              if (data2.unit !== void 0) {
+                let data6 = data2.unit;
+                if (typeof data6 !== "string") {
+                  const err12 = { instancePath: instancePath + "/items/" + i0 + "/unit", schemaPath: "#/properties/items/items/properties/unit/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema12.properties.items.items.properties.unit.type, parentSchema: schema12.properties.items.items.properties.unit, data: data6 };
                   if (vErrors === null) {
                     vErrors = [err12];
                   } else {
@@ -27674,32 +27963,98 @@ ${end.comment}` : end.comment;
                   errors2++;
                 }
               }
+              if (data2.digits !== void 0) {
+                let data7 = data2.digits;
+                if (!(typeof data7 == "number" && (!(data7 % 1) && !isNaN(data7)) && isFinite(data7))) {
+                  const err13 = { instancePath: instancePath + "/items/" + i0 + "/digits", schemaPath: "#/properties/items/items/properties/digits/type", keyword: "type", params: { type: "integer" }, message: "must be integer", schema: schema12.properties.items.items.properties.digits.type, parentSchema: schema12.properties.items.items.properties.digits, data: data7 };
+                  if (vErrors === null) {
+                    vErrors = [err13];
+                  } else {
+                    vErrors.push(err13);
+                  }
+                  errors2++;
+                }
+                if (typeof data7 == "number" && isFinite(data7)) {
+                  if (data7 > 12 || isNaN(data7)) {
+                    const err14 = { instancePath: instancePath + "/items/" + i0 + "/digits", schemaPath: "#/properties/items/items/properties/digits/maximum", keyword: "maximum", params: { comparison: "<=", limit: 12 }, message: "must be <= 12", schema: 12, parentSchema: schema12.properties.items.items.properties.digits, data: data7 };
+                    if (vErrors === null) {
+                      vErrors = [err14];
+                    } else {
+                      vErrors.push(err14);
+                    }
+                    errors2++;
+                  }
+                  if (data7 < 1 || isNaN(data7)) {
+                    const err15 = { instancePath: instancePath + "/items/" + i0 + "/digits", schemaPath: "#/properties/items/items/properties/digits/minimum", keyword: "minimum", params: { comparison: ">=", limit: 1 }, message: "must be >= 1", schema: 1, parentSchema: schema12.properties.items.items.properties.digits, data: data7 };
+                    if (vErrors === null) {
+                      vErrors = [err15];
+                    } else {
+                      vErrors.push(err15);
+                    }
+                    errors2++;
+                  }
+                }
+              }
+              if (data2.delta !== void 0) {
+                let data8 = data2.delta;
+                if (typeof data8 !== "string" && !(typeof data8 == "number" && isFinite(data8))) {
+                  const err16 = { instancePath: instancePath + "/items/" + i0 + "/delta", schemaPath: "#/properties/items/items/properties/delta/type", keyword: "type", params: { type: schema12.properties.items.items.properties.delta.type }, message: "must be string,number", schema: schema12.properties.items.items.properties.delta.type, parentSchema: schema12.properties.items.items.properties.delta, data: data8 };
+                  if (vErrors === null) {
+                    vErrors = [err16];
+                  } else {
+                    vErrors.push(err16);
+                  }
+                  errors2++;
+                }
+              }
+              let data9 = data2.tone;
+              if (!(data9 === "good" || data9 === "bad" || data9 === "neutral")) {
+                const err17 = { instancePath: instancePath + "/items/" + i0 + "/tone", schemaPath: "#/properties/items/items/properties/tone/enum", keyword: "enum", params: { allowedValues: schema12.properties.items.items.properties.tone.enum }, message: "must be equal to one of the allowed values", schema: schema12.properties.items.items.properties.tone.enum, parentSchema: schema12.properties.items.items.properties.tone, data: data9 };
+                if (vErrors === null) {
+                  vErrors = [err17];
+                } else {
+                  vErrors.push(err17);
+                }
+                errors2++;
+              }
+              if (data2.hint !== void 0) {
+                let data10 = data2.hint;
+                if (typeof data10 !== "string") {
+                  const err18 = { instancePath: instancePath + "/items/" + i0 + "/hint", schemaPath: "#/properties/items/items/properties/hint/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema12.properties.items.items.properties.hint.type, parentSchema: schema12.properties.items.items.properties.hint, data: data10 };
+                  if (vErrors === null) {
+                    vErrors = [err18];
+                  } else {
+                    vErrors.push(err18);
+                  }
+                  errors2++;
+                }
+              }
             } else {
-              const err13 = { instancePath: instancePath + "/items/" + i0, schemaPath: "#/properties/items/items/type", keyword: "type", params: { type: "object" }, message: "must be object", schema: schema12.properties.items.items.type, parentSchema: schema12.properties.items.items, data: data2 };
+              const err19 = { instancePath: instancePath + "/items/" + i0, schemaPath: "#/properties/items/items/type", keyword: "type", params: { type: "object" }, message: "must be object", schema: schema12.properties.items.items.type, parentSchema: schema12.properties.items.items, data: data2 };
               if (vErrors === null) {
-                vErrors = [err13];
+                vErrors = [err19];
               } else {
-                vErrors.push(err13);
+                vErrors.push(err19);
               }
               errors2++;
             }
           }
         } else {
-          const err14 = { instancePath: instancePath + "/items", schemaPath: "#/properties/items/type", keyword: "type", params: { type: "array" }, message: "must be array", schema: schema12.properties.items.type, parentSchema: schema12.properties.items, data: data1 };
+          const err20 = { instancePath: instancePath + "/items", schemaPath: "#/properties/items/type", keyword: "type", params: { type: "array" }, message: "must be array", schema: schema12.properties.items.type, parentSchema: schema12.properties.items, data: data1 };
           if (vErrors === null) {
-            vErrors = [err14];
+            vErrors = [err20];
           } else {
-            vErrors.push(err14);
+            vErrors.push(err20);
           }
           errors2++;
         }
       }
     } else {
-      const err15 = { instancePath, schemaPath: "#/type", keyword: "type", params: { type: "object" }, message: "must be object", schema: schema12.type, parentSchema: schema12, data };
+      const err21 = { instancePath, schemaPath: "#/type", keyword: "type", params: { type: "object" }, message: "must be object", schema: schema12.type, parentSchema: schema12, data };
       if (vErrors === null) {
-        vErrors = [err15];
+        vErrors = [err21];
       } else {
-        vErrors.push(err15);
+        vErrors.push(err21);
       }
       errors2++;
     }
@@ -27707,7 +28062,7 @@ ${end.comment}` : end.comment;
     return errors2 === 0;
   }
   var table2 = validate12;
-  var schema13 = { "type": "object", "additionalProperties": false, "properties": { "title": { "type": "string" }, "columns": { "type": "array", "minItems": 1, "items": { "type": ["string", "object"], "additionalProperties": false, "required": ["key"], "properties": { "key": { "type": "string", "description": "field name (object rows / data files) or header (list rows)" }, "label": { "type": "string" }, "align": { "enum": ["left", "right", "center"] } } }, "description": "columns to show, in order; default: every field" }, "data": { "type": "string", "description": "relative path to a .csv, .tsv or .json (array of objects) file" }, "rows": { "type": "array", "items": { "type": ["array", "object"] }, "description": "inline rows: objects, or lists named by columns" }, "sort": { "type": "object", "additionalProperties": false, "required": ["by"], "properties": { "by": { "type": "string" }, "desc": { "type": "boolean", "default": false } } }, "limit": { "type": "integer", "minimum": 1, "maximum": 5e3, "default": 1e3 } } };
+  var schema13 = { "type": "object", "additionalProperties": false, "properties": { "title": { "type": "string" }, "columns": { "type": "array", "minItems": 1, "items": { "type": ["string", "object"], "additionalProperties": false, "required": ["key"], "properties": { "key": { "type": "string", "description": "field name (object rows / data files) or header (list rows)" }, "label": { "type": "string" }, "align": { "enum": ["left", "right", "center"] }, "unit": { "type": "string", "description": "shown in the header" }, "error": { "type": "string", "description": "column holding the \xB1 uncertainty of this one" }, "digits": { "type": "integer", "minimum": 1, "maximum": 12, "description": "significant figures" } } }, "description": "columns to show, in order; default: every field" }, "data": { "type": "string", "description": "relative path to a .csv, .tsv or .json (array of objects) file" }, "rows": { "type": "array", "items": { "type": ["array", "object"] }, "description": "inline rows: objects, or lists named by columns" }, "sort": { "type": "object", "additionalProperties": false, "required": ["by"], "properties": { "by": { "type": "string" }, "desc": { "type": "boolean", "default": false } } }, "limit": { "type": "integer", "minimum": 1, "maximum": 5e3, "default": 1e3 } } };
   function validate12(data, { instancePath = "", parentData, parentDataProperty, rootData = data } = {}) {
     let vErrors = null;
     let errors2 = 0;
@@ -27773,7 +28128,7 @@ ${end.comment}` : end.comment;
                 errors2++;
               }
               for (const key1 in data2) {
-                if (!(key1 === "key" || key1 === "label" || key1 === "align")) {
+                if (!(key1 === "key" || key1 === "label" || key1 === "align" || key1 === "unit" || key1 === "error" || key1 === "digits")) {
                   const err5 = { instancePath: instancePath + "/columns/" + i0, schemaPath: "#/properties/columns/items/additionalProperties", keyword: "additionalProperties", params: { additionalProperty: key1 }, message: "must NOT have additional properties", schema: false, parentSchema: schema13.properties.columns.items, data: data2 };
                   if (vErrors === null) {
                     vErrors = [err5];
@@ -27819,106 +28174,104 @@ ${end.comment}` : end.comment;
                   errors2++;
                 }
               }
+              if (data2.unit !== void 0) {
+                let data6 = data2.unit;
+                if (typeof data6 !== "string") {
+                  const err9 = { instancePath: instancePath + "/columns/" + i0 + "/unit", schemaPath: "#/properties/columns/items/properties/unit/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema13.properties.columns.items.properties.unit.type, parentSchema: schema13.properties.columns.items.properties.unit, data: data6 };
+                  if (vErrors === null) {
+                    vErrors = [err9];
+                  } else {
+                    vErrors.push(err9);
+                  }
+                  errors2++;
+                }
+              }
+              if (data2.error !== void 0) {
+                let data7 = data2.error;
+                if (typeof data7 !== "string") {
+                  const err10 = { instancePath: instancePath + "/columns/" + i0 + "/error", schemaPath: "#/properties/columns/items/properties/error/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema13.properties.columns.items.properties.error.type, parentSchema: schema13.properties.columns.items.properties.error, data: data7 };
+                  if (vErrors === null) {
+                    vErrors = [err10];
+                  } else {
+                    vErrors.push(err10);
+                  }
+                  errors2++;
+                }
+              }
+              if (data2.digits !== void 0) {
+                let data8 = data2.digits;
+                if (!(typeof data8 == "number" && (!(data8 % 1) && !isNaN(data8)) && isFinite(data8))) {
+                  const err11 = { instancePath: instancePath + "/columns/" + i0 + "/digits", schemaPath: "#/properties/columns/items/properties/digits/type", keyword: "type", params: { type: "integer" }, message: "must be integer", schema: schema13.properties.columns.items.properties.digits.type, parentSchema: schema13.properties.columns.items.properties.digits, data: data8 };
+                  if (vErrors === null) {
+                    vErrors = [err11];
+                  } else {
+                    vErrors.push(err11);
+                  }
+                  errors2++;
+                }
+                if (typeof data8 == "number" && isFinite(data8)) {
+                  if (data8 > 12 || isNaN(data8)) {
+                    const err12 = { instancePath: instancePath + "/columns/" + i0 + "/digits", schemaPath: "#/properties/columns/items/properties/digits/maximum", keyword: "maximum", params: { comparison: "<=", limit: 12 }, message: "must be <= 12", schema: 12, parentSchema: schema13.properties.columns.items.properties.digits, data: data8 };
+                    if (vErrors === null) {
+                      vErrors = [err12];
+                    } else {
+                      vErrors.push(err12);
+                    }
+                    errors2++;
+                  }
+                  if (data8 < 1 || isNaN(data8)) {
+                    const err13 = { instancePath: instancePath + "/columns/" + i0 + "/digits", schemaPath: "#/properties/columns/items/properties/digits/minimum", keyword: "minimum", params: { comparison: ">=", limit: 1 }, message: "must be >= 1", schema: 1, parentSchema: schema13.properties.columns.items.properties.digits, data: data8 };
+                    if (vErrors === null) {
+                      vErrors = [err13];
+                    } else {
+                      vErrors.push(err13);
+                    }
+                    errors2++;
+                  }
+                }
+              }
             }
           }
         } else {
-          const err9 = { instancePath: instancePath + "/columns", schemaPath: "#/properties/columns/type", keyword: "type", params: { type: "array" }, message: "must be array", schema: schema13.properties.columns.type, parentSchema: schema13.properties.columns, data: data1 };
+          const err14 = { instancePath: instancePath + "/columns", schemaPath: "#/properties/columns/type", keyword: "type", params: { type: "array" }, message: "must be array", schema: schema13.properties.columns.type, parentSchema: schema13.properties.columns, data: data1 };
           if (vErrors === null) {
-            vErrors = [err9];
+            vErrors = [err14];
           } else {
-            vErrors.push(err9);
+            vErrors.push(err14);
           }
           errors2++;
         }
       }
       if (data.data !== void 0) {
-        let data6 = data.data;
-        if (typeof data6 !== "string") {
-          const err10 = { instancePath: instancePath + "/data", schemaPath: "#/properties/data/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema13.properties.data.type, parentSchema: schema13.properties.data, data: data6 };
+        let data9 = data.data;
+        if (typeof data9 !== "string") {
+          const err15 = { instancePath: instancePath + "/data", schemaPath: "#/properties/data/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema13.properties.data.type, parentSchema: schema13.properties.data, data: data9 };
           if (vErrors === null) {
-            vErrors = [err10];
+            vErrors = [err15];
           } else {
-            vErrors.push(err10);
+            vErrors.push(err15);
           }
           errors2++;
         }
       }
       if (data.rows !== void 0) {
-        let data7 = data.rows;
-        if (Array.isArray(data7)) {
-          const len1 = data7.length;
+        let data10 = data.rows;
+        if (Array.isArray(data10)) {
+          const len1 = data10.length;
           for (let i1 = 0; i1 < len1; i1++) {
-            let data8 = data7[i1];
-            if (!data8 || typeof data8 != "object") {
-              const err11 = { instancePath: instancePath + "/rows/" + i1, schemaPath: "#/properties/rows/items/type", keyword: "type", params: { type: schema13.properties.rows.items.type }, message: "must be array,object", schema: schema13.properties.rows.items.type, parentSchema: schema13.properties.rows.items, data: data8 };
+            let data11 = data10[i1];
+            if (!data11 || typeof data11 != "object") {
+              const err16 = { instancePath: instancePath + "/rows/" + i1, schemaPath: "#/properties/rows/items/type", keyword: "type", params: { type: schema13.properties.rows.items.type }, message: "must be array,object", schema: schema13.properties.rows.items.type, parentSchema: schema13.properties.rows.items, data: data11 };
               if (vErrors === null) {
-                vErrors = [err11];
+                vErrors = [err16];
               } else {
-                vErrors.push(err11);
+                vErrors.push(err16);
               }
               errors2++;
             }
           }
         } else {
-          const err12 = { instancePath: instancePath + "/rows", schemaPath: "#/properties/rows/type", keyword: "type", params: { type: "array" }, message: "must be array", schema: schema13.properties.rows.type, parentSchema: schema13.properties.rows, data: data7 };
-          if (vErrors === null) {
-            vErrors = [err12];
-          } else {
-            vErrors.push(err12);
-          }
-          errors2++;
-        }
-      }
-      if (data.sort !== void 0) {
-        let data9 = data.sort;
-        if (data9 && typeof data9 == "object" && !Array.isArray(data9)) {
-          if (data9.desc === void 0) {
-            data9.desc = false;
-          }
-          if (data9.by === void 0) {
-            const err13 = { instancePath: instancePath + "/sort", schemaPath: "#/properties/sort/required", keyword: "required", params: { missingProperty: "by" }, message: "must have required property 'by'", schema: schema13.properties.sort.required, parentSchema: schema13.properties.sort, data: data9 };
-            if (vErrors === null) {
-              vErrors = [err13];
-            } else {
-              vErrors.push(err13);
-            }
-            errors2++;
-          }
-          for (const key2 in data9) {
-            if (!(key2 === "by" || key2 === "desc")) {
-              const err14 = { instancePath: instancePath + "/sort", schemaPath: "#/properties/sort/additionalProperties", keyword: "additionalProperties", params: { additionalProperty: key2 }, message: "must NOT have additional properties", schema: false, parentSchema: schema13.properties.sort, data: data9 };
-              if (vErrors === null) {
-                vErrors = [err14];
-              } else {
-                vErrors.push(err14);
-              }
-              errors2++;
-            }
-          }
-          if (data9.by !== void 0) {
-            let data10 = data9.by;
-            if (typeof data10 !== "string") {
-              const err15 = { instancePath: instancePath + "/sort/by", schemaPath: "#/properties/sort/properties/by/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema13.properties.sort.properties.by.type, parentSchema: schema13.properties.sort.properties.by, data: data10 };
-              if (vErrors === null) {
-                vErrors = [err15];
-              } else {
-                vErrors.push(err15);
-              }
-              errors2++;
-            }
-          }
-          let data11 = data9.desc;
-          if (typeof data11 !== "boolean") {
-            const err16 = { instancePath: instancePath + "/sort/desc", schemaPath: "#/properties/sort/properties/desc/type", keyword: "type", params: { type: "boolean" }, message: "must be boolean", schema: schema13.properties.sort.properties.desc.type, parentSchema: schema13.properties.sort.properties.desc, data: data11 };
-            if (vErrors === null) {
-              vErrors = [err16];
-            } else {
-              vErrors.push(err16);
-            }
-            errors2++;
-          }
-        } else {
-          const err17 = { instancePath: instancePath + "/sort", schemaPath: "#/properties/sort/type", keyword: "type", params: { type: "object" }, message: "must be object", schema: schema13.properties.sort.type, parentSchema: schema13.properties.sort, data: data9 };
+          const err17 = { instancePath: instancePath + "/rows", schemaPath: "#/properties/rows/type", keyword: "type", params: { type: "array" }, message: "must be array", schema: schema13.properties.rows.type, parentSchema: schema13.properties.rows, data: data10 };
           if (vErrors === null) {
             vErrors = [err17];
           } else {
@@ -27927,42 +28280,100 @@ ${end.comment}` : end.comment;
           errors2++;
         }
       }
-      let data12 = data.limit;
-      if (!(typeof data12 == "number" && (!(data12 % 1) && !isNaN(data12)) && isFinite(data12))) {
-        const err18 = { instancePath: instancePath + "/limit", schemaPath: "#/properties/limit/type", keyword: "type", params: { type: "integer" }, message: "must be integer", schema: schema13.properties.limit.type, parentSchema: schema13.properties.limit, data: data12 };
-        if (vErrors === null) {
-          vErrors = [err18];
+      if (data.sort !== void 0) {
+        let data12 = data.sort;
+        if (data12 && typeof data12 == "object" && !Array.isArray(data12)) {
+          if (data12.desc === void 0) {
+            data12.desc = false;
+          }
+          if (data12.by === void 0) {
+            const err18 = { instancePath: instancePath + "/sort", schemaPath: "#/properties/sort/required", keyword: "required", params: { missingProperty: "by" }, message: "must have required property 'by'", schema: schema13.properties.sort.required, parentSchema: schema13.properties.sort, data: data12 };
+            if (vErrors === null) {
+              vErrors = [err18];
+            } else {
+              vErrors.push(err18);
+            }
+            errors2++;
+          }
+          for (const key2 in data12) {
+            if (!(key2 === "by" || key2 === "desc")) {
+              const err19 = { instancePath: instancePath + "/sort", schemaPath: "#/properties/sort/additionalProperties", keyword: "additionalProperties", params: { additionalProperty: key2 }, message: "must NOT have additional properties", schema: false, parentSchema: schema13.properties.sort, data: data12 };
+              if (vErrors === null) {
+                vErrors = [err19];
+              } else {
+                vErrors.push(err19);
+              }
+              errors2++;
+            }
+          }
+          if (data12.by !== void 0) {
+            let data13 = data12.by;
+            if (typeof data13 !== "string") {
+              const err20 = { instancePath: instancePath + "/sort/by", schemaPath: "#/properties/sort/properties/by/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema13.properties.sort.properties.by.type, parentSchema: schema13.properties.sort.properties.by, data: data13 };
+              if (vErrors === null) {
+                vErrors = [err20];
+              } else {
+                vErrors.push(err20);
+              }
+              errors2++;
+            }
+          }
+          let data14 = data12.desc;
+          if (typeof data14 !== "boolean") {
+            const err21 = { instancePath: instancePath + "/sort/desc", schemaPath: "#/properties/sort/properties/desc/type", keyword: "type", params: { type: "boolean" }, message: "must be boolean", schema: schema13.properties.sort.properties.desc.type, parentSchema: schema13.properties.sort.properties.desc, data: data14 };
+            if (vErrors === null) {
+              vErrors = [err21];
+            } else {
+              vErrors.push(err21);
+            }
+            errors2++;
+          }
         } else {
-          vErrors.push(err18);
-        }
-        errors2++;
-      }
-      if (typeof data12 == "number" && isFinite(data12)) {
-        if (data12 > 5e3 || isNaN(data12)) {
-          const err19 = { instancePath: instancePath + "/limit", schemaPath: "#/properties/limit/maximum", keyword: "maximum", params: { comparison: "<=", limit: 5e3 }, message: "must be <= 5000", schema: 5e3, parentSchema: schema13.properties.limit, data: data12 };
+          const err22 = { instancePath: instancePath + "/sort", schemaPath: "#/properties/sort/type", keyword: "type", params: { type: "object" }, message: "must be object", schema: schema13.properties.sort.type, parentSchema: schema13.properties.sort, data: data12 };
           if (vErrors === null) {
-            vErrors = [err19];
+            vErrors = [err22];
           } else {
-            vErrors.push(err19);
+            vErrors.push(err22);
           }
           errors2++;
         }
-        if (data12 < 1 || isNaN(data12)) {
-          const err20 = { instancePath: instancePath + "/limit", schemaPath: "#/properties/limit/minimum", keyword: "minimum", params: { comparison: ">=", limit: 1 }, message: "must be >= 1", schema: 1, parentSchema: schema13.properties.limit, data: data12 };
+      }
+      let data15 = data.limit;
+      if (!(typeof data15 == "number" && (!(data15 % 1) && !isNaN(data15)) && isFinite(data15))) {
+        const err23 = { instancePath: instancePath + "/limit", schemaPath: "#/properties/limit/type", keyword: "type", params: { type: "integer" }, message: "must be integer", schema: schema13.properties.limit.type, parentSchema: schema13.properties.limit, data: data15 };
+        if (vErrors === null) {
+          vErrors = [err23];
+        } else {
+          vErrors.push(err23);
+        }
+        errors2++;
+      }
+      if (typeof data15 == "number" && isFinite(data15)) {
+        if (data15 > 5e3 || isNaN(data15)) {
+          const err24 = { instancePath: instancePath + "/limit", schemaPath: "#/properties/limit/maximum", keyword: "maximum", params: { comparison: "<=", limit: 5e3 }, message: "must be <= 5000", schema: 5e3, parentSchema: schema13.properties.limit, data: data15 };
           if (vErrors === null) {
-            vErrors = [err20];
+            vErrors = [err24];
           } else {
-            vErrors.push(err20);
+            vErrors.push(err24);
+          }
+          errors2++;
+        }
+        if (data15 < 1 || isNaN(data15)) {
+          const err25 = { instancePath: instancePath + "/limit", schemaPath: "#/properties/limit/minimum", keyword: "minimum", params: { comparison: ">=", limit: 1 }, message: "must be >= 1", schema: 1, parentSchema: schema13.properties.limit, data: data15 };
+          if (vErrors === null) {
+            vErrors = [err25];
+          } else {
+            vErrors.push(err25);
           }
           errors2++;
         }
       }
     } else {
-      const err21 = { instancePath, schemaPath: "#/type", keyword: "type", params: { type: "object" }, message: "must be object", schema: schema13.type, parentSchema: schema13, data };
+      const err26 = { instancePath, schemaPath: "#/type", keyword: "type", params: { type: "object" }, message: "must be object", schema: schema13.type, parentSchema: schema13, data };
       if (vErrors === null) {
-        vErrors = [err21];
+        vErrors = [err26];
       } else {
-        vErrors.push(err21);
+        vErrors.push(err26);
       }
       errors2++;
     }
@@ -27970,12 +28381,18 @@ ${end.comment}` : end.comment;
     return errors2 === 0;
   }
   var chart = validate13;
-  var schema14 = { "type": "object", "additionalProperties": false, "required": ["type", "x", "y"], "properties": { "type": { "enum": ["line", "bar", "area", "scatter", "pie"] }, "title": { "type": "string" }, "data": { "type": "string", "description": "relative path to a .csv, .tsv or .json (array of objects) file" }, "rows": { "type": "array", "items": { "type": ["array", "object"] }, "description": "inline rows: objects, or lists named by columns" }, "columns": { "type": "array", "items": { "type": "string" }, "minItems": 1, "description": "names for list rows" }, "x": { "type": "string", "description": "column for the x axis (pie: slice labels)" }, "y": { "type": ["string", "array"], "items": { "type": "string" }, "minItems": 1, "description": "numeric column(s), one series each" }, "stack": { "type": "boolean", "default": false, "description": "stack the series (bar, area)" }, "horizontal": { "type": "boolean", "default": false, "description": "horizontal bars" }, "unit": { "type": "string", "description": "suffix for values, e.g. ms or %" }, "height": { "type": "integer", "minimum": 160, "maximum": 900, "default": 300 } } };
+  var schema14 = { "type": "object", "additionalProperties": false, "required": ["type"], "properties": { "type": { "enum": ["line", "bar", "area", "scatter", "pie", "histogram", "box", "heatmap"] }, "title": { "type": "string" }, "data": { "type": "string", "description": "relative path to a .csv, .tsv or .json (array of objects) file" }, "rows": { "type": "array", "items": { "type": ["array", "object"] }, "description": "inline rows: objects, or lists named by columns" }, "columns": { "type": "array", "items": { "type": "string" }, "minItems": 1, "description": "names for list rows" }, "x": { "type": "string", "description": "x / category column (pie: labels; box: optional group column; heatmap: columns of the grid)" }, "y": { "type": ["string", "array"], "items": { "type": "string" }, "minItems": 1, "description": "numeric column(s), one series each (heatmap: rows of the grid)" }, "value": { "type": "string", "description": "heatmap: the numeric column coloured in each cell" }, "error": { "type": ["string", "array"], "items": { "type": "string" }, "description": "\xB1 error column per y column: error bars (line, scatter, bar)" }, "band": { "type": "object", "additionalProperties": false, "required": ["low", "high"], "properties": { "low": { "type": "string" }, "high": { "type": "string" }, "label": { "type": "string" } }, "description": "shaded band between two columns, e.g. a 95% confidence interval" }, "fit": { "enum": ["linear", "quadratic", "cubic", "exponential", "log", "power"], "description": "least-squares curve through each y series, with its equation and R\xB2 (numeric x)" }, "bins": { "type": "integer", "minimum": 2, "maximum": 200, "description": "histogram bins (default: Freedman\u2013Diaconis)" }, "logx": { "type": "boolean", "default": false }, "logy": { "type": "boolean", "default": false }, "stack": { "type": "boolean", "default": false, "description": "stack the series (bar, area)" }, "horizontal": { "type": "boolean", "default": false, "description": "horizontal bars" }, "unit": { "type": "string", "description": "suffix for values, e.g. ms or %" }, "height": { "type": "integer", "minimum": 160, "maximum": 900, "default": 300 } } };
   var func2 = Object.prototype.hasOwnProperty;
   function validate13(data, { instancePath = "", parentData, parentDataProperty, rootData = data } = {}) {
     let vErrors = null;
     let errors2 = 0;
     if (data && typeof data == "object" && !Array.isArray(data)) {
+      if (data.logx === void 0) {
+        data.logx = false;
+      }
+      if (data.logy === void 0) {
+        data.logy = false;
+      }
       if (data.stack === void 0) {
         data.stack = false;
       }
@@ -27994,27 +28411,33 @@ ${end.comment}` : end.comment;
         }
         errors2++;
       }
-      if (data.x === void 0) {
-        const err1 = { instancePath, schemaPath: "#/required", keyword: "required", params: { missingProperty: "x" }, message: "must have required property 'x'", schema: schema14.required, parentSchema: schema14, data };
-        if (vErrors === null) {
-          vErrors = [err1];
-        } else {
-          vErrors.push(err1);
-        }
-        errors2++;
-      }
-      if (data.y === void 0) {
-        const err2 = { instancePath, schemaPath: "#/required", keyword: "required", params: { missingProperty: "y" }, message: "must have required property 'y'", schema: schema14.required, parentSchema: schema14, data };
-        if (vErrors === null) {
-          vErrors = [err2];
-        } else {
-          vErrors.push(err2);
-        }
-        errors2++;
-      }
       for (const key0 in data) {
         if (!func2.call(schema14.properties, key0)) {
-          const err3 = { instancePath, schemaPath: "#/additionalProperties", keyword: "additionalProperties", params: { additionalProperty: key0 }, message: "must NOT have additional properties", schema: false, parentSchema: schema14, data };
+          const err1 = { instancePath, schemaPath: "#/additionalProperties", keyword: "additionalProperties", params: { additionalProperty: key0 }, message: "must NOT have additional properties", schema: false, parentSchema: schema14, data };
+          if (vErrors === null) {
+            vErrors = [err1];
+          } else {
+            vErrors.push(err1);
+          }
+          errors2++;
+        }
+      }
+      if (data.type !== void 0) {
+        let data0 = data.type;
+        if (!(data0 === "line" || data0 === "bar" || data0 === "area" || data0 === "scatter" || data0 === "pie" || data0 === "histogram" || data0 === "box" || data0 === "heatmap")) {
+          const err2 = { instancePath: instancePath + "/type", schemaPath: "#/properties/type/enum", keyword: "enum", params: { allowedValues: schema14.properties.type.enum }, message: "must be equal to one of the allowed values", schema: schema14.properties.type.enum, parentSchema: schema14.properties.type, data: data0 };
+          if (vErrors === null) {
+            vErrors = [err2];
+          } else {
+            vErrors.push(err2);
+          }
+          errors2++;
+        }
+      }
+      if (data.title !== void 0) {
+        let data1 = data.title;
+        if (typeof data1 !== "string") {
+          const err3 = { instancePath: instancePath + "/title", schemaPath: "#/properties/title/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema14.properties.title.type, parentSchema: schema14.properties.title, data: data1 };
           if (vErrors === null) {
             vErrors = [err3];
           } else {
@@ -28023,38 +28446,14 @@ ${end.comment}` : end.comment;
           errors2++;
         }
       }
-      if (data.type !== void 0) {
-        let data0 = data.type;
-        if (!(data0 === "line" || data0 === "bar" || data0 === "area" || data0 === "scatter" || data0 === "pie")) {
-          const err4 = { instancePath: instancePath + "/type", schemaPath: "#/properties/type/enum", keyword: "enum", params: { allowedValues: schema14.properties.type.enum }, message: "must be equal to one of the allowed values", schema: schema14.properties.type.enum, parentSchema: schema14.properties.type, data: data0 };
+      if (data.data !== void 0) {
+        let data2 = data.data;
+        if (typeof data2 !== "string") {
+          const err4 = { instancePath: instancePath + "/data", schemaPath: "#/properties/data/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema14.properties.data.type, parentSchema: schema14.properties.data, data: data2 };
           if (vErrors === null) {
             vErrors = [err4];
           } else {
             vErrors.push(err4);
-          }
-          errors2++;
-        }
-      }
-      if (data.title !== void 0) {
-        let data1 = data.title;
-        if (typeof data1 !== "string") {
-          const err5 = { instancePath: instancePath + "/title", schemaPath: "#/properties/title/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema14.properties.title.type, parentSchema: schema14.properties.title, data: data1 };
-          if (vErrors === null) {
-            vErrors = [err5];
-          } else {
-            vErrors.push(err5);
-          }
-          errors2++;
-        }
-      }
-      if (data.data !== void 0) {
-        let data2 = data.data;
-        if (typeof data2 !== "string") {
-          const err6 = { instancePath: instancePath + "/data", schemaPath: "#/properties/data/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema14.properties.data.type, parentSchema: schema14.properties.data, data: data2 };
-          if (vErrors === null) {
-            vErrors = [err6];
-          } else {
-            vErrors.push(err6);
           }
           errors2++;
         }
@@ -28066,21 +28465,21 @@ ${end.comment}` : end.comment;
           for (let i0 = 0; i0 < len0; i0++) {
             let data4 = data3[i0];
             if (!data4 || typeof data4 != "object") {
-              const err7 = { instancePath: instancePath + "/rows/" + i0, schemaPath: "#/properties/rows/items/type", keyword: "type", params: { type: schema14.properties.rows.items.type }, message: "must be array,object", schema: schema14.properties.rows.items.type, parentSchema: schema14.properties.rows.items, data: data4 };
+              const err5 = { instancePath: instancePath + "/rows/" + i0, schemaPath: "#/properties/rows/items/type", keyword: "type", params: { type: schema14.properties.rows.items.type }, message: "must be array,object", schema: schema14.properties.rows.items.type, parentSchema: schema14.properties.rows.items, data: data4 };
               if (vErrors === null) {
-                vErrors = [err7];
+                vErrors = [err5];
               } else {
-                vErrors.push(err7);
+                vErrors.push(err5);
               }
               errors2++;
             }
           }
         } else {
-          const err8 = { instancePath: instancePath + "/rows", schemaPath: "#/properties/rows/type", keyword: "type", params: { type: "array" }, message: "must be array", schema: schema14.properties.rows.type, parentSchema: schema14.properties.rows, data: data3 };
+          const err6 = { instancePath: instancePath + "/rows", schemaPath: "#/properties/rows/type", keyword: "type", params: { type: "array" }, message: "must be array", schema: schema14.properties.rows.type, parentSchema: schema14.properties.rows, data: data3 };
           if (vErrors === null) {
-            vErrors = [err8];
+            vErrors = [err6];
           } else {
-            vErrors.push(err8);
+            vErrors.push(err6);
           }
           errors2++;
         }
@@ -28089,11 +28488,11 @@ ${end.comment}` : end.comment;
         let data5 = data.columns;
         if (Array.isArray(data5)) {
           if (data5.length < 1) {
-            const err9 = { instancePath: instancePath + "/columns", schemaPath: "#/properties/columns/minItems", keyword: "minItems", params: { limit: 1 }, message: "must NOT have fewer than 1 items", schema: 1, parentSchema: schema14.properties.columns, data: data5 };
+            const err7 = { instancePath: instancePath + "/columns", schemaPath: "#/properties/columns/minItems", keyword: "minItems", params: { limit: 1 }, message: "must NOT have fewer than 1 items", schema: 1, parentSchema: schema14.properties.columns, data: data5 };
             if (vErrors === null) {
-              vErrors = [err9];
+              vErrors = [err7];
             } else {
-              vErrors.push(err9);
+              vErrors.push(err7);
             }
             errors2++;
           }
@@ -28101,21 +28500,21 @@ ${end.comment}` : end.comment;
           for (let i1 = 0; i1 < len1; i1++) {
             let data6 = data5[i1];
             if (typeof data6 !== "string") {
-              const err10 = { instancePath: instancePath + "/columns/" + i1, schemaPath: "#/properties/columns/items/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema14.properties.columns.items.type, parentSchema: schema14.properties.columns.items, data: data6 };
+              const err8 = { instancePath: instancePath + "/columns/" + i1, schemaPath: "#/properties/columns/items/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema14.properties.columns.items.type, parentSchema: schema14.properties.columns.items, data: data6 };
               if (vErrors === null) {
-                vErrors = [err10];
+                vErrors = [err8];
               } else {
-                vErrors.push(err10);
+                vErrors.push(err8);
               }
               errors2++;
             }
           }
         } else {
-          const err11 = { instancePath: instancePath + "/columns", schemaPath: "#/properties/columns/type", keyword: "type", params: { type: "array" }, message: "must be array", schema: schema14.properties.columns.type, parentSchema: schema14.properties.columns, data: data5 };
+          const err9 = { instancePath: instancePath + "/columns", schemaPath: "#/properties/columns/type", keyword: "type", params: { type: "array" }, message: "must be array", schema: schema14.properties.columns.type, parentSchema: schema14.properties.columns, data: data5 };
           if (vErrors === null) {
-            vErrors = [err11];
+            vErrors = [err9];
           } else {
-            vErrors.push(err11);
+            vErrors.push(err9);
           }
           errors2++;
         }
@@ -28123,11 +28522,11 @@ ${end.comment}` : end.comment;
       if (data.x !== void 0) {
         let data7 = data.x;
         if (typeof data7 !== "string") {
-          const err12 = { instancePath: instancePath + "/x", schemaPath: "#/properties/x/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema14.properties.x.type, parentSchema: schema14.properties.x, data: data7 };
+          const err10 = { instancePath: instancePath + "/x", schemaPath: "#/properties/x/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema14.properties.x.type, parentSchema: schema14.properties.x, data: data7 };
           if (vErrors === null) {
-            vErrors = [err12];
+            vErrors = [err10];
           } else {
-            vErrors.push(err12);
+            vErrors.push(err10);
           }
           errors2++;
         }
@@ -28135,21 +28534,21 @@ ${end.comment}` : end.comment;
       if (data.y !== void 0) {
         let data8 = data.y;
         if (typeof data8 !== "string" && !Array.isArray(data8)) {
-          const err13 = { instancePath: instancePath + "/y", schemaPath: "#/properties/y/type", keyword: "type", params: { type: schema14.properties.y.type }, message: "must be string,array", schema: schema14.properties.y.type, parentSchema: schema14.properties.y, data: data8 };
+          const err11 = { instancePath: instancePath + "/y", schemaPath: "#/properties/y/type", keyword: "type", params: { type: schema14.properties.y.type }, message: "must be string,array", schema: schema14.properties.y.type, parentSchema: schema14.properties.y, data: data8 };
           if (vErrors === null) {
-            vErrors = [err13];
+            vErrors = [err11];
           } else {
-            vErrors.push(err13);
+            vErrors.push(err11);
           }
           errors2++;
         }
         if (Array.isArray(data8)) {
           if (data8.length < 1) {
-            const err14 = { instancePath: instancePath + "/y", schemaPath: "#/properties/y/minItems", keyword: "minItems", params: { limit: 1 }, message: "must NOT have fewer than 1 items", schema: 1, parentSchema: schema14.properties.y, data: data8 };
+            const err12 = { instancePath: instancePath + "/y", schemaPath: "#/properties/y/minItems", keyword: "minItems", params: { limit: 1 }, message: "must NOT have fewer than 1 items", schema: 1, parentSchema: schema14.properties.y, data: data8 };
             if (vErrors === null) {
-              vErrors = [err14];
+              vErrors = [err12];
             } else {
-              vErrors.push(err14);
+              vErrors.push(err12);
             }
             errors2++;
           }
@@ -28157,85 +28556,266 @@ ${end.comment}` : end.comment;
           for (let i2 = 0; i2 < len2; i2++) {
             let data9 = data8[i2];
             if (typeof data9 !== "string") {
-              const err15 = { instancePath: instancePath + "/y/" + i2, schemaPath: "#/properties/y/items/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema14.properties.y.items.type, parentSchema: schema14.properties.y.items, data: data9 };
+              const err13 = { instancePath: instancePath + "/y/" + i2, schemaPath: "#/properties/y/items/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema14.properties.y.items.type, parentSchema: schema14.properties.y.items, data: data9 };
               if (vErrors === null) {
-                vErrors = [err15];
+                vErrors = [err13];
               } else {
-                vErrors.push(err15);
+                vErrors.push(err13);
               }
               errors2++;
             }
           }
         }
       }
-      let data10 = data.stack;
-      if (typeof data10 !== "boolean") {
-        const err16 = { instancePath: instancePath + "/stack", schemaPath: "#/properties/stack/type", keyword: "type", params: { type: "boolean" }, message: "must be boolean", schema: schema14.properties.stack.type, parentSchema: schema14.properties.stack, data: data10 };
-        if (vErrors === null) {
-          vErrors = [err16];
+      if (data.value !== void 0) {
+        let data10 = data.value;
+        if (typeof data10 !== "string") {
+          const err14 = { instancePath: instancePath + "/value", schemaPath: "#/properties/value/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema14.properties.value.type, parentSchema: schema14.properties.value, data: data10 };
+          if (vErrors === null) {
+            vErrors = [err14];
+          } else {
+            vErrors.push(err14);
+          }
+          errors2++;
+        }
+      }
+      if (data.error !== void 0) {
+        let data11 = data.error;
+        if (typeof data11 !== "string" && !Array.isArray(data11)) {
+          const err15 = { instancePath: instancePath + "/error", schemaPath: "#/properties/error/type", keyword: "type", params: { type: schema14.properties.error.type }, message: "must be string,array", schema: schema14.properties.error.type, parentSchema: schema14.properties.error, data: data11 };
+          if (vErrors === null) {
+            vErrors = [err15];
+          } else {
+            vErrors.push(err15);
+          }
+          errors2++;
+        }
+        if (Array.isArray(data11)) {
+          const len3 = data11.length;
+          for (let i3 = 0; i3 < len3; i3++) {
+            let data12 = data11[i3];
+            if (typeof data12 !== "string") {
+              const err16 = { instancePath: instancePath + "/error/" + i3, schemaPath: "#/properties/error/items/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema14.properties.error.items.type, parentSchema: schema14.properties.error.items, data: data12 };
+              if (vErrors === null) {
+                vErrors = [err16];
+              } else {
+                vErrors.push(err16);
+              }
+              errors2++;
+            }
+          }
+        }
+      }
+      if (data.band !== void 0) {
+        let data13 = data.band;
+        if (data13 && typeof data13 == "object" && !Array.isArray(data13)) {
+          if (data13.low === void 0) {
+            const err17 = { instancePath: instancePath + "/band", schemaPath: "#/properties/band/required", keyword: "required", params: { missingProperty: "low" }, message: "must have required property 'low'", schema: schema14.properties.band.required, parentSchema: schema14.properties.band, data: data13 };
+            if (vErrors === null) {
+              vErrors = [err17];
+            } else {
+              vErrors.push(err17);
+            }
+            errors2++;
+          }
+          if (data13.high === void 0) {
+            const err18 = { instancePath: instancePath + "/band", schemaPath: "#/properties/band/required", keyword: "required", params: { missingProperty: "high" }, message: "must have required property 'high'", schema: schema14.properties.band.required, parentSchema: schema14.properties.band, data: data13 };
+            if (vErrors === null) {
+              vErrors = [err18];
+            } else {
+              vErrors.push(err18);
+            }
+            errors2++;
+          }
+          for (const key1 in data13) {
+            if (!(key1 === "low" || key1 === "high" || key1 === "label")) {
+              const err19 = { instancePath: instancePath + "/band", schemaPath: "#/properties/band/additionalProperties", keyword: "additionalProperties", params: { additionalProperty: key1 }, message: "must NOT have additional properties", schema: false, parentSchema: schema14.properties.band, data: data13 };
+              if (vErrors === null) {
+                vErrors = [err19];
+              } else {
+                vErrors.push(err19);
+              }
+              errors2++;
+            }
+          }
+          if (data13.low !== void 0) {
+            let data14 = data13.low;
+            if (typeof data14 !== "string") {
+              const err20 = { instancePath: instancePath + "/band/low", schemaPath: "#/properties/band/properties/low/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema14.properties.band.properties.low.type, parentSchema: schema14.properties.band.properties.low, data: data14 };
+              if (vErrors === null) {
+                vErrors = [err20];
+              } else {
+                vErrors.push(err20);
+              }
+              errors2++;
+            }
+          }
+          if (data13.high !== void 0) {
+            let data15 = data13.high;
+            if (typeof data15 !== "string") {
+              const err21 = { instancePath: instancePath + "/band/high", schemaPath: "#/properties/band/properties/high/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema14.properties.band.properties.high.type, parentSchema: schema14.properties.band.properties.high, data: data15 };
+              if (vErrors === null) {
+                vErrors = [err21];
+              } else {
+                vErrors.push(err21);
+              }
+              errors2++;
+            }
+          }
+          if (data13.label !== void 0) {
+            let data16 = data13.label;
+            if (typeof data16 !== "string") {
+              const err22 = { instancePath: instancePath + "/band/label", schemaPath: "#/properties/band/properties/label/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema14.properties.band.properties.label.type, parentSchema: schema14.properties.band.properties.label, data: data16 };
+              if (vErrors === null) {
+                vErrors = [err22];
+              } else {
+                vErrors.push(err22);
+              }
+              errors2++;
+            }
+          }
         } else {
-          vErrors.push(err16);
+          const err23 = { instancePath: instancePath + "/band", schemaPath: "#/properties/band/type", keyword: "type", params: { type: "object" }, message: "must be object", schema: schema14.properties.band.type, parentSchema: schema14.properties.band, data: data13 };
+          if (vErrors === null) {
+            vErrors = [err23];
+          } else {
+            vErrors.push(err23);
+          }
+          errors2++;
+        }
+      }
+      if (data.fit !== void 0) {
+        let data17 = data.fit;
+        if (!(data17 === "linear" || data17 === "quadratic" || data17 === "cubic" || data17 === "exponential" || data17 === "log" || data17 === "power")) {
+          const err24 = { instancePath: instancePath + "/fit", schemaPath: "#/properties/fit/enum", keyword: "enum", params: { allowedValues: schema14.properties.fit.enum }, message: "must be equal to one of the allowed values", schema: schema14.properties.fit.enum, parentSchema: schema14.properties.fit, data: data17 };
+          if (vErrors === null) {
+            vErrors = [err24];
+          } else {
+            vErrors.push(err24);
+          }
+          errors2++;
+        }
+      }
+      if (data.bins !== void 0) {
+        let data18 = data.bins;
+        if (!(typeof data18 == "number" && (!(data18 % 1) && !isNaN(data18)) && isFinite(data18))) {
+          const err25 = { instancePath: instancePath + "/bins", schemaPath: "#/properties/bins/type", keyword: "type", params: { type: "integer" }, message: "must be integer", schema: schema14.properties.bins.type, parentSchema: schema14.properties.bins, data: data18 };
+          if (vErrors === null) {
+            vErrors = [err25];
+          } else {
+            vErrors.push(err25);
+          }
+          errors2++;
+        }
+        if (typeof data18 == "number" && isFinite(data18)) {
+          if (data18 > 200 || isNaN(data18)) {
+            const err26 = { instancePath: instancePath + "/bins", schemaPath: "#/properties/bins/maximum", keyword: "maximum", params: { comparison: "<=", limit: 200 }, message: "must be <= 200", schema: 200, parentSchema: schema14.properties.bins, data: data18 };
+            if (vErrors === null) {
+              vErrors = [err26];
+            } else {
+              vErrors.push(err26);
+            }
+            errors2++;
+          }
+          if (data18 < 2 || isNaN(data18)) {
+            const err27 = { instancePath: instancePath + "/bins", schemaPath: "#/properties/bins/minimum", keyword: "minimum", params: { comparison: ">=", limit: 2 }, message: "must be >= 2", schema: 2, parentSchema: schema14.properties.bins, data: data18 };
+            if (vErrors === null) {
+              vErrors = [err27];
+            } else {
+              vErrors.push(err27);
+            }
+            errors2++;
+          }
+        }
+      }
+      let data19 = data.logx;
+      if (typeof data19 !== "boolean") {
+        const err28 = { instancePath: instancePath + "/logx", schemaPath: "#/properties/logx/type", keyword: "type", params: { type: "boolean" }, message: "must be boolean", schema: schema14.properties.logx.type, parentSchema: schema14.properties.logx, data: data19 };
+        if (vErrors === null) {
+          vErrors = [err28];
+        } else {
+          vErrors.push(err28);
         }
         errors2++;
       }
-      let data11 = data.horizontal;
-      if (typeof data11 !== "boolean") {
-        const err17 = { instancePath: instancePath + "/horizontal", schemaPath: "#/properties/horizontal/type", keyword: "type", params: { type: "boolean" }, message: "must be boolean", schema: schema14.properties.horizontal.type, parentSchema: schema14.properties.horizontal, data: data11 };
+      let data20 = data.logy;
+      if (typeof data20 !== "boolean") {
+        const err29 = { instancePath: instancePath + "/logy", schemaPath: "#/properties/logy/type", keyword: "type", params: { type: "boolean" }, message: "must be boolean", schema: schema14.properties.logy.type, parentSchema: schema14.properties.logy, data: data20 };
         if (vErrors === null) {
-          vErrors = [err17];
+          vErrors = [err29];
         } else {
-          vErrors.push(err17);
+          vErrors.push(err29);
+        }
+        errors2++;
+      }
+      let data21 = data.stack;
+      if (typeof data21 !== "boolean") {
+        const err30 = { instancePath: instancePath + "/stack", schemaPath: "#/properties/stack/type", keyword: "type", params: { type: "boolean" }, message: "must be boolean", schema: schema14.properties.stack.type, parentSchema: schema14.properties.stack, data: data21 };
+        if (vErrors === null) {
+          vErrors = [err30];
+        } else {
+          vErrors.push(err30);
+        }
+        errors2++;
+      }
+      let data22 = data.horizontal;
+      if (typeof data22 !== "boolean") {
+        const err31 = { instancePath: instancePath + "/horizontal", schemaPath: "#/properties/horizontal/type", keyword: "type", params: { type: "boolean" }, message: "must be boolean", schema: schema14.properties.horizontal.type, parentSchema: schema14.properties.horizontal, data: data22 };
+        if (vErrors === null) {
+          vErrors = [err31];
+        } else {
+          vErrors.push(err31);
         }
         errors2++;
       }
       if (data.unit !== void 0) {
-        let data12 = data.unit;
-        if (typeof data12 !== "string") {
-          const err18 = { instancePath: instancePath + "/unit", schemaPath: "#/properties/unit/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema14.properties.unit.type, parentSchema: schema14.properties.unit, data: data12 };
+        let data23 = data.unit;
+        if (typeof data23 !== "string") {
+          const err32 = { instancePath: instancePath + "/unit", schemaPath: "#/properties/unit/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema14.properties.unit.type, parentSchema: schema14.properties.unit, data: data23 };
           if (vErrors === null) {
-            vErrors = [err18];
+            vErrors = [err32];
           } else {
-            vErrors.push(err18);
+            vErrors.push(err32);
           }
           errors2++;
         }
       }
-      let data13 = data.height;
-      if (!(typeof data13 == "number" && (!(data13 % 1) && !isNaN(data13)) && isFinite(data13))) {
-        const err19 = { instancePath: instancePath + "/height", schemaPath: "#/properties/height/type", keyword: "type", params: { type: "integer" }, message: "must be integer", schema: schema14.properties.height.type, parentSchema: schema14.properties.height, data: data13 };
+      let data24 = data.height;
+      if (!(typeof data24 == "number" && (!(data24 % 1) && !isNaN(data24)) && isFinite(data24))) {
+        const err33 = { instancePath: instancePath + "/height", schemaPath: "#/properties/height/type", keyword: "type", params: { type: "integer" }, message: "must be integer", schema: schema14.properties.height.type, parentSchema: schema14.properties.height, data: data24 };
         if (vErrors === null) {
-          vErrors = [err19];
+          vErrors = [err33];
         } else {
-          vErrors.push(err19);
+          vErrors.push(err33);
         }
         errors2++;
       }
-      if (typeof data13 == "number" && isFinite(data13)) {
-        if (data13 > 900 || isNaN(data13)) {
-          const err20 = { instancePath: instancePath + "/height", schemaPath: "#/properties/height/maximum", keyword: "maximum", params: { comparison: "<=", limit: 900 }, message: "must be <= 900", schema: 900, parentSchema: schema14.properties.height, data: data13 };
+      if (typeof data24 == "number" && isFinite(data24)) {
+        if (data24 > 900 || isNaN(data24)) {
+          const err34 = { instancePath: instancePath + "/height", schemaPath: "#/properties/height/maximum", keyword: "maximum", params: { comparison: "<=", limit: 900 }, message: "must be <= 900", schema: 900, parentSchema: schema14.properties.height, data: data24 };
           if (vErrors === null) {
-            vErrors = [err20];
+            vErrors = [err34];
           } else {
-            vErrors.push(err20);
+            vErrors.push(err34);
           }
           errors2++;
         }
-        if (data13 < 160 || isNaN(data13)) {
-          const err21 = { instancePath: instancePath + "/height", schemaPath: "#/properties/height/minimum", keyword: "minimum", params: { comparison: ">=", limit: 160 }, message: "must be >= 160", schema: 160, parentSchema: schema14.properties.height, data: data13 };
+        if (data24 < 160 || isNaN(data24)) {
+          const err35 = { instancePath: instancePath + "/height", schemaPath: "#/properties/height/minimum", keyword: "minimum", params: { comparison: ">=", limit: 160 }, message: "must be >= 160", schema: 160, parentSchema: schema14.properties.height, data: data24 };
           if (vErrors === null) {
-            vErrors = [err21];
+            vErrors = [err35];
           } else {
-            vErrors.push(err21);
+            vErrors.push(err35);
           }
           errors2++;
         }
       }
     } else {
-      const err22 = { instancePath, schemaPath: "#/type", keyword: "type", params: { type: "object" }, message: "must be object", schema: schema14.type, parentSchema: schema14, data };
+      const err36 = { instancePath, schemaPath: "#/type", keyword: "type", params: { type: "object" }, message: "must be object", schema: schema14.type, parentSchema: schema14, data };
       if (vErrors === null) {
-        vErrors = [err22];
+        vErrors = [err36];
       } else {
-        vErrors.push(err22);
+        vErrors.push(err36);
       }
       errors2++;
     }
@@ -28937,9 +29517,301 @@ ${end.comment}` : end.comment;
     validate15.errors = vErrors;
     return errors2 === 0;
   }
-  var math2 = validate16;
-  var schema17 = { "type": "object", "additionalProperties": false, "required": ["tex"], "properties": { "tex": { "type": "string", "description": "TeX source; use a | block for several lines" }, "number": { "type": "boolean", "default": false, "description": "number the equation (1), (2), \u2026" }, "caption": { "type": "string", "description": "Markdown (inline) under the equation" } } };
+  var matrix = validate16;
+  var schema17 = { "type": "object", "additionalProperties": false, "properties": { "title": { "type": "string" }, "data": { "type": "string", "description": "relative path to a .csv, .tsv or .npy (1-D or 2-D) file" }, "values": { "type": "array", "items": { "type": "array", "items": { "type": ["number", "null"] } }, "description": "inline rows of numbers" }, "rows": { "type": "array", "items": { "type": ["string", "number"] }, "description": "row labels" }, "cols": { "type": "array", "items": { "type": ["string", "number"] }, "description": "column labels" }, "style": { "enum": ["heatmap", "contour", "surface"], "default": "heatmap" }, "scale": { "enum": ["sequential", "diverging"], "description": "colour scale; diverging centres on 0 (default: diverging when values have both signs)" }, "levels": { "type": "integer", "minimum": 2, "maximum": 40, "default": 10, "description": "contour levels" }, "annotate": { "type": "boolean", "description": "print values in the cells (default: when there are at most 150 cells)" }, "digits": { "type": "integer", "minimum": 1, "maximum": 8, "default": 3, "description": "significant figures in cells and tooltips" }, "unit": { "type": "string" }, "height": { "type": "integer", "minimum": 160, "maximum": 1200 } } };
   function validate16(data, { instancePath = "", parentData, parentDataProperty, rootData = data } = {}) {
+    let vErrors = null;
+    let errors2 = 0;
+    if (data && typeof data == "object" && !Array.isArray(data)) {
+      if (data.style === void 0) {
+        data.style = "heatmap";
+      }
+      if (data.levels === void 0) {
+        data.levels = 10;
+      }
+      if (data.digits === void 0) {
+        data.digits = 3;
+      }
+      for (const key0 in data) {
+        if (!func2.call(schema17.properties, key0)) {
+          const err0 = { instancePath, schemaPath: "#/additionalProperties", keyword: "additionalProperties", params: { additionalProperty: key0 }, message: "must NOT have additional properties", schema: false, parentSchema: schema17, data };
+          if (vErrors === null) {
+            vErrors = [err0];
+          } else {
+            vErrors.push(err0);
+          }
+          errors2++;
+        }
+      }
+      if (data.title !== void 0) {
+        let data0 = data.title;
+        if (typeof data0 !== "string") {
+          const err1 = { instancePath: instancePath + "/title", schemaPath: "#/properties/title/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema17.properties.title.type, parentSchema: schema17.properties.title, data: data0 };
+          if (vErrors === null) {
+            vErrors = [err1];
+          } else {
+            vErrors.push(err1);
+          }
+          errors2++;
+        }
+      }
+      if (data.data !== void 0) {
+        let data1 = data.data;
+        if (typeof data1 !== "string") {
+          const err2 = { instancePath: instancePath + "/data", schemaPath: "#/properties/data/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema17.properties.data.type, parentSchema: schema17.properties.data, data: data1 };
+          if (vErrors === null) {
+            vErrors = [err2];
+          } else {
+            vErrors.push(err2);
+          }
+          errors2++;
+        }
+      }
+      if (data.values !== void 0) {
+        let data2 = data.values;
+        if (Array.isArray(data2)) {
+          const len0 = data2.length;
+          for (let i0 = 0; i0 < len0; i0++) {
+            let data3 = data2[i0];
+            if (Array.isArray(data3)) {
+              const len1 = data3.length;
+              for (let i1 = 0; i1 < len1; i1++) {
+                let data4 = data3[i1];
+                if (!(typeof data4 == "number" && isFinite(data4)) && data4 !== null) {
+                  const err3 = { instancePath: instancePath + "/values/" + i0 + "/" + i1, schemaPath: "#/properties/values/items/items/type", keyword: "type", params: { type: schema17.properties.values.items.items.type }, message: "must be number,null", schema: schema17.properties.values.items.items.type, parentSchema: schema17.properties.values.items.items, data: data4 };
+                  if (vErrors === null) {
+                    vErrors = [err3];
+                  } else {
+                    vErrors.push(err3);
+                  }
+                  errors2++;
+                }
+              }
+            } else {
+              const err4 = { instancePath: instancePath + "/values/" + i0, schemaPath: "#/properties/values/items/type", keyword: "type", params: { type: "array" }, message: "must be array", schema: schema17.properties.values.items.type, parentSchema: schema17.properties.values.items, data: data3 };
+              if (vErrors === null) {
+                vErrors = [err4];
+              } else {
+                vErrors.push(err4);
+              }
+              errors2++;
+            }
+          }
+        } else {
+          const err5 = { instancePath: instancePath + "/values", schemaPath: "#/properties/values/type", keyword: "type", params: { type: "array" }, message: "must be array", schema: schema17.properties.values.type, parentSchema: schema17.properties.values, data: data2 };
+          if (vErrors === null) {
+            vErrors = [err5];
+          } else {
+            vErrors.push(err5);
+          }
+          errors2++;
+        }
+      }
+      if (data.rows !== void 0) {
+        let data5 = data.rows;
+        if (Array.isArray(data5)) {
+          const len2 = data5.length;
+          for (let i2 = 0; i2 < len2; i2++) {
+            let data6 = data5[i2];
+            if (typeof data6 !== "string" && !(typeof data6 == "number" && isFinite(data6))) {
+              const err6 = { instancePath: instancePath + "/rows/" + i2, schemaPath: "#/properties/rows/items/type", keyword: "type", params: { type: schema17.properties.rows.items.type }, message: "must be string,number", schema: schema17.properties.rows.items.type, parentSchema: schema17.properties.rows.items, data: data6 };
+              if (vErrors === null) {
+                vErrors = [err6];
+              } else {
+                vErrors.push(err6);
+              }
+              errors2++;
+            }
+          }
+        } else {
+          const err7 = { instancePath: instancePath + "/rows", schemaPath: "#/properties/rows/type", keyword: "type", params: { type: "array" }, message: "must be array", schema: schema17.properties.rows.type, parentSchema: schema17.properties.rows, data: data5 };
+          if (vErrors === null) {
+            vErrors = [err7];
+          } else {
+            vErrors.push(err7);
+          }
+          errors2++;
+        }
+      }
+      if (data.cols !== void 0) {
+        let data7 = data.cols;
+        if (Array.isArray(data7)) {
+          const len3 = data7.length;
+          for (let i3 = 0; i3 < len3; i3++) {
+            let data8 = data7[i3];
+            if (typeof data8 !== "string" && !(typeof data8 == "number" && isFinite(data8))) {
+              const err8 = { instancePath: instancePath + "/cols/" + i3, schemaPath: "#/properties/cols/items/type", keyword: "type", params: { type: schema17.properties.cols.items.type }, message: "must be string,number", schema: schema17.properties.cols.items.type, parentSchema: schema17.properties.cols.items, data: data8 };
+              if (vErrors === null) {
+                vErrors = [err8];
+              } else {
+                vErrors.push(err8);
+              }
+              errors2++;
+            }
+          }
+        } else {
+          const err9 = { instancePath: instancePath + "/cols", schemaPath: "#/properties/cols/type", keyword: "type", params: { type: "array" }, message: "must be array", schema: schema17.properties.cols.type, parentSchema: schema17.properties.cols, data: data7 };
+          if (vErrors === null) {
+            vErrors = [err9];
+          } else {
+            vErrors.push(err9);
+          }
+          errors2++;
+        }
+      }
+      let data9 = data.style;
+      if (!(data9 === "heatmap" || data9 === "contour" || data9 === "surface")) {
+        const err10 = { instancePath: instancePath + "/style", schemaPath: "#/properties/style/enum", keyword: "enum", params: { allowedValues: schema17.properties.style.enum }, message: "must be equal to one of the allowed values", schema: schema17.properties.style.enum, parentSchema: schema17.properties.style, data: data9 };
+        if (vErrors === null) {
+          vErrors = [err10];
+        } else {
+          vErrors.push(err10);
+        }
+        errors2++;
+      }
+      if (data.scale !== void 0) {
+        let data10 = data.scale;
+        if (!(data10 === "sequential" || data10 === "diverging")) {
+          const err11 = { instancePath: instancePath + "/scale", schemaPath: "#/properties/scale/enum", keyword: "enum", params: { allowedValues: schema17.properties.scale.enum }, message: "must be equal to one of the allowed values", schema: schema17.properties.scale.enum, parentSchema: schema17.properties.scale, data: data10 };
+          if (vErrors === null) {
+            vErrors = [err11];
+          } else {
+            vErrors.push(err11);
+          }
+          errors2++;
+        }
+      }
+      let data11 = data.levels;
+      if (!(typeof data11 == "number" && (!(data11 % 1) && !isNaN(data11)) && isFinite(data11))) {
+        const err12 = { instancePath: instancePath + "/levels", schemaPath: "#/properties/levels/type", keyword: "type", params: { type: "integer" }, message: "must be integer", schema: schema17.properties.levels.type, parentSchema: schema17.properties.levels, data: data11 };
+        if (vErrors === null) {
+          vErrors = [err12];
+        } else {
+          vErrors.push(err12);
+        }
+        errors2++;
+      }
+      if (typeof data11 == "number" && isFinite(data11)) {
+        if (data11 > 40 || isNaN(data11)) {
+          const err13 = { instancePath: instancePath + "/levels", schemaPath: "#/properties/levels/maximum", keyword: "maximum", params: { comparison: "<=", limit: 40 }, message: "must be <= 40", schema: 40, parentSchema: schema17.properties.levels, data: data11 };
+          if (vErrors === null) {
+            vErrors = [err13];
+          } else {
+            vErrors.push(err13);
+          }
+          errors2++;
+        }
+        if (data11 < 2 || isNaN(data11)) {
+          const err14 = { instancePath: instancePath + "/levels", schemaPath: "#/properties/levels/minimum", keyword: "minimum", params: { comparison: ">=", limit: 2 }, message: "must be >= 2", schema: 2, parentSchema: schema17.properties.levels, data: data11 };
+          if (vErrors === null) {
+            vErrors = [err14];
+          } else {
+            vErrors.push(err14);
+          }
+          errors2++;
+        }
+      }
+      if (data.annotate !== void 0) {
+        let data12 = data.annotate;
+        if (typeof data12 !== "boolean") {
+          const err15 = { instancePath: instancePath + "/annotate", schemaPath: "#/properties/annotate/type", keyword: "type", params: { type: "boolean" }, message: "must be boolean", schema: schema17.properties.annotate.type, parentSchema: schema17.properties.annotate, data: data12 };
+          if (vErrors === null) {
+            vErrors = [err15];
+          } else {
+            vErrors.push(err15);
+          }
+          errors2++;
+        }
+      }
+      let data13 = data.digits;
+      if (!(typeof data13 == "number" && (!(data13 % 1) && !isNaN(data13)) && isFinite(data13))) {
+        const err16 = { instancePath: instancePath + "/digits", schemaPath: "#/properties/digits/type", keyword: "type", params: { type: "integer" }, message: "must be integer", schema: schema17.properties.digits.type, parentSchema: schema17.properties.digits, data: data13 };
+        if (vErrors === null) {
+          vErrors = [err16];
+        } else {
+          vErrors.push(err16);
+        }
+        errors2++;
+      }
+      if (typeof data13 == "number" && isFinite(data13)) {
+        if (data13 > 8 || isNaN(data13)) {
+          const err17 = { instancePath: instancePath + "/digits", schemaPath: "#/properties/digits/maximum", keyword: "maximum", params: { comparison: "<=", limit: 8 }, message: "must be <= 8", schema: 8, parentSchema: schema17.properties.digits, data: data13 };
+          if (vErrors === null) {
+            vErrors = [err17];
+          } else {
+            vErrors.push(err17);
+          }
+          errors2++;
+        }
+        if (data13 < 1 || isNaN(data13)) {
+          const err18 = { instancePath: instancePath + "/digits", schemaPath: "#/properties/digits/minimum", keyword: "minimum", params: { comparison: ">=", limit: 1 }, message: "must be >= 1", schema: 1, parentSchema: schema17.properties.digits, data: data13 };
+          if (vErrors === null) {
+            vErrors = [err18];
+          } else {
+            vErrors.push(err18);
+          }
+          errors2++;
+        }
+      }
+      if (data.unit !== void 0) {
+        let data14 = data.unit;
+        if (typeof data14 !== "string") {
+          const err19 = { instancePath: instancePath + "/unit", schemaPath: "#/properties/unit/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema17.properties.unit.type, parentSchema: schema17.properties.unit, data: data14 };
+          if (vErrors === null) {
+            vErrors = [err19];
+          } else {
+            vErrors.push(err19);
+          }
+          errors2++;
+        }
+      }
+      if (data.height !== void 0) {
+        let data15 = data.height;
+        if (!(typeof data15 == "number" && (!(data15 % 1) && !isNaN(data15)) && isFinite(data15))) {
+          const err20 = { instancePath: instancePath + "/height", schemaPath: "#/properties/height/type", keyword: "type", params: { type: "integer" }, message: "must be integer", schema: schema17.properties.height.type, parentSchema: schema17.properties.height, data: data15 };
+          if (vErrors === null) {
+            vErrors = [err20];
+          } else {
+            vErrors.push(err20);
+          }
+          errors2++;
+        }
+        if (typeof data15 == "number" && isFinite(data15)) {
+          if (data15 > 1200 || isNaN(data15)) {
+            const err21 = { instancePath: instancePath + "/height", schemaPath: "#/properties/height/maximum", keyword: "maximum", params: { comparison: "<=", limit: 1200 }, message: "must be <= 1200", schema: 1200, parentSchema: schema17.properties.height, data: data15 };
+            if (vErrors === null) {
+              vErrors = [err21];
+            } else {
+              vErrors.push(err21);
+            }
+            errors2++;
+          }
+          if (data15 < 160 || isNaN(data15)) {
+            const err22 = { instancePath: instancePath + "/height", schemaPath: "#/properties/height/minimum", keyword: "minimum", params: { comparison: ">=", limit: 160 }, message: "must be >= 160", schema: 160, parentSchema: schema17.properties.height, data: data15 };
+            if (vErrors === null) {
+              vErrors = [err22];
+            } else {
+              vErrors.push(err22);
+            }
+            errors2++;
+          }
+        }
+      }
+    } else {
+      const err23 = { instancePath, schemaPath: "#/type", keyword: "type", params: { type: "object" }, message: "must be object", schema: schema17.type, parentSchema: schema17, data };
+      if (vErrors === null) {
+        vErrors = [err23];
+      } else {
+        vErrors.push(err23);
+      }
+      errors2++;
+    }
+    validate16.errors = vErrors;
+    return errors2 === 0;
+  }
+  var math2 = validate17;
+  var schema18 = { "type": "object", "additionalProperties": false, "required": ["tex"], "properties": { "tex": { "type": "string", "description": "TeX source; use a | block for several lines" }, "number": { "type": "boolean", "default": false, "description": "number the equation (1), (2), \u2026" }, "caption": { "type": "string", "description": "Markdown (inline) under the equation" } } };
+  function validate17(data, { instancePath = "", parentData, parentDataProperty, rootData = data } = {}) {
     let vErrors = null;
     let errors2 = 0;
     if (data && typeof data == "object" && !Array.isArray(data)) {
@@ -28947,7 +29819,7 @@ ${end.comment}` : end.comment;
         data.number = false;
       }
       if (data.tex === void 0) {
-        const err0 = { instancePath, schemaPath: "#/required", keyword: "required", params: { missingProperty: "tex" }, message: "must have required property 'tex'", schema: schema17.required, parentSchema: schema17, data };
+        const err0 = { instancePath, schemaPath: "#/required", keyword: "required", params: { missingProperty: "tex" }, message: "must have required property 'tex'", schema: schema18.required, parentSchema: schema18, data };
         if (vErrors === null) {
           vErrors = [err0];
         } else {
@@ -28957,7 +29829,7 @@ ${end.comment}` : end.comment;
       }
       for (const key0 in data) {
         if (!(key0 === "tex" || key0 === "number" || key0 === "caption")) {
-          const err1 = { instancePath, schemaPath: "#/additionalProperties", keyword: "additionalProperties", params: { additionalProperty: key0 }, message: "must NOT have additional properties", schema: false, parentSchema: schema17, data };
+          const err1 = { instancePath, schemaPath: "#/additionalProperties", keyword: "additionalProperties", params: { additionalProperty: key0 }, message: "must NOT have additional properties", schema: false, parentSchema: schema18, data };
           if (vErrors === null) {
             vErrors = [err1];
           } else {
@@ -28969,7 +29841,7 @@ ${end.comment}` : end.comment;
       if (data.tex !== void 0) {
         let data0 = data.tex;
         if (typeof data0 !== "string") {
-          const err2 = { instancePath: instancePath + "/tex", schemaPath: "#/properties/tex/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema17.properties.tex.type, parentSchema: schema17.properties.tex, data: data0 };
+          const err2 = { instancePath: instancePath + "/tex", schemaPath: "#/properties/tex/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema18.properties.tex.type, parentSchema: schema18.properties.tex, data: data0 };
           if (vErrors === null) {
             vErrors = [err2];
           } else {
@@ -28980,7 +29852,7 @@ ${end.comment}` : end.comment;
       }
       let data1 = data.number;
       if (typeof data1 !== "boolean") {
-        const err3 = { instancePath: instancePath + "/number", schemaPath: "#/properties/number/type", keyword: "type", params: { type: "boolean" }, message: "must be boolean", schema: schema17.properties.number.type, parentSchema: schema17.properties.number, data: data1 };
+        const err3 = { instancePath: instancePath + "/number", schemaPath: "#/properties/number/type", keyword: "type", params: { type: "boolean" }, message: "must be boolean", schema: schema18.properties.number.type, parentSchema: schema18.properties.number, data: data1 };
         if (vErrors === null) {
           vErrors = [err3];
         } else {
@@ -28991,7 +29863,7 @@ ${end.comment}` : end.comment;
       if (data.caption !== void 0) {
         let data2 = data.caption;
         if (typeof data2 !== "string") {
-          const err4 = { instancePath: instancePath + "/caption", schemaPath: "#/properties/caption/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema17.properties.caption.type, parentSchema: schema17.properties.caption, data: data2 };
+          const err4 = { instancePath: instancePath + "/caption", schemaPath: "#/properties/caption/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema18.properties.caption.type, parentSchema: schema18.properties.caption, data: data2 };
           if (vErrors === null) {
             vErrors = [err4];
           } else {
@@ -29001,7 +29873,7 @@ ${end.comment}` : end.comment;
         }
       }
     } else {
-      const err5 = { instancePath, schemaPath: "#/type", keyword: "type", params: { type: "object" }, message: "must be object", schema: schema17.type, parentSchema: schema17, data };
+      const err5 = { instancePath, schemaPath: "#/type", keyword: "type", params: { type: "object" }, message: "must be object", schema: schema18.type, parentSchema: schema18, data };
       if (vErrors === null) {
         vErrors = [err5];
       } else {
@@ -29009,17 +29881,17 @@ ${end.comment}` : end.comment;
       }
       errors2++;
     }
-    validate16.errors = vErrors;
+    validate17.errors = vErrors;
     return errors2 === 0;
   }
-  var checklist = validate17;
-  var schema18 = { "type": "object", "additionalProperties": false, "required": ["items"], "properties": { "title": { "type": "string" }, "items": { "type": "array", "minItems": 1, "items": { "type": ["string", "object"], "additionalProperties": false, "required": ["text"], "properties": { "text": { "type": "string", "description": "Markdown (inline)" }, "status": { "enum": ["done", "todo", "running", "failed", "skipped"], "default": "todo" }, "note": { "type": "string" } } } } } };
-  function validate17(data, { instancePath = "", parentData, parentDataProperty, rootData = data } = {}) {
+  var checklist = validate18;
+  var schema19 = { "type": "object", "additionalProperties": false, "required": ["items"], "properties": { "title": { "type": "string" }, "items": { "type": "array", "minItems": 1, "items": { "type": ["string", "object"], "additionalProperties": false, "required": ["text"], "properties": { "text": { "type": "string", "description": "Markdown (inline)" }, "status": { "enum": ["done", "todo", "running", "failed", "skipped"], "default": "todo" }, "note": { "type": "string" } } } } } };
+  function validate18(data, { instancePath = "", parentData, parentDataProperty, rootData = data } = {}) {
     let vErrors = null;
     let errors2 = 0;
     if (data && typeof data == "object" && !Array.isArray(data)) {
       if (data.items === void 0) {
-        const err0 = { instancePath, schemaPath: "#/required", keyword: "required", params: { missingProperty: "items" }, message: "must have required property 'items'", schema: schema18.required, parentSchema: schema18, data };
+        const err0 = { instancePath, schemaPath: "#/required", keyword: "required", params: { missingProperty: "items" }, message: "must have required property 'items'", schema: schema19.required, parentSchema: schema19, data };
         if (vErrors === null) {
           vErrors = [err0];
         } else {
@@ -29029,7 +29901,7 @@ ${end.comment}` : end.comment;
       }
       for (const key0 in data) {
         if (!(key0 === "title" || key0 === "items")) {
-          const err1 = { instancePath, schemaPath: "#/additionalProperties", keyword: "additionalProperties", params: { additionalProperty: key0 }, message: "must NOT have additional properties", schema: false, parentSchema: schema18, data };
+          const err1 = { instancePath, schemaPath: "#/additionalProperties", keyword: "additionalProperties", params: { additionalProperty: key0 }, message: "must NOT have additional properties", schema: false, parentSchema: schema19, data };
           if (vErrors === null) {
             vErrors = [err1];
           } else {
@@ -29041,7 +29913,7 @@ ${end.comment}` : end.comment;
       if (data.title !== void 0) {
         let data0 = data.title;
         if (typeof data0 !== "string") {
-          const err2 = { instancePath: instancePath + "/title", schemaPath: "#/properties/title/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema18.properties.title.type, parentSchema: schema18.properties.title, data: data0 };
+          const err2 = { instancePath: instancePath + "/title", schemaPath: "#/properties/title/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema19.properties.title.type, parentSchema: schema19.properties.title, data: data0 };
           if (vErrors === null) {
             vErrors = [err2];
           } else {
@@ -29054,7 +29926,7 @@ ${end.comment}` : end.comment;
         let data1 = data.items;
         if (Array.isArray(data1)) {
           if (data1.length < 1) {
-            const err3 = { instancePath: instancePath + "/items", schemaPath: "#/properties/items/minItems", keyword: "minItems", params: { limit: 1 }, message: "must NOT have fewer than 1 items", schema: 1, parentSchema: schema18.properties.items, data: data1 };
+            const err3 = { instancePath: instancePath + "/items", schemaPath: "#/properties/items/minItems", keyword: "minItems", params: { limit: 1 }, message: "must NOT have fewer than 1 items", schema: 1, parentSchema: schema19.properties.items, data: data1 };
             if (vErrors === null) {
               vErrors = [err3];
             } else {
@@ -29066,7 +29938,7 @@ ${end.comment}` : end.comment;
           for (let i0 = 0; i0 < len0; i0++) {
             let data2 = data1[i0];
             if (typeof data2 !== "string" && !(data2 && typeof data2 == "object" && !Array.isArray(data2))) {
-              const err4 = { instancePath: instancePath + "/items/" + i0, schemaPath: "#/properties/items/items/type", keyword: "type", params: { type: schema18.properties.items.items.type }, message: "must be string,object", schema: schema18.properties.items.items.type, parentSchema: schema18.properties.items.items, data: data2 };
+              const err4 = { instancePath: instancePath + "/items/" + i0, schemaPath: "#/properties/items/items/type", keyword: "type", params: { type: schema19.properties.items.items.type }, message: "must be string,object", schema: schema19.properties.items.items.type, parentSchema: schema19.properties.items.items, data: data2 };
               if (vErrors === null) {
                 vErrors = [err4];
               } else {
@@ -29079,7 +29951,7 @@ ${end.comment}` : end.comment;
                 data2.status = "todo";
               }
               if (data2.text === void 0) {
-                const err5 = { instancePath: instancePath + "/items/" + i0, schemaPath: "#/properties/items/items/required", keyword: "required", params: { missingProperty: "text" }, message: "must have required property 'text'", schema: schema18.properties.items.items.required, parentSchema: schema18.properties.items.items, data: data2 };
+                const err5 = { instancePath: instancePath + "/items/" + i0, schemaPath: "#/properties/items/items/required", keyword: "required", params: { missingProperty: "text" }, message: "must have required property 'text'", schema: schema19.properties.items.items.required, parentSchema: schema19.properties.items.items, data: data2 };
                 if (vErrors === null) {
                   vErrors = [err5];
                 } else {
@@ -29089,7 +29961,7 @@ ${end.comment}` : end.comment;
               }
               for (const key1 in data2) {
                 if (!(key1 === "text" || key1 === "status" || key1 === "note")) {
-                  const err6 = { instancePath: instancePath + "/items/" + i0, schemaPath: "#/properties/items/items/additionalProperties", keyword: "additionalProperties", params: { additionalProperty: key1 }, message: "must NOT have additional properties", schema: false, parentSchema: schema18.properties.items.items, data: data2 };
+                  const err6 = { instancePath: instancePath + "/items/" + i0, schemaPath: "#/properties/items/items/additionalProperties", keyword: "additionalProperties", params: { additionalProperty: key1 }, message: "must NOT have additional properties", schema: false, parentSchema: schema19.properties.items.items, data: data2 };
                   if (vErrors === null) {
                     vErrors = [err6];
                   } else {
@@ -29101,7 +29973,7 @@ ${end.comment}` : end.comment;
               if (data2.text !== void 0) {
                 let data3 = data2.text;
                 if (typeof data3 !== "string") {
-                  const err7 = { instancePath: instancePath + "/items/" + i0 + "/text", schemaPath: "#/properties/items/items/properties/text/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema18.properties.items.items.properties.text.type, parentSchema: schema18.properties.items.items.properties.text, data: data3 };
+                  const err7 = { instancePath: instancePath + "/items/" + i0 + "/text", schemaPath: "#/properties/items/items/properties/text/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema19.properties.items.items.properties.text.type, parentSchema: schema19.properties.items.items.properties.text, data: data3 };
                   if (vErrors === null) {
                     vErrors = [err7];
                   } else {
@@ -29112,7 +29984,7 @@ ${end.comment}` : end.comment;
               }
               let data4 = data2.status;
               if (!(data4 === "done" || data4 === "todo" || data4 === "running" || data4 === "failed" || data4 === "skipped")) {
-                const err8 = { instancePath: instancePath + "/items/" + i0 + "/status", schemaPath: "#/properties/items/items/properties/status/enum", keyword: "enum", params: { allowedValues: schema18.properties.items.items.properties.status.enum }, message: "must be equal to one of the allowed values", schema: schema18.properties.items.items.properties.status.enum, parentSchema: schema18.properties.items.items.properties.status, data: data4 };
+                const err8 = { instancePath: instancePath + "/items/" + i0 + "/status", schemaPath: "#/properties/items/items/properties/status/enum", keyword: "enum", params: { allowedValues: schema19.properties.items.items.properties.status.enum }, message: "must be equal to one of the allowed values", schema: schema19.properties.items.items.properties.status.enum, parentSchema: schema19.properties.items.items.properties.status, data: data4 };
                 if (vErrors === null) {
                   vErrors = [err8];
                 } else {
@@ -29123,7 +29995,7 @@ ${end.comment}` : end.comment;
               if (data2.note !== void 0) {
                 let data5 = data2.note;
                 if (typeof data5 !== "string") {
-                  const err9 = { instancePath: instancePath + "/items/" + i0 + "/note", schemaPath: "#/properties/items/items/properties/note/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema18.properties.items.items.properties.note.type, parentSchema: schema18.properties.items.items.properties.note, data: data5 };
+                  const err9 = { instancePath: instancePath + "/items/" + i0 + "/note", schemaPath: "#/properties/items/items/properties/note/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema19.properties.items.items.properties.note.type, parentSchema: schema19.properties.items.items.properties.note, data: data5 };
                   if (vErrors === null) {
                     vErrors = [err9];
                   } else {
@@ -29135,7 +30007,7 @@ ${end.comment}` : end.comment;
             }
           }
         } else {
-          const err10 = { instancePath: instancePath + "/items", schemaPath: "#/properties/items/type", keyword: "type", params: { type: "array" }, message: "must be array", schema: schema18.properties.items.type, parentSchema: schema18.properties.items, data: data1 };
+          const err10 = { instancePath: instancePath + "/items", schemaPath: "#/properties/items/type", keyword: "type", params: { type: "array" }, message: "must be array", schema: schema19.properties.items.type, parentSchema: schema19.properties.items, data: data1 };
           if (vErrors === null) {
             vErrors = [err10];
           } else {
@@ -29145,7 +30017,7 @@ ${end.comment}` : end.comment;
         }
       }
     } else {
-      const err11 = { instancePath, schemaPath: "#/type", keyword: "type", params: { type: "object" }, message: "must be object", schema: schema18.type, parentSchema: schema18, data };
+      const err11 = { instancePath, schemaPath: "#/type", keyword: "type", params: { type: "object" }, message: "must be object", schema: schema19.type, parentSchema: schema19, data };
       if (vErrors === null) {
         vErrors = [err11];
       } else {
@@ -29153,19 +30025,19 @@ ${end.comment}` : end.comment;
       }
       errors2++;
     }
-    validate17.errors = vErrors;
+    validate18.errors = vErrors;
     return errors2 === 0;
   }
-  var code2 = validate18;
-  var schema19 = { "type": "object", "additionalProperties": false, "properties": { "file": { "type": "string", "description": "relative path; read from disk, so the code need not be pasted" }, "lines": { "type": "string", "pattern": "^[1-9][0-9]*(-[1-9][0-9]*)?$", "description": "line range, e.g. 10-40" }, "code": { "type": "string" }, "lang": { "type": "string", "description": "language; inferred from the file extension" }, "title": { "type": "string" } } };
+  var code2 = validate19;
+  var schema20 = { "type": "object", "additionalProperties": false, "properties": { "file": { "type": "string", "description": "relative path; read from disk, so the code need not be pasted" }, "lines": { "type": "string", "pattern": "^[1-9][0-9]*(-[1-9][0-9]*)?$", "description": "line range, e.g. 10-40" }, "code": { "type": "string" }, "lang": { "type": "string", "description": "language; inferred from the file extension" }, "title": { "type": "string" } } };
   var pattern0 = new RegExp("^[1-9][0-9]*(-[1-9][0-9]*)?$", "u");
-  function validate18(data, { instancePath = "", parentData, parentDataProperty, rootData = data } = {}) {
+  function validate19(data, { instancePath = "", parentData, parentDataProperty, rootData = data } = {}) {
     let vErrors = null;
     let errors2 = 0;
     if (data && typeof data == "object" && !Array.isArray(data)) {
       for (const key0 in data) {
         if (!(key0 === "file" || key0 === "lines" || key0 === "code" || key0 === "lang" || key0 === "title")) {
-          const err0 = { instancePath, schemaPath: "#/additionalProperties", keyword: "additionalProperties", params: { additionalProperty: key0 }, message: "must NOT have additional properties", schema: false, parentSchema: schema19, data };
+          const err0 = { instancePath, schemaPath: "#/additionalProperties", keyword: "additionalProperties", params: { additionalProperty: key0 }, message: "must NOT have additional properties", schema: false, parentSchema: schema20, data };
           if (vErrors === null) {
             vErrors = [err0];
           } else {
@@ -29177,7 +30049,7 @@ ${end.comment}` : end.comment;
       if (data.file !== void 0) {
         let data0 = data.file;
         if (typeof data0 !== "string") {
-          const err1 = { instancePath: instancePath + "/file", schemaPath: "#/properties/file/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema19.properties.file.type, parentSchema: schema19.properties.file, data: data0 };
+          const err1 = { instancePath: instancePath + "/file", schemaPath: "#/properties/file/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema20.properties.file.type, parentSchema: schema20.properties.file, data: data0 };
           if (vErrors === null) {
             vErrors = [err1];
           } else {
@@ -29190,7 +30062,7 @@ ${end.comment}` : end.comment;
         let data1 = data.lines;
         if (typeof data1 === "string") {
           if (!pattern0.test(data1)) {
-            const err2 = { instancePath: instancePath + "/lines", schemaPath: "#/properties/lines/pattern", keyword: "pattern", params: { pattern: "^[1-9][0-9]*(-[1-9][0-9]*)?$" }, message: 'must match pattern "^[1-9][0-9]*(-[1-9][0-9]*)?$"', schema: "^[1-9][0-9]*(-[1-9][0-9]*)?$", parentSchema: schema19.properties.lines, data: data1 };
+            const err2 = { instancePath: instancePath + "/lines", schemaPath: "#/properties/lines/pattern", keyword: "pattern", params: { pattern: "^[1-9][0-9]*(-[1-9][0-9]*)?$" }, message: 'must match pattern "^[1-9][0-9]*(-[1-9][0-9]*)?$"', schema: "^[1-9][0-9]*(-[1-9][0-9]*)?$", parentSchema: schema20.properties.lines, data: data1 };
             if (vErrors === null) {
               vErrors = [err2];
             } else {
@@ -29199,7 +30071,7 @@ ${end.comment}` : end.comment;
             errors2++;
           }
         } else {
-          const err3 = { instancePath: instancePath + "/lines", schemaPath: "#/properties/lines/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema19.properties.lines.type, parentSchema: schema19.properties.lines, data: data1 };
+          const err3 = { instancePath: instancePath + "/lines", schemaPath: "#/properties/lines/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema20.properties.lines.type, parentSchema: schema20.properties.lines, data: data1 };
           if (vErrors === null) {
             vErrors = [err3];
           } else {
@@ -29211,7 +30083,7 @@ ${end.comment}` : end.comment;
       if (data.code !== void 0) {
         let data2 = data.code;
         if (typeof data2 !== "string") {
-          const err4 = { instancePath: instancePath + "/code", schemaPath: "#/properties/code/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema19.properties.code.type, parentSchema: schema19.properties.code, data: data2 };
+          const err4 = { instancePath: instancePath + "/code", schemaPath: "#/properties/code/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema20.properties.code.type, parentSchema: schema20.properties.code, data: data2 };
           if (vErrors === null) {
             vErrors = [err4];
           } else {
@@ -29223,7 +30095,7 @@ ${end.comment}` : end.comment;
       if (data.lang !== void 0) {
         let data3 = data.lang;
         if (typeof data3 !== "string") {
-          const err5 = { instancePath: instancePath + "/lang", schemaPath: "#/properties/lang/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema19.properties.lang.type, parentSchema: schema19.properties.lang, data: data3 };
+          const err5 = { instancePath: instancePath + "/lang", schemaPath: "#/properties/lang/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema20.properties.lang.type, parentSchema: schema20.properties.lang, data: data3 };
           if (vErrors === null) {
             vErrors = [err5];
           } else {
@@ -29235,7 +30107,7 @@ ${end.comment}` : end.comment;
       if (data.title !== void 0) {
         let data4 = data.title;
         if (typeof data4 !== "string") {
-          const err6 = { instancePath: instancePath + "/title", schemaPath: "#/properties/title/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema19.properties.title.type, parentSchema: schema19.properties.title, data: data4 };
+          const err6 = { instancePath: instancePath + "/title", schemaPath: "#/properties/title/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema20.properties.title.type, parentSchema: schema20.properties.title, data: data4 };
           if (vErrors === null) {
             vErrors = [err6];
           } else {
@@ -29245,7 +30117,7 @@ ${end.comment}` : end.comment;
         }
       }
     } else {
-      const err7 = { instancePath, schemaPath: "#/type", keyword: "type", params: { type: "object" }, message: "must be object", schema: schema19.type, parentSchema: schema19, data };
+      const err7 = { instancePath, schemaPath: "#/type", keyword: "type", params: { type: "object" }, message: "must be object", schema: schema20.type, parentSchema: schema20, data };
       if (vErrors === null) {
         vErrors = [err7];
       } else {
@@ -29253,17 +30125,17 @@ ${end.comment}` : end.comment;
       }
       errors2++;
     }
-    validate18.errors = vErrors;
+    validate19.errors = vErrors;
     return errors2 === 0;
   }
-  var image2 = validate19;
-  var schema20 = { "type": "object", "additionalProperties": false, "required": ["src"], "properties": { "src": { "type": "string", "description": "relative path" }, "alt": { "type": "string" }, "caption": { "type": "string", "description": "Markdown (inline)" }, "width": { "type": "integer", "minimum": 16, "maximum": 4096, "description": "max display width in px" } } };
-  function validate19(data, { instancePath = "", parentData, parentDataProperty, rootData = data } = {}) {
+  var image2 = validate20;
+  var schema21 = { "type": "object", "additionalProperties": false, "required": ["src"], "properties": { "src": { "type": "string", "description": "relative path" }, "alt": { "type": "string" }, "caption": { "type": "string", "description": "Markdown (inline)" }, "width": { "type": "integer", "minimum": 16, "maximum": 4096, "description": "max display width in px" } } };
+  function validate20(data, { instancePath = "", parentData, parentDataProperty, rootData = data } = {}) {
     let vErrors = null;
     let errors2 = 0;
     if (data && typeof data == "object" && !Array.isArray(data)) {
       if (data.src === void 0) {
-        const err0 = { instancePath, schemaPath: "#/required", keyword: "required", params: { missingProperty: "src" }, message: "must have required property 'src'", schema: schema20.required, parentSchema: schema20, data };
+        const err0 = { instancePath, schemaPath: "#/required", keyword: "required", params: { missingProperty: "src" }, message: "must have required property 'src'", schema: schema21.required, parentSchema: schema21, data };
         if (vErrors === null) {
           vErrors = [err0];
         } else {
@@ -29273,7 +30145,7 @@ ${end.comment}` : end.comment;
       }
       for (const key0 in data) {
         if (!(key0 === "src" || key0 === "alt" || key0 === "caption" || key0 === "width")) {
-          const err1 = { instancePath, schemaPath: "#/additionalProperties", keyword: "additionalProperties", params: { additionalProperty: key0 }, message: "must NOT have additional properties", schema: false, parentSchema: schema20, data };
+          const err1 = { instancePath, schemaPath: "#/additionalProperties", keyword: "additionalProperties", params: { additionalProperty: key0 }, message: "must NOT have additional properties", schema: false, parentSchema: schema21, data };
           if (vErrors === null) {
             vErrors = [err1];
           } else {
@@ -29285,7 +30157,7 @@ ${end.comment}` : end.comment;
       if (data.src !== void 0) {
         let data0 = data.src;
         if (typeof data0 !== "string") {
-          const err2 = { instancePath: instancePath + "/src", schemaPath: "#/properties/src/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema20.properties.src.type, parentSchema: schema20.properties.src, data: data0 };
+          const err2 = { instancePath: instancePath + "/src", schemaPath: "#/properties/src/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema21.properties.src.type, parentSchema: schema21.properties.src, data: data0 };
           if (vErrors === null) {
             vErrors = [err2];
           } else {
@@ -29297,7 +30169,7 @@ ${end.comment}` : end.comment;
       if (data.alt !== void 0) {
         let data1 = data.alt;
         if (typeof data1 !== "string") {
-          const err3 = { instancePath: instancePath + "/alt", schemaPath: "#/properties/alt/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema20.properties.alt.type, parentSchema: schema20.properties.alt, data: data1 };
+          const err3 = { instancePath: instancePath + "/alt", schemaPath: "#/properties/alt/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema21.properties.alt.type, parentSchema: schema21.properties.alt, data: data1 };
           if (vErrors === null) {
             vErrors = [err3];
           } else {
@@ -29309,7 +30181,7 @@ ${end.comment}` : end.comment;
       if (data.caption !== void 0) {
         let data2 = data.caption;
         if (typeof data2 !== "string") {
-          const err4 = { instancePath: instancePath + "/caption", schemaPath: "#/properties/caption/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema20.properties.caption.type, parentSchema: schema20.properties.caption, data: data2 };
+          const err4 = { instancePath: instancePath + "/caption", schemaPath: "#/properties/caption/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema21.properties.caption.type, parentSchema: schema21.properties.caption, data: data2 };
           if (vErrors === null) {
             vErrors = [err4];
           } else {
@@ -29321,7 +30193,7 @@ ${end.comment}` : end.comment;
       if (data.width !== void 0) {
         let data3 = data.width;
         if (!(typeof data3 == "number" && (!(data3 % 1) && !isNaN(data3)) && isFinite(data3))) {
-          const err5 = { instancePath: instancePath + "/width", schemaPath: "#/properties/width/type", keyword: "type", params: { type: "integer" }, message: "must be integer", schema: schema20.properties.width.type, parentSchema: schema20.properties.width, data: data3 };
+          const err5 = { instancePath: instancePath + "/width", schemaPath: "#/properties/width/type", keyword: "type", params: { type: "integer" }, message: "must be integer", schema: schema21.properties.width.type, parentSchema: schema21.properties.width, data: data3 };
           if (vErrors === null) {
             vErrors = [err5];
           } else {
@@ -29331,7 +30203,7 @@ ${end.comment}` : end.comment;
         }
         if (typeof data3 == "number" && isFinite(data3)) {
           if (data3 > 4096 || isNaN(data3)) {
-            const err6 = { instancePath: instancePath + "/width", schemaPath: "#/properties/width/maximum", keyword: "maximum", params: { comparison: "<=", limit: 4096 }, message: "must be <= 4096", schema: 4096, parentSchema: schema20.properties.width, data: data3 };
+            const err6 = { instancePath: instancePath + "/width", schemaPath: "#/properties/width/maximum", keyword: "maximum", params: { comparison: "<=", limit: 4096 }, message: "must be <= 4096", schema: 4096, parentSchema: schema21.properties.width, data: data3 };
             if (vErrors === null) {
               vErrors = [err6];
             } else {
@@ -29340,7 +30212,7 @@ ${end.comment}` : end.comment;
             errors2++;
           }
           if (data3 < 16 || isNaN(data3)) {
-            const err7 = { instancePath: instancePath + "/width", schemaPath: "#/properties/width/minimum", keyword: "minimum", params: { comparison: ">=", limit: 16 }, message: "must be >= 16", schema: 16, parentSchema: schema20.properties.width, data: data3 };
+            const err7 = { instancePath: instancePath + "/width", schemaPath: "#/properties/width/minimum", keyword: "minimum", params: { comparison: ">=", limit: 16 }, message: "must be >= 16", schema: 16, parentSchema: schema21.properties.width, data: data3 };
             if (vErrors === null) {
               vErrors = [err7];
             } else {
@@ -29351,7 +30223,7 @@ ${end.comment}` : end.comment;
         }
       }
     } else {
-      const err8 = { instancePath, schemaPath: "#/type", keyword: "type", params: { type: "object" }, message: "must be object", schema: schema20.type, parentSchema: schema20, data };
+      const err8 = { instancePath, schemaPath: "#/type", keyword: "type", params: { type: "object" }, message: "must be object", schema: schema21.type, parentSchema: schema21, data };
       if (vErrors === null) {
         vErrors = [err8];
       } else {
@@ -29359,12 +30231,12 @@ ${end.comment}` : end.comment;
       }
       errors2++;
     }
-    validate19.errors = vErrors;
+    validate20.errors = vErrors;
     return errors2 === 0;
   }
-  var html = validate20;
-  var schema21 = { "type": "object", "additionalProperties": false, "properties": { "html": { "type": "string", "description": "the markup (body content or a full document)" }, "file": { "type": "string", "description": "relative path to an .html file instead of html" }, "title": { "type": "string" }, "height": { "type": "integer", "minimum": 60, "maximum": 2e3, "default": 360 } } };
-  function validate20(data, { instancePath = "", parentData, parentDataProperty, rootData = data } = {}) {
+  var html = validate21;
+  var schema22 = { "type": "object", "additionalProperties": false, "properties": { "html": { "type": "string", "description": "the markup (body content or a full document)" }, "file": { "type": "string", "description": "relative path to an .html file instead of html" }, "title": { "type": "string" }, "height": { "type": "integer", "minimum": 60, "maximum": 2e3, "default": 360 } } };
+  function validate21(data, { instancePath = "", parentData, parentDataProperty, rootData = data } = {}) {
     let vErrors = null;
     let errors2 = 0;
     if (data && typeof data == "object" && !Array.isArray(data)) {
@@ -29373,7 +30245,7 @@ ${end.comment}` : end.comment;
       }
       for (const key0 in data) {
         if (!(key0 === "html" || key0 === "file" || key0 === "title" || key0 === "height")) {
-          const err0 = { instancePath, schemaPath: "#/additionalProperties", keyword: "additionalProperties", params: { additionalProperty: key0 }, message: "must NOT have additional properties", schema: false, parentSchema: schema21, data };
+          const err0 = { instancePath, schemaPath: "#/additionalProperties", keyword: "additionalProperties", params: { additionalProperty: key0 }, message: "must NOT have additional properties", schema: false, parentSchema: schema22, data };
           if (vErrors === null) {
             vErrors = [err0];
           } else {
@@ -29385,7 +30257,7 @@ ${end.comment}` : end.comment;
       if (data.html !== void 0) {
         let data0 = data.html;
         if (typeof data0 !== "string") {
-          const err1 = { instancePath: instancePath + "/html", schemaPath: "#/properties/html/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema21.properties.html.type, parentSchema: schema21.properties.html, data: data0 };
+          const err1 = { instancePath: instancePath + "/html", schemaPath: "#/properties/html/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema22.properties.html.type, parentSchema: schema22.properties.html, data: data0 };
           if (vErrors === null) {
             vErrors = [err1];
           } else {
@@ -29397,7 +30269,7 @@ ${end.comment}` : end.comment;
       if (data.file !== void 0) {
         let data1 = data.file;
         if (typeof data1 !== "string") {
-          const err2 = { instancePath: instancePath + "/file", schemaPath: "#/properties/file/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema21.properties.file.type, parentSchema: schema21.properties.file, data: data1 };
+          const err2 = { instancePath: instancePath + "/file", schemaPath: "#/properties/file/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema22.properties.file.type, parentSchema: schema22.properties.file, data: data1 };
           if (vErrors === null) {
             vErrors = [err2];
           } else {
@@ -29409,7 +30281,7 @@ ${end.comment}` : end.comment;
       if (data.title !== void 0) {
         let data2 = data.title;
         if (typeof data2 !== "string") {
-          const err3 = { instancePath: instancePath + "/title", schemaPath: "#/properties/title/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema21.properties.title.type, parentSchema: schema21.properties.title, data: data2 };
+          const err3 = { instancePath: instancePath + "/title", schemaPath: "#/properties/title/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema22.properties.title.type, parentSchema: schema22.properties.title, data: data2 };
           if (vErrors === null) {
             vErrors = [err3];
           } else {
@@ -29420,7 +30292,7 @@ ${end.comment}` : end.comment;
       }
       let data3 = data.height;
       if (!(typeof data3 == "number" && (!(data3 % 1) && !isNaN(data3)) && isFinite(data3))) {
-        const err4 = { instancePath: instancePath + "/height", schemaPath: "#/properties/height/type", keyword: "type", params: { type: "integer" }, message: "must be integer", schema: schema21.properties.height.type, parentSchema: schema21.properties.height, data: data3 };
+        const err4 = { instancePath: instancePath + "/height", schemaPath: "#/properties/height/type", keyword: "type", params: { type: "integer" }, message: "must be integer", schema: schema22.properties.height.type, parentSchema: schema22.properties.height, data: data3 };
         if (vErrors === null) {
           vErrors = [err4];
         } else {
@@ -29430,7 +30302,7 @@ ${end.comment}` : end.comment;
       }
       if (typeof data3 == "number" && isFinite(data3)) {
         if (data3 > 2e3 || isNaN(data3)) {
-          const err5 = { instancePath: instancePath + "/height", schemaPath: "#/properties/height/maximum", keyword: "maximum", params: { comparison: "<=", limit: 2e3 }, message: "must be <= 2000", schema: 2e3, parentSchema: schema21.properties.height, data: data3 };
+          const err5 = { instancePath: instancePath + "/height", schemaPath: "#/properties/height/maximum", keyword: "maximum", params: { comparison: "<=", limit: 2e3 }, message: "must be <= 2000", schema: 2e3, parentSchema: schema22.properties.height, data: data3 };
           if (vErrors === null) {
             vErrors = [err5];
           } else {
@@ -29439,7 +30311,7 @@ ${end.comment}` : end.comment;
           errors2++;
         }
         if (data3 < 60 || isNaN(data3)) {
-          const err6 = { instancePath: instancePath + "/height", schemaPath: "#/properties/height/minimum", keyword: "minimum", params: { comparison: ">=", limit: 60 }, message: "must be >= 60", schema: 60, parentSchema: schema21.properties.height, data: data3 };
+          const err6 = { instancePath: instancePath + "/height", schemaPath: "#/properties/height/minimum", keyword: "minimum", params: { comparison: ">=", limit: 60 }, message: "must be >= 60", schema: 60, parentSchema: schema22.properties.height, data: data3 };
           if (vErrors === null) {
             vErrors = [err6];
           } else {
@@ -29449,7 +30321,7 @@ ${end.comment}` : end.comment;
         }
       }
     } else {
-      const err7 = { instancePath, schemaPath: "#/type", keyword: "type", params: { type: "object" }, message: "must be object", schema: schema21.type, parentSchema: schema21, data };
+      const err7 = { instancePath, schemaPath: "#/type", keyword: "type", params: { type: "object" }, message: "must be object", schema: schema22.type, parentSchema: schema22, data };
       if (vErrors === null) {
         vErrors = [err7];
       } else {
@@ -29457,18 +30329,18 @@ ${end.comment}` : end.comment;
       }
       errors2++;
     }
-    validate20.errors = vErrors;
+    validate21.errors = vErrors;
     return errors2 === 0;
   }
-  var frontMatter = validate21;
-  var schema22 = { "type": "object", "additionalProperties": false, "properties": { "title": { "type": "string" } } };
-  function validate21(data, { instancePath = "", parentData, parentDataProperty, rootData = data } = {}) {
+  var frontMatter = validate22;
+  var schema23 = { "type": "object", "additionalProperties": false, "properties": { "title": { "type": "string" } } };
+  function validate22(data, { instancePath = "", parentData, parentDataProperty, rootData = data } = {}) {
     let vErrors = null;
     let errors2 = 0;
     if (data && typeof data == "object" && !Array.isArray(data)) {
       for (const key0 in data) {
         if (!(key0 === "title")) {
-          const err0 = { instancePath, schemaPath: "#/additionalProperties", keyword: "additionalProperties", params: { additionalProperty: key0 }, message: "must NOT have additional properties", schema: false, parentSchema: schema22, data };
+          const err0 = { instancePath, schemaPath: "#/additionalProperties", keyword: "additionalProperties", params: { additionalProperty: key0 }, message: "must NOT have additional properties", schema: false, parentSchema: schema23, data };
           if (vErrors === null) {
             vErrors = [err0];
           } else {
@@ -29480,7 +30352,7 @@ ${end.comment}` : end.comment;
       if (data.title !== void 0) {
         let data0 = data.title;
         if (typeof data0 !== "string") {
-          const err1 = { instancePath: instancePath + "/title", schemaPath: "#/properties/title/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema22.properties.title.type, parentSchema: schema22.properties.title, data: data0 };
+          const err1 = { instancePath: instancePath + "/title", schemaPath: "#/properties/title/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema23.properties.title.type, parentSchema: schema23.properties.title, data: data0 };
           if (vErrors === null) {
             vErrors = [err1];
           } else {
@@ -29490,7 +30362,7 @@ ${end.comment}` : end.comment;
         }
       }
     } else {
-      const err2 = { instancePath, schemaPath: "#/type", keyword: "type", params: { type: "object" }, message: "must be object", schema: schema22.type, parentSchema: schema22, data };
+      const err2 = { instancePath, schemaPath: "#/type", keyword: "type", params: { type: "object" }, message: "must be object", schema: schema23.type, parentSchema: schema23, data };
       if (vErrors === null) {
         vErrors = [err2];
       } else {
@@ -29498,7 +30370,7 @@ ${end.comment}` : end.comment;
       }
       errors2++;
     }
-    validate21.errors = vErrors;
+    validate22.errors = vErrors;
     return errors2 === 0;
   }
 
@@ -29855,6 +30727,7 @@ ${def.example}` });
       // Markdown in a component field: checks its math (and images) like a Markdown block
       markdown: (path2, text3) => checkMarkdown({ text: text3, line: at(path2) }, host, refs, diagnostics, index, tag),
       stat: (p) => host.stat(p),
+      readBase64: (p) => host.readBase64(p),
       ref: (p) => refs.add(p)
     };
     block3.props = def.resolve(data, ctx);
@@ -29901,7 +30774,7 @@ ${c.example}
 
   // src/core/index.js
   function checkJson(source, host) {
-    const h = { readText: (p) => JSON.parse(host.readText(p)), stat: (p) => JSON.parse(host.stat(p)) };
+    const h = { readText: (p) => JSON.parse(host.readText(p)), stat: (p) => JSON.parse(host.stat(p)), readBase64: (p) => JSON.parse(host.readBase64(p)) };
     return JSON.stringify(check(source, h));
   }
   var componentsJson = () => JSON.stringify(listComponents());

@@ -23,6 +23,7 @@ function locate(p) {
 const host = {
   readText: (p) => { const r = locate(p); return JSON.stringify(r.error ? { ok: false, error: r.error } : { ok: true, text: readFileSync(r.full, 'utf8') }); },
   stat: (p) => { const r = locate(p); return JSON.stringify(r.error ? { ok: false, error: r.error } : { ok: true, size: r.size }); },
+  readBase64: (p) => { const r = locate(p); return JSON.stringify(r.error ? { ok: false, error: r.error } : { ok: true, base64: readFileSync(r.full).toString('base64') }); },
 };
 const check = (src) => JSON.parse(core.checkJson(src, host));
 
@@ -76,9 +77,11 @@ test('limits: huge documents are refused with a hint', () => {
   assert.match(r.diagnostics[0].hint, /file/);
 });
 
-test('component catalogue', () => {
+test('component catalogue', async () => {
   const list = JSON.parse(core.componentsJson());
-  assert.deepEqual(list.map((c) => c.name), ['callout', 'stats', 'table', 'chart', 'chart3d', 'plot', 'math', 'checklist', 'code', 'image', 'html']);
+  // the shipped bundle lists exactly the registry, in order
+  const { components } = await import('../src/components/index.js');
+  assert.deepEqual(list.map((c) => c.name), components.map((c) => c.name));
   for (const { name } of list) {
     const d = JSON.parse(core.describeJson(name));
     assert.ok(d.schema && d.example.startsWith(`\`\`\`nebula:${name}\n`));

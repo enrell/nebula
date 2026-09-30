@@ -9,9 +9,10 @@ import code from './code.js';
 import html from './html.js';
 import image from './image.js';
 import math from './math.js';
+import matrix from './matrix.js';
 import plot from './plot.js';
 import stats from './stats.js';
 import table from './table.js';
 
-export const components = [callout, stats, table, chart, chart3d, plot, math, checklist, code, image, html];
+export const components = [callout, stats, table, chart, chart3d, plot, matrix, math, checklist, code, image, html];
 export const byName = Object.fromEntries(components.map((c) => [c.name, c]));

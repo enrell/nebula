@@ -44,6 +44,15 @@ QString readTextJson(const QString &baseDir, const QString &relative) {
     return QString::fromUtf8(QJsonDocument(QJsonObject{{"ok", true}, {"text", QString::fromUtf8(data)}}).toJson(QJsonDocument::Compact));
 }
 
+QString readBase64Json(const QString &baseDir, const QString &relative) {
+    const Resolved r = resolve(baseDir, relative);
+    if (!r.error.isEmpty()) return fail(r.error);
+    if (r.size > kMaxBinaryBytes) return fail(QString("%1 is too large (%2 MB, max %3 MB)").arg(relative).arg(r.size / 1048576).arg(kMaxBinaryBytes / 1048576));
+    QFile f(r.path);
+    if (!f.open(QIODevice::ReadOnly)) return fail(QString("cannot read %1").arg(relative));
+    return QString::fromUtf8(QJsonDocument(QJsonObject{{"ok", true}, {"base64", QString::fromLatin1(f.readAll().toBase64())}}).toJson(QJsonDocument::Compact));
+}
+
 QString statJson(const QString &baseDir, const QString &relative) {
     const Resolved r = resolve(baseDir, relative);
     if (!r.error.isEmpty()) return fail(r.error);

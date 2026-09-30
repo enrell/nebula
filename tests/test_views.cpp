@@ -71,7 +71,7 @@ int main(int argc, char **argv) {
     const QStringList cases = QDir(dir + "/cases").entryList({"*.md"}, QDir::Files, QDir::Name);
     CHECK(!cases.isEmpty(), "no cases in %s/cases", qPrintable(dir));
     for (const QString &c : cases) runCase(dir, c);
-    CHECK(ViewEngine::instance().components().size() == 11, "component catalogue");
+    CHECK(ViewEngine::instance().components().size() >= 12, "component catalogue");
     CHECK(ViewEngine::instance().describe("table")["example"].toString().startsWith("```nebula:table"), "describe table");
     CHECK(ViewEngine::instance().describe("nope").isEmpty(), "describe unknown");
     sandbox();

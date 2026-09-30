@@ -188,6 +188,7 @@ function checkComponent(b, block, host, refs, diagnostics, index, ids) {
     // Markdown in a component field: checks its math (and images) like a Markdown block
     markdown: (path, text) => checkMarkdown({ text, line: at(path) }, host, refs, diagnostics, index, tag),
     stat: (p) => host.stat(p),
+    readBase64: (p) => host.readBase64(p),
     ref: (p) => refs.add(p),
   };
   block.props = def.resolve(data, ctx);

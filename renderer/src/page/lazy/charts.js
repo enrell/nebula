@@ -1,17 +1,19 @@
 // Charts: ECharts (canvas) for 2D, echarts-gl (WebGL) for 3D. Colours come from the nebula theme (CSS variables),
 // so a chart re-created after a theme change matches the new theme.
-import { BarChart, LineChart, PieChart, ScatterChart } from 'echarts/charts';
+import { BarChart, BoxplotChart, CustomChart, HeatmapChart, LineChart, PieChart, ScatterChart } from 'echarts/charts';
 import { DataZoomComponent, GridComponent, LegendComponent, PolarComponent, TitleComponent, TooltipComponent, VisualMapComponent } from 'echarts/components';
 import * as echarts from 'echarts/core';
 import { CanvasRenderer } from 'echarts/renderers';
 import { parse } from '../../core/expr.js';
+import { fit } from '../../core/fit.js';
 import { card, h } from '../dom.js';
 import { Bar3DChart, Line3DChart, Scatter3DChart, SurfaceChart } from 'echarts-gl/charts';
 import { Grid3DComponent } from 'echarts-gl/components';
 
-echarts.use([LineChart, BarChart, PieChart, ScatterChart, GridComponent, TooltipComponent, LegendComponent, TitleComponent,
+echarts.use([LineChart, BarChart, PieChart, ScatterChart, BoxplotChart, CustomChart, HeatmapChart, GridComponent, TooltipComponent, LegendComponent, TitleComponent,
   DataZoomComponent, VisualMapComponent, PolarComponent, CanvasRenderer, Scatter3DChart, Bar3DChart, Line3DChart, SurfaceChart, Grid3DComponent]);
 
+const tick = (v) => Number(Number(v).toPrecision(4)).toString();
 const css = (name) => getComputedStyle(document.documentElement).getPropertyValue(`--${name}`).trim();
 
 function palette() {
@@ -41,36 +43,168 @@ function mount(el, option) {
 
 const webglAvailable = () => { try { return !!document.createElement('canvas').getContext('webgl'); } catch { return false; } };
 
+// ---- chart
+
+const quantile = (sorted, q) => {
+  const i = (sorted.length - 1) * q, lo = Math.floor(i), hi = Math.ceil(i);
+  return sorted[lo] + (sorted[hi] - sorted[lo]) * (i - lo);
+};
+
+function histogramBins(values, bins) {
+  const v = [...values].sort((a, b) => a - b);
+  const lo = v[0], hi = v[v.length - 1];
+  if (!bins) {   // Freedman–Diaconis, clamped
+    const iqr = quantile(v, 0.75) - quantile(v, 0.25);
+    const w = 2 * iqr / Math.cbrt(v.length);
+    bins = Math.min(80, Math.max(5, w > 0 ? Math.ceil((hi - lo) / w) : 10));
+  }
+  const width = (hi - lo) / bins || 1;
+  return { lo, width, bins };
+}
+
+function errorBars(name, points, color) {
+  // points: [x, y, err]; draws a vertical whisker with caps through each point
+  return {
+    name, type: 'custom', z: 3, silent: true, legendHoverLink: false, tooltip: { show: false },
+    renderItem: (params, api) => {
+      const x = api.value(0), y = api.value(1), e = api.value(2);
+      const top = api.coord([x, y + e]), bottom = api.coord([x, y - e]);
+      const cap = Math.min(6, api.size([1, 0])[0] * 0.2 || 6);
+      const style = { stroke: color, lineWidth: 1.4 };
+      return { type: 'group', children: [
+        { type: 'line', shape: { x1: top[0], y1: top[1], x2: bottom[0], y2: bottom[1] }, style },
+        { type: 'line', shape: { x1: top[0] - cap, y1: top[1], x2: top[0] + cap, y2: top[1] }, style },
+        { type: 'line', shape: { x1: bottom[0] - cap, y1: bottom[1], x2: bottom[0] + cap, y2: bottom[1] }, style },
+      ] };
+    },
+    data: points.filter((q) => q[1] !== null && q[2] !== null),
+  };
+}
+
 export function renderChart(el, p) {
   const b = base();
+  const colors = palette();
   const fmt = (v) => (v === null || v === undefined ? '–' : `${Number(v).toLocaleString()}${p.unit}`);
-  const tooltip = { ...b.tooltip, trigger: p.type === 'pie' || p.type === 'scatter' ? 'item' : 'axis', valueFormatter: fmt };
+  const valueAxis = (log, name) => ({ type: log ? 'log' : 'value', name, ...b.axis, scale: !log, axisLabel: { ...b.axis.axisLabel, formatter: (v) => `${Number(v).toLocaleString()}${p.unit}` } });
+  const common = { color: colors, textStyle: b.textStyle };
+
   if (p.type === 'pie') {
     return mount(el, {
-      color: palette(), textStyle: b.textStyle, tooltip,
+      ...common, tooltip: { ...b.tooltip, trigger: 'item', valueFormatter: fmt },
       legend: { bottom: 0, textStyle: { color: b.muted }, type: 'scroll' },
       series: [{ type: 'pie', radius: ['38%', '68%'], center: ['50%', '45%'], itemStyle: { borderColor: css('panel'), borderWidth: 2 },
         label: { color: b.fg }, data: p.xs.map((name, i) => ({ name, value: p.series[0].values[i] })) }],
     });
   }
-  const catAxis = { type: p.xNumeric ? 'value' : 'category', data: p.xNumeric ? undefined : p.xs, name: p.xName, nameLocation: 'middle', nameGap: 28, ...b.axis,
-    splitLine: { show: p.xNumeric, ...b.axis.splitLine }, boundaryGap: p.type === 'bar' };
-  const valAxis = { type: 'value', ...b.axis, axisLabel: { ...b.axis.axisLabel, formatter: (v) => `${v.toLocaleString()}${p.unit}` } };
+  if (p.type === 'histogram') {
+    const all = p.series.flatMap((s) => s.values);
+    const { lo, width, bins } = histogramBins(all, p.bins);
+    const series = p.series.map((s) => {
+      const counts = new Array(bins).fill(0);
+      for (const v of s.values) counts[Math.min(bins - 1, Math.floor((v - lo) / width))]++;
+      return { name: s.name, type: 'bar', barGap: '-100%', barCategoryGap: '4%', itemStyle: { opacity: p.series.length > 1 ? 0.6 : 0.9 },
+        data: counts.map((c, i) => [lo + (i + 0.5) * width, c]), barWidth: '96%' };
+    });
+    return mount(el, {
+      ...common, tooltip: { ...b.tooltip, trigger: 'axis', axisPointer: { type: 'shadow' },
+        formatter: (items) => `${tick(items[0].value[0] - width / 2)} – ${tick(items[0].value[0] + width / 2)}${p.unit}<br>` + items.map((i) => `${i.marker}${i.seriesName}: ${i.value[1]}`).join('<br>') },
+      legend: p.series.length > 1 ? { top: 0, textStyle: { color: b.muted } } : undefined,
+      grid: { left: 12, right: 18, top: p.series.length > 1 ? 34 : 14, bottom: 30, containLabel: true },
+      xAxis: { type: 'value', min: lo, max: lo + bins * width, ...b.axis, splitLine: { show: false },
+        axisLabel: { ...b.axis.axisLabel, showMinLabel: false, showMaxLabel: false, formatter: (v) => `${tick(v)}${p.unit}` } },
+      yAxis: { type: p.logy ? 'log' : 'value', name: 'count', ...b.axis, minInterval: 1 },
+      series,
+    });
+  }
+  if (p.type === 'box') {
+    const stats = p.groups.map((g) => {
+      const v = [...g.values].sort((a, c) => a - c);
+      const q1 = quantile(v, 0.25), q2 = quantile(v, 0.5), q3 = quantile(v, 0.75), iqr = q3 - q1;
+      const lo = v.find((x) => x >= q1 - 1.5 * iqr), hi = [...v].reverse().find((x) => x <= q3 + 1.5 * iqr);
+      return { box: [lo, q1, q2, q3, hi], outliers: v.filter((x) => x < lo || x > hi), n: v.length };
+    });
+    return mount(el, {
+      ...common,
+      tooltip: { ...b.tooltip, trigger: 'item', formatter: (i) => (i.seriesType === 'boxplot'
+        ? `${i.name} (n = ${stats[i.dataIndex].n})<br>max ${tick(i.value[5])}<br>Q3 ${tick(i.value[4])}<br>median ${tick(i.value[3])}<br>Q1 ${tick(i.value[2])}<br>min ${tick(i.value[1])}`
+        : `${i.name}: ${tick(i.value[1])} (outlier)`) },
+      grid: { left: 12, right: 18, top: 14, bottom: 30, containLabel: true },
+      xAxis: { type: 'category', data: p.groups.map((g) => g.name), ...b.axis },
+      yAxis: { ...valueAxis(p.logy, p.yName) },
+      series: [
+        { name: 'box', type: 'boxplot', data: stats.map((s) => s.box), itemStyle: { color: 'transparent', borderColor: colors[0], borderWidth: 1.6 } },
+        { name: 'outliers', type: 'scatter', symbolSize: 6, itemStyle: { color: colors[1] },
+          data: stats.flatMap((s, i) => s.outliers.map((v) => [p.groups[i].name, v])) },
+      ],
+    });
+  }
+  if (p.type === 'heatmap') {
+    const vals = p.cells.map((c) => c[2]).filter((v) => v !== null);
+    return mount(el, {
+      ...common, tooltip: { ...b.tooltip, formatter: (i) => `${p.xName} ${i.value[0]}, ${p.yName} ${i.value[1]}<br>${p.valueName}: ${tick(i.value[2])}${p.unit}` },
+      grid: { left: 12, right: 70, top: 10, bottom: 30, containLabel: true },
+      xAxis: { type: 'category', data: p.xs, name: p.xName, nameLocation: 'middle', nameGap: 26, ...b.axis, splitArea: { show: false } },
+      yAxis: { type: 'category', data: p.ysCat, name: p.yName, ...b.axis },
+      visualMap: { min: Math.min(...vals), max: Math.max(...vals), calculable: true, orient: 'vertical', right: 4, top: 'middle', itemHeight: 140,
+        textStyle: { color: b.muted }, inRange: { color: [css('panel'), css('blue'), css('accent'), css('yellow')] } },
+      series: [{ type: 'heatmap', data: p.cells, itemStyle: { borderColor: css('bg'), borderWidth: 1 }, emphasis: { itemStyle: { borderColor: css('fg') } } }],
+    });
+  }
+
+  // line, bar, area, scatter (+ error bars, band, fit)
   const kind = p.type === 'area' ? 'line' : p.type;
   const many = p.xs.length > 60;
+  const catAxis = { type: p.xNumeric ? (p.logx ? 'log' : 'value') : 'category', data: p.xNumeric ? undefined : p.xs, name: p.xName, nameLocation: 'middle', nameGap: 28,
+    ...b.axis, scale: p.xNumeric && !p.logx, splitLine: { show: p.xNumeric, ...b.axis.splitLine }, boundaryGap: p.type === 'bar' };
+  const valAxis = valueAxis(p.logy);
+  const point = (s, i) => (p.xNumeric ? [p.xs[i], s.values[i]] : s.values[i]);
+  const series = [];
+  const legend = [];
+  p.series.forEach((s, k) => {
+    legend.push(s.name);
+    series.push({
+      name: s.name, type: kind, color: colors[k % colors.length], stack: p.stack ? 'all' : undefined, showSymbol: kind === 'line' ? p.xs.length <= 40 : undefined,
+      symbolSize: kind === 'scatter' ? 8 : 5, areaStyle: p.type === 'area' ? { opacity: 0.25 } : undefined, barMaxWidth: 36,
+      emphasis: { focus: 'series' }, data: s.values.map((_, i) => point(s, i)),
+    });
+    if (s.errors && p.type !== 'area' && !p.horizontal) {
+      const x = (i) => (p.xNumeric ? p.xs[i] : i);
+      series.push(errorBars(s.name, s.values.map((v, i) => [x(i), v, s.errors[i]]), colors[k % colors.length]));
+    }
+    if (p.fit) {
+      const f = fit(p.fit, p.xs, s.values);
+      if (f.error) throw new Error(`fit ${p.fit} of ${s.name}: ${f.error}`);
+      const finite = p.xs.filter(Number.isFinite);
+      const [x0, x1] = [Math.min(...finite), Math.max(...finite)];
+      const xsFit = Array.from({ length: 200 }, (_, i) => (p.logx ? x0 * (x1 / x0) ** (i / 199) : x0 + ((x1 - x0) * i) / 199));
+      const name = `${f.label}   R² = ${f.r2.toFixed(4)}`;
+      legend.push(name);
+      series.push({ name, type: 'line', showSymbol: false, lineStyle: { type: 'dashed', width: 1.6 }, color: colors[(k + p.series.length) % colors.length],
+        data: xsFit.map((x) => [x, f.predict(x)]), tooltip: { show: false } });
+    }
+  });
+  if (p.band) {
+    // one polygon: along `low` left to right, back along `high`
+    const idx = p.xs.map((_, i) => i).filter((i) => p.band.low[i] !== null && p.band.high[i] !== null && Number.isFinite(p.xs[i])).sort((a, c) => p.xs[a] - p.xs[c]);
+    const bandColor = css('accent');
+    series.unshift({
+      name: p.band.label, type: 'custom', silent: true, z: 1, color: bandColor, tooltip: { show: false }, data: [0],
+      renderItem: (params, api) => ({
+        type: 'polygon', silent: true,
+        shape: { points: [...idx.map((i) => api.coord([p.xs[i], p.band.low[i]])), ...[...idx].reverse().map((i) => api.coord([p.xs[i], p.band.high[i]]))] },
+        style: { fill: bandColor, opacity: 0.16 },
+      }),
+    });
+    legend.push(p.band.label);
+  }
   return mount(el, {
-    color: palette(), textStyle: b.textStyle, tooltip,
-    legend: p.series.length > 1 ? { top: 0, textStyle: { color: b.muted }, type: 'scroll' } : undefined,
-    grid: { left: 12, right: 18, top: p.series.length > 1 ? 34 : 14, bottom: many ? 58 : 34, containLabel: true },
+    ...common, tooltip: { ...b.tooltip, trigger: p.type === 'scatter' ? 'item' : 'axis', valueFormatter: fmt },
+    legend: legend.length > 1 ? { top: 0, textStyle: { color: b.muted }, type: 'scroll', data: legend } : undefined,
+    grid: { left: 12, right: 18, top: legend.length > 1 ? 34 : 14, bottom: many ? 58 : 34, containLabel: true },
     xAxis: p.horizontal ? valAxis : catAxis,
     yAxis: p.horizontal ? { ...catAxis, nameLocation: 'end', nameGap: 12 } : valAxis,
     dataZoom: many ? [{ type: 'inside' }, { type: 'slider', height: 16, bottom: 6, borderColor: b.border, textStyle: { color: b.muted } }] : undefined,
-    series: p.series.map((s) => ({
-      name: s.name, type: kind, stack: p.stack ? 'all' : undefined, showSymbol: kind === 'line' ? p.xs.length <= 40 : undefined,
-      symbolSize: kind === 'scatter' ? 8 : 5, smooth: false, areaStyle: p.type === 'area' ? { opacity: 0.25 } : undefined,
-      barMaxWidth: 36, emphasis: { focus: 'series' },
-      data: p.xNumeric ? s.values.map((v, i) => [p.xs[i], v]) : s.values,
-    })),
+    series,
   });
 }
 
@@ -143,7 +277,6 @@ function autoRange(values) {
   return [Math.floor(lo / nice) * nice, Math.ceil(hi / nice) * nice];
 }
 
-const tick = (v) => Number(Number(v).toPrecision(4)).toString();
 
 // breaks a curve (null) where it is not finite or jumps across most of the view (asymptotes)
 function breakJumps(points, yRange) {
@@ -225,4 +358,78 @@ function plotSurface(el, p) {
   const zs = points.map((q) => q[2]).filter((z) => z !== null);
   return render3d(el, { type: 'surface', names: { x: p.xlabel ?? 'x', y: p.ylabel ?? 'y', z: 'z', color: 'z' },
     points, colorRange: zs.length ? [Math.min(...zs), Math.max(...zs)] : [0, 1], rotate: p.rotate });
+}
+
+// ---- matrix: heatmap, contour lines (marching squares) or a WebGL surface
+
+// Line segments where the grid crosses `level`; coordinates in (column, row) index space.
+function contourSegments(grid, level) {
+  const segs = [];
+  const nr = grid.length, nc = grid[0].length;
+  const lerp = (a, b, va, vb) => a + ((level - va) / (vb - va)) * (b - a);
+  for (let i = 0; i < nr - 1; i++)
+    for (let j = 0; j < nc - 1; j++) {
+      const a = grid[i][j], b = grid[i][j + 1], c = grid[i + 1][j + 1], d = grid[i + 1][j];
+      if ([a, b, c, d].some((v) => v === null)) continue;
+      const idx = (a > level ? 8 : 0) | (b > level ? 4 : 0) | (c > level ? 2 : 0) | (d > level ? 1 : 0);
+      if (idx === 0 || idx === 15) continue;
+      const top = [lerp(j, j + 1, a, b), i], right = [j + 1, lerp(i, i + 1, b, c)];
+      const bottom = [lerp(j, j + 1, d, c), i + 1], left = [j, lerp(i, i + 1, a, d)];
+      const table = { 1: [[left, bottom]], 2: [[bottom, right]], 3: [[left, right]], 4: [[top, right]], 5: [[left, top], [bottom, right]],
+        6: [[top, bottom]], 7: [[left, top]], 8: [[left, top]], 9: [[top, bottom]], 10: [[top, right], [left, bottom]], 11: [[top, right]],
+        12: [[left, right]], 13: [[bottom, right]], 14: [[left, bottom]] };
+      segs.push(...table[idx]);
+    }
+  return segs;
+}
+
+export function matrix(p, ctx) {
+  const box = h('div.chart-box', { style: { height: `${p.height}px` } });
+  ctx.afterMount(() => (p.style === 'surface' ? matrixSurface(box, p) : matrixMap(box, p)));
+  return card('chart-card', p.title, box, p.style === 'surface' ? h('footer.card-foot', 'drag to rotate · scroll to zoom') : null);
+}
+
+function matrixMap(el, p) {
+  const b = base();
+  const nr = p.grid.length, nc = p.grid[0].length;
+  const cols = p.cols ?? Array.from({ length: nc }, (_, j) => String(j));
+  const rows = p.rows ?? Array.from({ length: nr }, (_, i) => String(i));
+  const fmt = (v) => (v === null ? '–' : `${Number(Number(v).toPrecision(p.digits))}${p.unit}`);
+  const diverging = p.scale === 'diverging';
+  const m = Math.max(Math.abs(p.min), Math.abs(p.max));
+  const range = diverging ? [-m, m] : [p.min, p.max];
+  const colors = diverging ? [css('blue'), css('panel'), css('red')] : [css('panel'), css('blue'), css('accent'), css('yellow')];
+  const cells = [];
+  p.grid.forEach((r, i) => r.forEach((v, j) => cells.push([j, i, v])));
+  const contour = p.style === 'contour';
+  const series = [{ type: 'heatmap', data: cells, itemStyle: { opacity: contour ? 0.45 : 1, borderColor: nr * nc <= 2500 ? css('bg') : undefined, borderWidth: nr * nc <= 2500 ? 1 : 0 },
+    label: { show: p.annotate && !contour, color: b.fg, fontFamily: css('font'), fontSize: 11, formatter: (i) => (i.value[2] === null ? '' : `${Number(Number(i.value[2]).toPrecision(p.digits))}`) },
+    emphasis: { itemStyle: { borderColor: css('fg'), borderWidth: 1 } } }];
+  if (contour) {
+    const levels = Array.from({ length: p.levels }, (_, k) => p.min + ((k + 1) * (p.max - p.min)) / (p.levels + 1));
+    levels.forEach((level) => {
+      const segs = contourSegments(p.grid, level);
+      series.push({ type: 'custom', name: `${Number(level.toPrecision(3))}`, silent: true, tooltip: { show: false }, data: segs.map((s) => [s[0][0], s[0][1], s[1][0], s[1][1]]),
+        renderItem: (params, api) => {
+          const a = api.coord([api.value(0), api.value(1)]), c = api.coord([api.value(2), api.value(3)]);
+          return { type: 'line', shape: { x1: a[0], y1: a[1], x2: c[0], y2: c[1] }, style: { stroke: css('fg'), lineWidth: 1.2, opacity: 0.85 } };
+        } });
+    });
+  }
+  return mount(el, {
+    textStyle: b.textStyle,
+    tooltip: { ...b.tooltip, formatter: (i) => (i.seriesType === 'heatmap' ? `${rows[i.value[1]]} · ${cols[i.value[0]]}<br><b>${fmt(i.value[2])}</b>` : '') },
+    grid: { left: 12, right: 96, top: 10, bottom: 12, containLabel: true },
+    xAxis: { type: 'category', data: cols, position: 'top', ...b.axis, splitArea: { show: false }, axisLabel: { ...b.axis.axisLabel, interval: nc > 40 ? 'auto' : 0, rotate: cols.some((c) => c.length > 4) && nc > 6 ? 40 : 0 } },
+    yAxis: { type: 'category', data: rows, inverse: true, ...b.axis, axisLabel: { ...b.axis.axisLabel, interval: nr > 40 ? 'auto' : 0 } },
+    visualMap: { min: range[0], max: range[1], calculable: true, orient: 'vertical', right: 10, top: 'middle', itemHeight: Math.min(180, p.height - 80), seriesIndex: 0,
+      precision: 3, textStyle: { color: b.muted }, inRange: { color: colors } },
+    series,
+  });
+}
+
+function matrixSurface(el, p) {
+  const points = [];
+  p.grid.forEach((r, i) => r.forEach((v, j) => points.push([j, i, v, v])));
+  return render3d(el, { type: 'surface', names: { x: 'column', y: 'row', z: 'value', color: 'value' }, points, colorRange: [p.min, p.max] });
 }

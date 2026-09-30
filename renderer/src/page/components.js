@@ -32,7 +32,7 @@ function table(p) {
   }, c.label, h('span.sort-mark')));
   const cmp = (col) => (a, b) => {
     const x = a[col], y = b[col];
-    if (p.columns[col].numeric) return (x === '' ? -Infinity : Number(x)) - (y === '' ? -Infinity : Number(y));
+    if (p.columns[col].numeric) return (x === '' ? -Infinity : parseFloat(x)) - (y === '' ? -Infinity : parseFloat(y));   // parseFloat: "3.21 ± 0.12"
     return String(x).localeCompare(String(y), undefined, { numeric: true });
   };
   function draw() {
@@ -89,5 +89,6 @@ export const renderers = {
   chart: lazy(charts, 'chart'),
   chart3d: lazy(charts, 'chart3d'),
   plot: lazy(charts, 'plot'),
+  matrix: lazy(charts, 'matrix'),
   math: lazy(mathChunk, 'math'),
 };
