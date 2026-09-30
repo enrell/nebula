@@ -10,12 +10,15 @@ You need Qt >= 6.5 (Quick, WebEngine, WebChannel), libvterm >= 0.3, CMake and Ni
 
 | Recipe | What |
 |---|---|
+| `just build` / `just run` / `just install` | release build / build and run / install |
 | `just dev` | debug build, isolated instance (own socket and state); QML reloads from disk on save |
 | `just watch` | rebuild and restart the dev instance when C++ changes |
 | `just test` | C++ unit tests (including the view checker running in Qt's JS engine) |
 | `just e2e`, `just e2e-persist`, `just e2e-agents`, `just e2e-views` | end-to-end tests against a throw-away instance |
 | `just renderer` | rebuild and test the views renderer (`renderer/dist` is committed) |
-| `just screenshots` / `just media` | regenerate README screenshots / the GIF and view images |
+| `just screenshots` / `just media` | regenerate the screenshots (headless) / the README GIFs and view images (Xvfb, Mesa, ffmpeg, xdotool) |
+| `just ctl <args>` / `just dctl <args>` / `just events` | talk to the running / dev instance, stream agent events |
+| `just pkg` / `just release-local` | Arch package from the checkout / every release artifact in docker containers |
 | `just lint` / `just fmt` | static checks / formatting |
 
 Every test and screenshot script runs headless in a throw-away `HOME` and never touches your real session.

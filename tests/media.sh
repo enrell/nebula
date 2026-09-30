@@ -1,15 +1,16 @@
 #!/usr/bin/env bash
-# Marketing media for the README and PRs: an animated GIF and screenshots of views with real WebGL.
+# Marketing media for the README and PRs: GIFs recorded from the screen and stills of views with real WebGL.
 # Unlike tests/screenshots.sh (headless, no GL) this runs nebula on a virtual X server with Mesa's software GL,
-# in a throw-away HOME with a scripted stand-in agent (no accounts, no personal data).
-#   tests/media.sh [path/to/nebula]         needs: Xvfb, Mesa (libgl1-mesa-dri), ffmpeg, python3
-# Writes docs/media/{hero.gif, views-modal.png, views-docked.png, views-errors.png} and the science gallery
-# {views-chembio.png, views-physics.png, views-research.png, views-science.gif}.
+# in a throw-away HOME with scripted stand-in agents (tests/media_standin.py: no accounts, no personal data).
+# GIFs are real screen recordings (ffmpeg x11grab) driven by real mouse and keyboard input (xdotool).
+#   tests/media.sh [path/to/nebula]         needs: Xvfb, Mesa (libgl1-mesa-dri), ffmpeg, xdotool, python3
+# Writes docs/media/: hero.gif, operator.gif, views-live.gif, persist.gif (README), and views-modal.png,
+# views-docked.png, views-errors.png, views-chembio.png, views-physics.png, views-research.png (docs/views.md).
 set -euo pipefail
 BIN=$(realpath "${1:-./build/nebula}")
 HERE=$(cd "$(dirname "$0")" && pwd)
 OUT=$(realpath -m "$HERE/../docs/media")
-for t in Xvfb ffmpeg python3; do command -v $t >/dev/null || { echo "media: $t is required" >&2; exit 2; }; done
+for t in Xvfb ffmpeg xdotool python3; do command -v $t >/dev/null || { echo "media: $t is required" >&2; exit 2; }; done
 mkdir -p "$OUT"
 export HOME=$(mktemp -d)
 WORK=$HOME/work FRAMES=$HOME/frames
@@ -32,6 +33,25 @@ start() {
   ctl window.resize width=1400 height=860 >/dev/null; sleep 0.8
 }
 paneid() { ctl pane.list | python3 -c 'import json,sys;print(json.load(sys.stdin)[0]["id"])'; }
+# record NAME [mouse]: capture the window's area of the screen (the pointer only with `mouse`) until
+# finish NAME [WIDTH] [CAPTION_FILTER] turns it into a GIF
+record() { ffmpeg -loglevel error -y -f x11grab -draw_mouse $([ "${2:-}" = mouse ] && echo 1 || echo 0) -framerate 20 -video_size 1400x860 -i "$DISP+0,0" -c:v ffv1 "$HOME/$1.mkv" & REC=$!; sleep 0.3; }
+finish() {
+  kill -INT $REC; wait $REC 2>/dev/null || true
+  ffmpeg -loglevel error -y -i "$HOME/$1.mkv" \
+    -vf "${3:+$3,}fps=14,scale=${2:-1000}:-1:flags=lanczos,split[a][b];[a]palettegen=max_colors=200:stats_mode=diff[p];[b][p]paletteuse=dither=bayer:bayer_scale=5:diff_mode=rectangle" \
+    "$OUT/$1.gif"
+}
+# a caption over the frames from $2 to $3 seconds (the screen is black there: nebula is gone)
+caption() { echo "drawtext=fontfile=$FONT:text='$1':fontcolor=white:fontsize=34:x=(w-text_w)/2:y=(h-text_h)/2:enable='between(t,$2,$3)'"; }
+FONT=$(fc-match -f '%{file}' 'DejaVu Sans Mono:bold')
+# real input: focus the window with a click, then type or drag like a person
+click() { xdotool mousemove "$1" "$2" click 1; sleep 0.2; }
+drag() {   # drag x0 y0 x1 y1 [steps]: press, move in steps, release
+  local n=${5:-30}; xdotool mousemove "$1" "$2" mousedown 1
+  for i in $(seq 1 "$n"); do xdotool mousemove $(( $1 + ($3 - $1) * i / n )) $(( $2 + ($4 - $2) * i / n )); sleep 0.04; done
+  xdotool mouseup 1
+}
 
 # --- a small "experiment" project the agent reports on
 cd "$WORK"
@@ -109,16 +129,11 @@ W=$(ctl view.show content='warm-up' | python3 -c 'import json,sys;print(json.loa
 ctl view.close view="$W" >/dev/null
 P=$(paneid)
 ctl pane.send_text pane="$P" text="cd ~/work; PS1='\$ '; clear; claude" enter=true >/dev/null
-n=0
-shot() { ctl window.screenshot path="$FRAMES/$(printf %04d $n).png" >/dev/null; n=$((n + 1)); }
-t0=$(date +%s.%N)
-for _ in $(seq 110); do shot; sleep 0.02; done
-t1=$(date +%s.%N)
-fps=$(python3 -c "print(max(4, round($n / ($t1 - $t0))))")
+record hero
+sleep 9
 ctl window.screenshot path="$OUT/views-modal.png" >/dev/null
-ffmpeg -loglevel error -y -framerate "$fps" -i "$FRAMES/%04d.png" \
-  -vf "scale=1000:-1:flags=lanczos,split[a][b];[a]palettegen=max_colors=256:stats_mode=diff[p];[b][p]paletteuse=dither=bayer:bayer_scale=5:diff_mode=rectangle" \
-  "$OUT/hero.gif"
+sleep 3
+finish hero
 
 # --- views-docked.png: the same view docked next to the agent
 V=$(ctl view.list | python3 -c 'import json,sys;print(json.load(sys.stdin)[0]["view"])')
@@ -288,37 +303,82 @@ for shot in chembio:1760 physics:1960 research:1160; do
   ctl view.close view="$V" >/dev/null
 done
 
-# --- views-science.gif: a spinning protein beside a live animation
-cat > motion.md <<'MD'
-```nebula:structure
-title: 1A8O, spinning
-data: 1a8o.pdb
-spin: true
+# --- views-live.gif: a reader drags a slider (the field is re-sampled live) and turns a protein with the mouse
+stop
+rm -rf "$NEBULA_STATE_DIR"
+cat > live.md <<'MD'
+```nebula:field
+title: Damped pendulum — drag the damping
+u: y
+v: "-sin(x) - b y"
+x: [-7, 7]
+y: [-4, 4]
+params:
+  b: {value: 0.1, min: 0, max: 1.5, label: damping b}
+xlabel: θ
+ylabel: ω
 height: 330
 ```
 
-```nebula:animation
-title: Standing wave
-t: [0, 6.283]
-x: [0, 10]
-duration: 4
-functions:
-  - {y: "sin(x - t)", label: right}
-  - {y: "sin(x + t)", label: left}
-  - {y: "sin(x - t) + sin(x + t)", label: sum}
+```nebula:structure
+title: HIV-1 capsid domain (PDB 1A8O) — drag to rotate
+data: 1a8o.pdb
 height: 300
 ```
 MD
-ctl window.resize width=1100 height=900 >/dev/null; sleep 0.8
-V=$(ctl view.show file=motion.md | python3 -c 'import json,sys;print(json.load(sys.stdin)["view"])')
+start
+W=$(ctl view.show content='warm-up' | python3 -c 'import json,sys;print(json.load(sys.stdin)["view"])'); ctl view.close view="$W" >/dev/null
+ctl view.show file=live.md >/dev/null; sleep 5
+# positions in the 1400×860 window: the slider's thumb and track end, the middle of the protein
+record views-live mouse
+sleep 1
+drag 445 121 575 121 60; sleep 1.2
+drag 575 121 470 121 40; sleep 1
+drag 810 670 1010 640 45; sleep 0.4
+drag 1010 640 760 700 45; sleep 1.2
+finish views-live
+stop
+
+# --- operator.gif: ask the operator in plain words; it launches two agents in their own worktrees, one of them
+# stops at a permission prompt, Ctrl+Shift+A jumps to it, and both finish
+rm -rf "$NEBULA_STATE_DIR"
+mkdir -p "$HOME/standin"
+for a in claude codex; do printf '#!/bin/sh\nexec python3 "%s/media_standin.py" %s "$@"\n' "$HERE" "$a" > "$HOME/standin/$a"; chmod +x "$HOME/standin/$a"; done
+ln -sf "$BIN" "$HOME/standin/nebula"
+export PATH="$HOME/standin:$PATH"
+echo '{"onboarded":true,"operatorAgent":"native:claude"}' > "$HOME/.config/nebula/settings.json"
+cd "$WORK"
+start
+P=$(paneid)
+ctl pane.send_text pane="$P" text="cd ~/work; PS1='\$ '; clear; git log --oneline -1" enter=true >/dev/null
+sleep 0.5
+record operator
+click 800 400
+xdotool key ctrl+shift+i; sleep 1.2
+xdotool type --delay 45 "Launch claude and codex on the flaky auth test, each in its own worktree"
+sleep 0.4; xdotool key Return
+sleep 7.5
+xdotool key Escape; sleep 3.5
+xdotool key ctrl+shift+a; sleep 1.5
+xdotool type --delay 120 "y"; xdotool key Return
 sleep 5
-rm -f "$FRAMES"/*.png
-n=0
-t0=$(date +%s.%N)
-for _ in $(seq 60); do ctl window.screenshot path="$FRAMES/$(printf %04d $n).png" >/dev/null; n=$((n + 1)); done
-t1=$(date +%s.%N)
-fps=$(python3 -c "print(max(4, round($n / ($t1 - $t0))))")
-ffmpeg -loglevel error -y -framerate "$fps" -i "$FRAMES/%04d.png" \
-  -vf "scale=800:-1:flags=lanczos,split[a][b];[a]palettegen=max_colors=256:stats_mode=diff[p];[b][p]paletteuse=dither=bayer:bayer_scale=5:diff_mode=rectangle" \
-  "$OUT/views-science.gif"
+finish operator
+stop
+
+# --- persist.gif: nebula is killed while agents work; the next launch finds everything still running
+rm -rf "$NEBULA_STATE_DIR"
+start
+P=$(paneid)
+ctl pane.send_text pane="$P" text="cd ~/work; PS1='\$ '; clear; for i in \$(seq 1 400); do printf '\\rtraining  epoch %3d/400' \$i; sleep 0.1; done" enter=true >/dev/null
+ctl agent.launch agent=claude prompt="fix the flaky auth test" where=split-right >/dev/null
+sleep 2.5
+record persist
+sleep 2.5
+kill -9 $GUI; wait $GUI 2>/dev/null || true
+sleep 2.2
+start
+sleep 5
+finish persist 1000 "$(caption 'kill -9 nebula' 2.7 4.9)"
+stop
+
 echo "media written to $OUT: $(cd "$OUT" && ls | tr '\n' ' ')"
