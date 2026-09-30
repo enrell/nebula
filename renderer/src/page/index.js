@@ -76,7 +76,7 @@ function render(doc) {
     if (block.id) el.id = `block-${block.id}`;
     slots[i].replaceWith(el);
     for (const fn of mounted) {
-      try { fn(); } catch (e) { ctx.issue(`drawing failed: ${e.message}`); }
+      try { await fn(); } catch (e) { ctx.issue(`drawing failed: ${e.message}`); }
     }
   });
   Promise.allSettled(jobs).then(() => {

@@ -17608,13 +17608,13 @@ ${end.comment}` : end.comment;
     body.children.unshift(strut);
     return body;
   }
-  function buildHTML(tree, options) {
+  function buildHTML(tree2, options) {
     var tag = null;
-    if (tree.length === 1 && tree[0].type === "tag") {
-      tag = tree[0].tag;
-      tree = tree[0].body;
+    if (tree2.length === 1 && tree2[0].type === "tag") {
+      tag = tree2[0].tag;
+      tree2 = tree2[0].body;
     }
-    var expression = buildExpression$1(tree, options, "root");
+    var expression = buildExpression$1(tree2, options, "root");
     var eqnNum;
     if (expression.length === 2 && expression[1].hasClass("tag")) {
       eqnNum = expression.pop();
@@ -17985,8 +17985,8 @@ ${end.comment}` : end.comment;
       throw new ParseError("Got group of unknown type: '" + group.type + "'");
     }
   };
-  function buildMathML(tree, texExpression, options, isDisplayMode, forMathmlOnly) {
-    var expression = buildExpression2(tree, options);
+  function buildMathML(tree2, texExpression, options, isDisplayMode, forMathmlOnly) {
+    var expression = buildExpression2(tree2, options);
     var wrapper;
     if (expression.length === 1 && expression[0] instanceof MathNode && rowLikeTypes.has(expression[0].type)) {
       wrapper = expression[0];
@@ -18289,24 +18289,24 @@ ${end.comment}` : end.comment;
     }
     return node;
   };
-  var buildTree = function buildTree2(tree, expression, settings) {
+  var buildTree = function buildTree2(tree2, expression, settings) {
     var options = optionsFromSettings(settings);
     var katexNode;
     if (settings.output === "mathml") {
-      return buildMathML(tree, expression, options, settings.displayMode, true);
+      return buildMathML(tree2, expression, options, settings.displayMode, true);
     } else if (settings.output === "html") {
-      var htmlNode = buildHTML(tree, options);
+      var htmlNode = buildHTML(tree2, options);
       katexNode = makeSpan(["katex"], [htmlNode]);
     } else {
-      var mathMLNode = buildMathML(tree, expression, options, settings.displayMode, false);
-      var _htmlNode = buildHTML(tree, options);
+      var mathMLNode = buildMathML(tree2, expression, options, settings.displayMode, false);
+      var _htmlNode = buildHTML(tree2, options);
       katexNode = makeSpan(["katex"], [mathMLNode, _htmlNode]);
     }
     return displayWrap(katexNode, settings);
   };
-  var buildHTMLTree = function buildHTMLTree2(tree, expression, settings) {
+  var buildHTMLTree = function buildHTMLTree2(tree2, expression, settings) {
     var options = optionsFromSettings(settings);
-    var htmlNode = buildHTML(tree, options);
+    var htmlNode = buildHTML(tree2, options);
     var katexNode = makeSpan(["katex"], [htmlNode]);
     return displayWrap(katexNode, settings);
   };
@@ -20109,10 +20109,10 @@ ${end.comment}` : end.comment;
       throw new Error("Add support for delim type '" + delimKind + "' here.");
     }
   };
-  var traverseSequence = function traverseSequence2(delim, height, sequence, options) {
+  var traverseSequence = function traverseSequence2(delim, height, sequence2, options) {
     var start = Math.min(2, 3 - options.style.size);
-    for (var i = start; i < sequence.length; i++) {
-      var delimType = sequence[i];
+    for (var i = start; i < sequence2.length; i++) {
+      var delimType = sequence2[i];
       if (delimType.type === "stack") {
         break;
       }
@@ -20126,7 +20126,7 @@ ${end.comment}` : end.comment;
         return delimType;
       }
     }
-    return sequence[sequence.length - 1];
+    return sequence2[sequence2.length - 1];
   };
   var makeCustomSizedDelim = function makeCustomSizedDelim2(delim, height, center, options, mode, classes) {
     if (delim === "<" || delim === "\\lt" || delim === "\u27E8") {
@@ -20134,15 +20134,15 @@ ${end.comment}` : end.comment;
     } else if (delim === ">" || delim === "\\gt" || delim === "\u27E9") {
       delim = "\\rangle";
     }
-    var sequence;
+    var sequence2;
     if (stackNeverDelimiters.has(delim)) {
-      sequence = stackNeverDelimiterSequence;
+      sequence2 = stackNeverDelimiterSequence;
     } else if (stackLargeDelimiters.has(delim)) {
-      sequence = stackLargeDelimiterSequence;
+      sequence2 = stackLargeDelimiterSequence;
     } else {
-      sequence = stackAlwaysDelimiterSequence;
+      sequence2 = stackAlwaysDelimiterSequence;
     }
-    var delimType = traverseSequence(delim, height, sequence, options);
+    var delimType = traverseSequence(delim, height, sequence2, options);
     if (delimType.type === "small") {
       return makeSmallDelim(delim, delimType.style, center, options, mode, classes);
     } else if (delimType.type === "large") {
@@ -26935,21 +26935,21 @@ ${end.comment}` : end.comment;
     }
     var parser = new Parser2(toParse, settings);
     delete parser.gullet.macros.current["\\df@tag"];
-    var tree = parser.parse();
+    var tree2 = parser.parse();
     delete parser.gullet.macros.current["\\current@color"];
     delete parser.gullet.macros.current["\\color"];
     if (parser.gullet.macros.get("\\df@tag")) {
       if (!settings.displayMode) {
         throw new ParseError("\\tag works only in display equations");
       }
-      tree = [{
+      tree2 = [{
         type: "tag",
         mode: "text",
-        body: tree,
+        body: tree2,
         tag: parser.subparse([new Token2("\\df@tag")])
       }];
     }
-    return tree;
+    return tree2;
   };
   var render = function render2(expression, baseNode, options) {
     baseNode.textContent = "";
@@ -26984,8 +26984,8 @@ ${end.comment}` : end.comment;
   var renderToDomTree = function renderToDomTree2(expression, options) {
     var settings = new Settings(options);
     try {
-      var tree = parseTree(expression, settings);
-      return buildTree(tree, expression, settings);
+      var tree2 = parseTree(expression, settings);
+      return buildTree(tree2, expression, settings);
     } catch (error2) {
       return renderError(error2, expression, settings);
     }
@@ -26993,8 +26993,8 @@ ${end.comment}` : end.comment;
   var renderToHTMLTree = function renderToHTMLTree2(expression, options) {
     var settings = new Settings(options);
     try {
-      var tree = parseTree(expression, settings);
-      return buildHTMLTree(tree, expression, settings);
+      var tree2 = parseTree(expression, settings);
+      return buildHTMLTree(tree2, expression, settings);
     } catch (error2) {
       return renderError(error2, expression, settings);
     }
@@ -27284,6 +27284,2060 @@ ${end.comment}` : end.comment;
         unit: (_g = props.unit) != null ? _g : "",
         height: (_h = props.height) != null ? _h : props.style === "surface" ? 440 : Math.min(640, Math.max(220, nr * 34 + 80))
       };
+    }
+  };
+
+  // node_modules/smiles-drawer/src/Parser.js
+  var Parser_default = (function() {
+    "use strict";
+    function peg$subclass(child, parent) {
+      function ctor() {
+        this.constructor = child;
+      }
+      ctor.prototype = parent.prototype;
+      child.prototype = new ctor();
+    }
+    function peg$SyntaxError(message, expected, found, location) {
+      this.message = message;
+      this.expected = expected;
+      this.found = found;
+      this.location = location;
+      this.name = "SyntaxError";
+      if (typeof Error.captureStackTrace === "function") {
+        Error.captureStackTrace(this, peg$SyntaxError);
+      }
+    }
+    peg$subclass(peg$SyntaxError, Error);
+    peg$SyntaxError.buildMessage = function(expected, found) {
+      var DESCRIBE_EXPECTATION_FNS = {
+        literal: function(expectation) {
+          return '"' + literalEscape(expectation.text) + '"';
+        },
+        "class": function(expectation) {
+          var escapedParts = "", i;
+          for (i = 0; i < expectation.parts.length; i++) {
+            escapedParts += expectation.parts[i] instanceof Array ? classEscape(expectation.parts[i][0]) + "-" + classEscape(expectation.parts[i][1]) : classEscape(expectation.parts[i]);
+          }
+          return "[" + (expectation.inverted ? "^" : "") + escapedParts + "]";
+        },
+        any: function(expectation) {
+          return "any character";
+        },
+        end: function(expectation) {
+          return "end of input";
+        },
+        other: function(expectation) {
+          return expectation.description;
+        }
+      };
+      function hex(ch) {
+        return ch.charCodeAt(0).toString(16).toUpperCase();
+      }
+      function literalEscape(s) {
+        return s.replace(/\\/g, "\\\\").replace(/"/g, '\\"').replace(/\0/g, "\\0").replace(/\t/g, "\\t").replace(/\n/g, "\\n").replace(/\r/g, "\\r").replace(/[\x00-\x0F]/g, function(ch) {
+          return "\\x0" + hex(ch);
+        }).replace(/[\x10-\x1F\x7F-\x9F]/g, function(ch) {
+          return "\\x" + hex(ch);
+        });
+      }
+      function classEscape(s) {
+        return s.replace(/\\/g, "\\\\").replace(/\]/g, "\\]").replace(/\^/g, "\\^").replace(/-/g, "\\-").replace(/\0/g, "\\0").replace(/\t/g, "\\t").replace(/\n/g, "\\n").replace(/\r/g, "\\r").replace(/[\x00-\x0F]/g, function(ch) {
+          return "\\x0" + hex(ch);
+        }).replace(/[\x10-\x1F\x7F-\x9F]/g, function(ch) {
+          return "\\x" + hex(ch);
+        });
+      }
+      function describeExpectation(expectation) {
+        return DESCRIBE_EXPECTATION_FNS[expectation.type](expectation);
+      }
+      function describeExpected(expected2) {
+        var descriptions = new Array(expected2.length), i, j;
+        for (i = 0; i < expected2.length; i++) {
+          descriptions[i] = describeExpectation(expected2[i]);
+        }
+        descriptions.sort();
+        if (descriptions.length > 0) {
+          for (i = 1, j = 1; i < descriptions.length; i++) {
+            if (descriptions[i - 1] !== descriptions[i]) {
+              descriptions[j] = descriptions[i];
+              j++;
+            }
+          }
+          descriptions.length = j;
+        }
+        switch (descriptions.length) {
+          case 1:
+            return descriptions[0];
+          case 2:
+            return descriptions[0] + " or " + descriptions[1];
+          default:
+            return descriptions.slice(0, -1).join(", ") + ", or " + descriptions[descriptions.length - 1];
+        }
+      }
+      function describeFound(found2) {
+        return found2 ? '"' + literalEscape(found2) + '"' : "end of input";
+      }
+      return "Expected " + describeExpected(expected) + " but " + describeFound(found) + " found.";
+    };
+    function peg$parse(input, options) {
+      options = options !== void 0 ? options : {};
+      var nOpenParentheses = input.split("(").length - 1;
+      var nCloseParentheses = input.split(")").length - 1;
+      if (nOpenParentheses !== nCloseParentheses) {
+        throw peg$buildSimpleError("The number of opening parentheses does not match the number of closing parentheses.", 0);
+      }
+      var peg$FAILED = {}, peg$startRuleFunctions = {
+        chain: peg$parsechain
+      }, peg$startRuleFunction = peg$parsechain, peg$c0 = function(s) {
+        var branches = [];
+        var rings = [];
+        for (var i = 0; i < s[1].length; i++) {
+          branches.push(s[1][i]);
+        }
+        for (var i = 0; i < s[2].length; i++) {
+          var bond = s[2][i][0] ? s[2][i][0] : "-";
+          rings.push({
+            "bond": bond,
+            "id": s[2][i][1]
+          });
+        }
+        for (var i = 0; i < s[3].length; i++) {
+          branches.push(s[3][i]);
+        }
+        for (var i = 0; i < s[6].length; i++) {
+          branches.push(s[6][i]);
+        }
+        return {
+          "atom": s[0],
+          "isBracket": s[0].element ? true : false,
+          "branches": branches,
+          "branchCount": branches.length,
+          "ringbonds": rings,
+          "ringbondCount": rings.length,
+          "bond": s[4] ? s[4] : "-",
+          "next": s[5],
+          "hasNext": s[5] ? true : false
+        };
+      }, peg$c1 = "(", peg$c2 = peg$literalExpectation("(", false), peg$c3 = ")", peg$c4 = peg$literalExpectation(")", false), peg$c5 = function(b) {
+        var bond = b[1] ? b[1] : "-";
+        b[2].branchBond = bond;
+        return b[2];
+      }, peg$c6 = function(a) {
+        return a;
+      }, peg$c7 = /^[\-=#$:\/\\.]/, peg$c8 = peg$classExpectation(["-", "=", "#", "$", ":", "/", "\\", "."], false, false), peg$c9 = function(b) {
+        return b;
+      }, peg$c10 = "[", peg$c11 = peg$literalExpectation("[", false), peg$c12 = "se", peg$c13 = peg$literalExpectation("se", false), peg$c14 = "as", peg$c15 = peg$literalExpectation("as", false), peg$c16 = "]", peg$c17 = peg$literalExpectation("]", false), peg$c18 = function(b) {
+        return {
+          "isotope": b[1],
+          "element": b[2],
+          "chirality": b[3],
+          "hcount": b[4],
+          "charge": b[5],
+          "class": b[6]
+        };
+      }, peg$c19 = "B", peg$c20 = peg$literalExpectation("B", false), peg$c21 = "r", peg$c22 = peg$literalExpectation("r", false), peg$c23 = "C", peg$c24 = peg$literalExpectation("C", false), peg$c25 = "l", peg$c26 = peg$literalExpectation("l", false), peg$c27 = /^[NOPSFI]/, peg$c28 = peg$classExpectation(["N", "O", "P", "S", "F", "I"], false, false), peg$c29 = function(o) {
+        if (o.length > 1) return o.join("");
+        return o;
+      }, peg$c30 = /^[bcnops]/, peg$c31 = peg$classExpectation(["b", "c", "n", "o", "p", "s"], false, false), peg$c32 = "*", peg$c33 = peg$literalExpectation("*", false), peg$c34 = function(w) {
+        return w;
+      }, peg$c35 = /^[A-Z]/, peg$c36 = peg$classExpectation([
+        ["A", "Z"]
+      ], false, false), peg$c37 = /^[a-z]/, peg$c38 = peg$classExpectation([
+        ["a", "z"]
+      ], false, false), peg$c39 = function(e) {
+        return e.join("");
+      }, peg$c40 = "%", peg$c41 = peg$literalExpectation("%", false), peg$c42 = /^[1-9]/, peg$c43 = peg$classExpectation([
+        ["1", "9"]
+      ], false, false), peg$c44 = /^[0-9]/, peg$c45 = peg$classExpectation([
+        ["0", "9"]
+      ], false, false), peg$c46 = function(r) {
+        if (r.length == 1) return Number(r);
+        return Number(r.join("").replace("%", ""));
+      }, peg$c47 = "@", peg$c48 = peg$literalExpectation("@", false), peg$c49 = "TH", peg$c50 = peg$literalExpectation("TH", false), peg$c51 = /^[12]/, peg$c52 = peg$classExpectation(["1", "2"], false, false), peg$c53 = "AL", peg$c54 = peg$literalExpectation("AL", false), peg$c55 = "SP", peg$c56 = peg$literalExpectation("SP", false), peg$c57 = /^[1-3]/, peg$c58 = peg$classExpectation([
+        ["1", "3"]
+      ], false, false), peg$c59 = "TB", peg$c60 = peg$literalExpectation("TB", false), peg$c61 = "OH", peg$c62 = peg$literalExpectation("OH", false), peg$c63 = function(c) {
+        if (!c[1]) return "@";
+        if (c[1] == "@") return "@@";
+        return c[1].join("").replace(",", "");
+      }, peg$c64 = function(c) {
+        return c;
+      }, peg$c65 = "+", peg$c66 = peg$literalExpectation("+", false), peg$c67 = function(c) {
+        if (!c[1]) return 1;
+        if (c[1] != "+") return Number(c[1].join(""));
+        return 2;
+      }, peg$c68 = "-", peg$c69 = peg$literalExpectation("-", false), peg$c70 = function(c) {
+        if (!c[1]) return -1;
+        if (c[1] != "-") return -Number(c[1].join(""));
+        return -2;
+      }, peg$c71 = "H", peg$c72 = peg$literalExpectation("H", false), peg$c73 = function(h) {
+        if (h[1]) return Number(h[1]);
+        return 1;
+      }, peg$c74 = ":", peg$c75 = peg$literalExpectation(":", false), peg$c76 = /^[0]/, peg$c77 = peg$classExpectation(["0"], false, false), peg$c78 = function(c) {
+        return Number(c[1][0] + c[1][1].join(""));
+      }, peg$c79 = function(i) {
+        return Number(i.join(""));
+      }, peg$currPos = 0, peg$savedPos = 0, peg$posDetailsCache = [{
+        line: 1,
+        column: 1
+      }], peg$maxFailPos = 0, peg$maxFailExpected = [], peg$silentFails = 0, peg$result;
+      if ("startRule" in options) {
+        if (!(options.startRule in peg$startRuleFunctions)) {
+          throw new Error(`Can't start parsing from rule "` + options.startRule + '".');
+        }
+        peg$startRuleFunction = peg$startRuleFunctions[options.startRule];
+      }
+      function text3() {
+        return input.substring(peg$savedPos, peg$currPos);
+      }
+      function location() {
+        return peg$computeLocation(peg$savedPos, peg$currPos);
+      }
+      function expected(description, location2) {
+        location2 = location2 !== void 0 ? location2 : peg$computeLocation(peg$savedPos, peg$currPos);
+        throw peg$buildStructuredError(
+          [peg$otherExpectation(description)],
+          input.substring(peg$savedPos, peg$currPos),
+          location2
+        );
+      }
+      function error2(message, location2) {
+        location2 = location2 !== void 0 ? location2 : peg$computeLocation(peg$savedPos, peg$currPos);
+        throw peg$buildSimpleError(message, location2);
+      }
+      function peg$literalExpectation(text4, ignoreCase) {
+        return {
+          type: "literal",
+          text: text4,
+          ignoreCase
+        };
+      }
+      function peg$classExpectation(parts, inverted, ignoreCase) {
+        return {
+          type: "class",
+          parts,
+          inverted,
+          ignoreCase
+        };
+      }
+      function peg$anyExpectation() {
+        return {
+          type: "any"
+        };
+      }
+      function peg$endExpectation() {
+        return {
+          type: "end"
+        };
+      }
+      function peg$otherExpectation(description) {
+        return {
+          type: "other",
+          description
+        };
+      }
+      function peg$computePosDetails(pos) {
+        var details = peg$posDetailsCache[pos], p;
+        if (details) {
+          return details;
+        } else {
+          p = pos - 1;
+          while (!peg$posDetailsCache[p]) {
+            p--;
+          }
+          details = peg$posDetailsCache[p];
+          details = {
+            line: details.line,
+            column: details.column
+          };
+          while (p < pos) {
+            if (input.charCodeAt(p) === 10) {
+              details.line++;
+              details.column = 1;
+            } else {
+              details.column++;
+            }
+            p++;
+          }
+          peg$posDetailsCache[pos] = details;
+          return details;
+        }
+      }
+      function peg$computeLocation(startPos, endPos) {
+        var startPosDetails = peg$computePosDetails(startPos), endPosDetails = peg$computePosDetails(endPos);
+        return {
+          start: {
+            offset: startPos,
+            line: startPosDetails.line,
+            column: startPosDetails.column
+          },
+          end: {
+            offset: endPos,
+            line: endPosDetails.line,
+            column: endPosDetails.column
+          }
+        };
+      }
+      function peg$fail(expected2) {
+        if (peg$currPos < peg$maxFailPos) {
+          return;
+        }
+        if (peg$currPos > peg$maxFailPos) {
+          peg$maxFailPos = peg$currPos;
+          peg$maxFailExpected = [];
+        }
+        peg$maxFailExpected.push(expected2);
+      }
+      function peg$buildSimpleError(message, location2) {
+        return new peg$SyntaxError(message, null, null, location2);
+      }
+      function peg$buildStructuredError(expected2, found, location2) {
+        return new peg$SyntaxError(
+          peg$SyntaxError.buildMessage(expected2, found),
+          expected2,
+          found,
+          location2
+        );
+      }
+      function peg$parsechain() {
+        var s0, s1, s2, s3, s4, s5, s6, s7, s8, s9;
+        s0 = peg$currPos;
+        s1 = peg$currPos;
+        s2 = peg$parseatom();
+        if (s2 !== peg$FAILED) {
+          s3 = [];
+          s4 = peg$parsebranch();
+          while (s4 !== peg$FAILED) {
+            s3.push(s4);
+            s4 = peg$parsebranch();
+          }
+          if (s3 !== peg$FAILED) {
+            s4 = [];
+            s5 = peg$currPos;
+            s6 = peg$parsebond();
+            if (s6 === peg$FAILED) {
+              s6 = null;
+            }
+            if (s6 !== peg$FAILED) {
+              s7 = peg$parsering();
+              if (s7 !== peg$FAILED) {
+                s6 = [s6, s7];
+                s5 = s6;
+              } else {
+                peg$currPos = s5;
+                s5 = peg$FAILED;
+              }
+            } else {
+              peg$currPos = s5;
+              s5 = peg$FAILED;
+            }
+            while (s5 !== peg$FAILED) {
+              s4.push(s5);
+              s5 = peg$currPos;
+              s6 = peg$parsebond();
+              if (s6 === peg$FAILED) {
+                s6 = null;
+              }
+              if (s6 !== peg$FAILED) {
+                s7 = peg$parsering();
+                if (s7 !== peg$FAILED) {
+                  s6 = [s6, s7];
+                  s5 = s6;
+                } else {
+                  peg$currPos = s5;
+                  s5 = peg$FAILED;
+                }
+              } else {
+                peg$currPos = s5;
+                s5 = peg$FAILED;
+              }
+            }
+            if (s4 !== peg$FAILED) {
+              s5 = [];
+              s6 = peg$parsebranch();
+              while (s6 !== peg$FAILED) {
+                s5.push(s6);
+                s6 = peg$parsebranch();
+              }
+              if (s5 !== peg$FAILED) {
+                s6 = peg$parsebond();
+                if (s6 === peg$FAILED) {
+                  s6 = null;
+                }
+                if (s6 !== peg$FAILED) {
+                  s7 = peg$parsechain();
+                  if (s7 === peg$FAILED) {
+                    s7 = null;
+                  }
+                  if (s7 !== peg$FAILED) {
+                    s8 = [];
+                    s9 = peg$parsebranch();
+                    while (s9 !== peg$FAILED) {
+                      s8.push(s9);
+                      s9 = peg$parsebranch();
+                    }
+                    if (s8 !== peg$FAILED) {
+                      s2 = [s2, s3, s4, s5, s6, s7, s8];
+                      s1 = s2;
+                    } else {
+                      peg$currPos = s1;
+                      s1 = peg$FAILED;
+                    }
+                  } else {
+                    peg$currPos = s1;
+                    s1 = peg$FAILED;
+                  }
+                } else {
+                  peg$currPos = s1;
+                  s1 = peg$FAILED;
+                }
+              } else {
+                peg$currPos = s1;
+                s1 = peg$FAILED;
+              }
+            } else {
+              peg$currPos = s1;
+              s1 = peg$FAILED;
+            }
+          } else {
+            peg$currPos = s1;
+            s1 = peg$FAILED;
+          }
+        } else {
+          peg$currPos = s1;
+          s1 = peg$FAILED;
+        }
+        if (s1 !== peg$FAILED) {
+          peg$savedPos = s0;
+          s1 = peg$c0(s1);
+        }
+        s0 = s1;
+        return s0;
+      }
+      function peg$parsebranch() {
+        var s0, s1, s2, s3, s4, s5;
+        s0 = peg$currPos;
+        s1 = peg$currPos;
+        if (input.charCodeAt(peg$currPos) === 40) {
+          s2 = peg$c1;
+          peg$currPos++;
+        } else {
+          s2 = peg$FAILED;
+          if (peg$silentFails === 0) {
+            peg$fail(peg$c2);
+          }
+        }
+        if (s2 !== peg$FAILED) {
+          s3 = peg$parsebond();
+          if (s3 === peg$FAILED) {
+            s3 = null;
+          }
+          if (s3 !== peg$FAILED) {
+            s4 = peg$parsechain();
+            if (s4 !== peg$FAILED) {
+              if (input.charCodeAt(peg$currPos) === 41) {
+                s5 = peg$c3;
+                peg$currPos++;
+              } else {
+                s5 = peg$FAILED;
+                if (peg$silentFails === 0) {
+                  peg$fail(peg$c4);
+                }
+              }
+              if (s5 !== peg$FAILED) {
+                s2 = [s2, s3, s4, s5];
+                s1 = s2;
+              } else {
+                peg$currPos = s1;
+                s1 = peg$FAILED;
+              }
+            } else {
+              peg$currPos = s1;
+              s1 = peg$FAILED;
+            }
+          } else {
+            peg$currPos = s1;
+            s1 = peg$FAILED;
+          }
+        } else {
+          peg$currPos = s1;
+          s1 = peg$FAILED;
+        }
+        if (s1 !== peg$FAILED) {
+          peg$savedPos = s0;
+          s1 = peg$c5(s1);
+        }
+        s0 = s1;
+        return s0;
+      }
+      function peg$parseatom() {
+        var s0, s1;
+        s0 = peg$currPos;
+        s1 = peg$parseorganicsymbol();
+        if (s1 === peg$FAILED) {
+          s1 = peg$parsearomaticsymbol();
+          if (s1 === peg$FAILED) {
+            s1 = peg$parsebracketatom();
+            if (s1 === peg$FAILED) {
+              s1 = peg$parsewildcard();
+            }
+          }
+        }
+        if (s1 !== peg$FAILED) {
+          peg$savedPos = s0;
+          s1 = peg$c6(s1);
+        }
+        s0 = s1;
+        return s0;
+      }
+      function peg$parsebond() {
+        var s0, s1;
+        s0 = peg$currPos;
+        if (peg$c7.test(input.charAt(peg$currPos))) {
+          s1 = input.charAt(peg$currPos);
+          if (s1 === input.charAt(peg$currPos + 1)) {
+            s1 = peg$FAILED;
+            if (peg$silentFails === 0) {
+              throw peg$buildSimpleError("The parser encountered a bond repetition.", peg$currPos + 1);
+            }
+          }
+          peg$currPos++;
+        } else {
+          s1 = peg$FAILED;
+          if (peg$silentFails === 0) {
+            peg$fail(peg$c8);
+          }
+        }
+        if (s1 !== peg$FAILED) {
+          peg$savedPos = s0;
+          s1 = peg$c9(s1);
+        }
+        s0 = s1;
+        return s0;
+      }
+      function peg$parsebracketatom() {
+        var s0, s1, s2, s3, s4, s5, s6, s7, s8, s9;
+        s0 = peg$currPos;
+        s1 = peg$currPos;
+        if (input.charCodeAt(peg$currPos) === 91) {
+          s2 = peg$c10;
+          peg$currPos++;
+        } else {
+          s2 = peg$FAILED;
+          if (peg$silentFails === 0) {
+            peg$fail(peg$c11);
+          }
+        }
+        if (s2 !== peg$FAILED) {
+          s3 = peg$parseisotope();
+          if (s3 === peg$FAILED) {
+            s3 = null;
+          }
+          if (s3 !== peg$FAILED) {
+            if (input.substr(peg$currPos, 2) === peg$c12) {
+              s4 = peg$c12;
+              peg$currPos += 2;
+            } else {
+              s4 = peg$FAILED;
+              if (peg$silentFails === 0) {
+                peg$fail(peg$c13);
+              }
+            }
+            if (s4 === peg$FAILED) {
+              if (input.substr(peg$currPos, 2) === peg$c14) {
+                s4 = peg$c14;
+                peg$currPos += 2;
+              } else {
+                s4 = peg$FAILED;
+                if (peg$silentFails === 0) {
+                  peg$fail(peg$c15);
+                }
+              }
+              if (s4 === peg$FAILED) {
+                s4 = peg$parsearomaticsymbol();
+                if (s4 === peg$FAILED) {
+                  s4 = peg$parseelementsymbol();
+                  if (s4 === peg$FAILED) {
+                    s4 = peg$parsewildcard();
+                  }
+                }
+              }
+            }
+            if (s4 !== peg$FAILED) {
+              s5 = peg$parsechiral();
+              if (s5 === peg$FAILED) {
+                s5 = null;
+              }
+              if (s5 !== peg$FAILED) {
+                s6 = peg$parsehcount();
+                if (s6 === peg$FAILED) {
+                  s6 = null;
+                }
+                if (s6 !== peg$FAILED) {
+                  s7 = peg$parsecharge();
+                  if (s7 === peg$FAILED) {
+                    s7 = null;
+                  }
+                  if (s7 !== peg$FAILED) {
+                    s8 = peg$parseclass();
+                    if (s8 === peg$FAILED) {
+                      s8 = null;
+                    }
+                    if (s8 !== peg$FAILED) {
+                      if (input.charCodeAt(peg$currPos) === 93) {
+                        s9 = peg$c16;
+                        peg$currPos++;
+                      } else {
+                        s9 = peg$FAILED;
+                        if (peg$silentFails === 0) {
+                          peg$fail(peg$c17);
+                        }
+                      }
+                      if (s9 !== peg$FAILED) {
+                        s2 = [s2, s3, s4, s5, s6, s7, s8, s9];
+                        s1 = s2;
+                      } else {
+                        peg$currPos = s1;
+                        s1 = peg$FAILED;
+                      }
+                    } else {
+                      peg$currPos = s1;
+                      s1 = peg$FAILED;
+                    }
+                  } else {
+                    peg$currPos = s1;
+                    s1 = peg$FAILED;
+                  }
+                } else {
+                  peg$currPos = s1;
+                  s1 = peg$FAILED;
+                }
+              } else {
+                peg$currPos = s1;
+                s1 = peg$FAILED;
+              }
+            } else {
+              peg$currPos = s1;
+              s1 = peg$FAILED;
+            }
+          } else {
+            peg$currPos = s1;
+            s1 = peg$FAILED;
+          }
+        } else {
+          peg$currPos = s1;
+          s1 = peg$FAILED;
+        }
+        if (s1 !== peg$FAILED) {
+          peg$savedPos = s0;
+          s1 = peg$c18(s1);
+        }
+        s0 = s1;
+        return s0;
+      }
+      function peg$parseorganicsymbol() {
+        var s0, s1, s2, s3;
+        s0 = peg$currPos;
+        s1 = peg$currPos;
+        if (input.charCodeAt(peg$currPos) === 66) {
+          s2 = peg$c19;
+          peg$currPos++;
+        } else {
+          s2 = peg$FAILED;
+          if (peg$silentFails === 0) {
+            peg$fail(peg$c20);
+          }
+        }
+        if (s2 !== peg$FAILED) {
+          if (input.charCodeAt(peg$currPos) === 114) {
+            s3 = peg$c21;
+            peg$currPos++;
+          } else {
+            s3 = peg$FAILED;
+            if (peg$silentFails === 0) {
+              peg$fail(peg$c22);
+            }
+          }
+          if (s3 === peg$FAILED) {
+            s3 = null;
+          }
+          if (s3 !== peg$FAILED) {
+            s2 = [s2, s3];
+            s1 = s2;
+          } else {
+            peg$currPos = s1;
+            s1 = peg$FAILED;
+          }
+        } else {
+          peg$currPos = s1;
+          s1 = peg$FAILED;
+        }
+        if (s1 === peg$FAILED) {
+          s1 = peg$currPos;
+          if (input.charCodeAt(peg$currPos) === 67) {
+            s2 = peg$c23;
+            peg$currPos++;
+          } else {
+            s2 = peg$FAILED;
+            if (peg$silentFails === 0) {
+              peg$fail(peg$c24);
+            }
+          }
+          if (s2 !== peg$FAILED) {
+            if (input.charCodeAt(peg$currPos) === 108) {
+              s3 = peg$c25;
+              peg$currPos++;
+            } else {
+              s3 = peg$FAILED;
+              if (peg$silentFails === 0) {
+                peg$fail(peg$c26);
+              }
+            }
+            if (s3 === peg$FAILED) {
+              s3 = null;
+            }
+            if (s3 !== peg$FAILED) {
+              s2 = [s2, s3];
+              s1 = s2;
+            } else {
+              peg$currPos = s1;
+              s1 = peg$FAILED;
+            }
+          } else {
+            peg$currPos = s1;
+            s1 = peg$FAILED;
+          }
+          if (s1 === peg$FAILED) {
+            if (peg$c27.test(input.charAt(peg$currPos))) {
+              s1 = input.charAt(peg$currPos);
+              peg$currPos++;
+            } else {
+              s1 = peg$FAILED;
+              if (peg$silentFails === 0) {
+                peg$fail(peg$c28);
+              }
+            }
+          }
+        }
+        if (s1 !== peg$FAILED) {
+          peg$savedPos = s0;
+          s1 = peg$c29(s1);
+        }
+        s0 = s1;
+        return s0;
+      }
+      function peg$parsearomaticsymbol() {
+        var s0, s1;
+        s0 = peg$currPos;
+        if (peg$c30.test(input.charAt(peg$currPos))) {
+          s1 = input.charAt(peg$currPos);
+          peg$currPos++;
+        } else {
+          s1 = peg$FAILED;
+          if (peg$silentFails === 0) {
+            peg$fail(peg$c31);
+          }
+        }
+        if (s1 !== peg$FAILED) {
+          peg$savedPos = s0;
+          s1 = peg$c6(s1);
+        }
+        s0 = s1;
+        return s0;
+      }
+      function peg$parsewildcard() {
+        var s0, s1;
+        s0 = peg$currPos;
+        if (input.charCodeAt(peg$currPos) === 42) {
+          s1 = peg$c32;
+          peg$currPos++;
+        } else {
+          s1 = peg$FAILED;
+          if (peg$silentFails === 0) {
+            peg$fail(peg$c33);
+          }
+        }
+        if (s1 !== peg$FAILED) {
+          peg$savedPos = s0;
+          s1 = peg$c34(s1);
+        }
+        s0 = s1;
+        return s0;
+      }
+      function peg$parseelementsymbol() {
+        var s0, s1, s2, s3;
+        s0 = peg$currPos;
+        s1 = peg$currPos;
+        if (peg$c35.test(input.charAt(peg$currPos))) {
+          s2 = input.charAt(peg$currPos);
+          peg$currPos++;
+        } else {
+          s2 = peg$FAILED;
+          if (peg$silentFails === 0) {
+            peg$fail(peg$c36);
+          }
+        }
+        if (s2 !== peg$FAILED) {
+          if (peg$c37.test(input.charAt(peg$currPos))) {
+            s3 = input.charAt(peg$currPos);
+            peg$currPos++;
+          } else {
+            s3 = peg$FAILED;
+            if (peg$silentFails === 0) {
+              peg$fail(peg$c38);
+            }
+          }
+          if (s3 === peg$FAILED) {
+            s3 = null;
+          }
+          if (s3 !== peg$FAILED) {
+            s2 = [s2, s3];
+            s1 = s2;
+          } else {
+            peg$currPos = s1;
+            s1 = peg$FAILED;
+          }
+        } else {
+          peg$currPos = s1;
+          s1 = peg$FAILED;
+        }
+        if (s1 !== peg$FAILED) {
+          peg$savedPos = s0;
+          s1 = peg$c39(s1);
+        }
+        s0 = s1;
+        return s0;
+      }
+      function peg$parsering() {
+        var s0, s1, s2, s3, s4;
+        s0 = peg$currPos;
+        s1 = peg$currPos;
+        if (input.charCodeAt(peg$currPos) === 37) {
+          s2 = peg$c40;
+          peg$currPos++;
+        } else {
+          s2 = peg$FAILED;
+          if (peg$silentFails === 0) {
+            peg$fail(peg$c41);
+          }
+        }
+        if (s2 !== peg$FAILED) {
+          if (peg$c42.test(input.charAt(peg$currPos))) {
+            s3 = input.charAt(peg$currPos);
+            peg$currPos++;
+          } else {
+            s3 = peg$FAILED;
+            if (peg$silentFails === 0) {
+              peg$fail(peg$c43);
+            }
+          }
+          if (s3 !== peg$FAILED) {
+            if (peg$c44.test(input.charAt(peg$currPos))) {
+              s4 = input.charAt(peg$currPos);
+              peg$currPos++;
+            } else {
+              s4 = peg$FAILED;
+              if (peg$silentFails === 0) {
+                peg$fail(peg$c45);
+              }
+            }
+            if (s4 !== peg$FAILED) {
+              s2 = [s2, s3, s4];
+              s1 = s2;
+            } else {
+              peg$currPos = s1;
+              s1 = peg$FAILED;
+            }
+          } else {
+            peg$currPos = s1;
+            s1 = peg$FAILED;
+          }
+        } else {
+          peg$currPos = s1;
+          s1 = peg$FAILED;
+        }
+        if (s1 === peg$FAILED) {
+          if (peg$c44.test(input.charAt(peg$currPos))) {
+            s1 = input.charAt(peg$currPos);
+            peg$currPos++;
+          } else {
+            s1 = peg$FAILED;
+            if (peg$silentFails === 0) {
+              peg$fail(peg$c45);
+            }
+          }
+        }
+        if (s1 !== peg$FAILED) {
+          peg$savedPos = s0;
+          s1 = peg$c46(s1);
+        }
+        s0 = s1;
+        return s0;
+      }
+      function peg$parsechiral() {
+        var s0, s1, s2, s3, s4, s5, s6;
+        s0 = peg$currPos;
+        s1 = peg$currPos;
+        if (input.charCodeAt(peg$currPos) === 64) {
+          s2 = peg$c47;
+          peg$currPos++;
+        } else {
+          s2 = peg$FAILED;
+          if (peg$silentFails === 0) {
+            peg$fail(peg$c48);
+          }
+        }
+        if (s2 !== peg$FAILED) {
+          if (input.charCodeAt(peg$currPos) === 64) {
+            s3 = peg$c47;
+            peg$currPos++;
+          } else {
+            s3 = peg$FAILED;
+            if (peg$silentFails === 0) {
+              peg$fail(peg$c48);
+            }
+          }
+          if (s3 === peg$FAILED) {
+            s3 = peg$currPos;
+            if (input.substr(peg$currPos, 2) === peg$c49) {
+              s4 = peg$c49;
+              peg$currPos += 2;
+            } else {
+              s4 = peg$FAILED;
+              if (peg$silentFails === 0) {
+                peg$fail(peg$c50);
+              }
+            }
+            if (s4 !== peg$FAILED) {
+              if (peg$c51.test(input.charAt(peg$currPos))) {
+                s5 = input.charAt(peg$currPos);
+                peg$currPos++;
+              } else {
+                s5 = peg$FAILED;
+                if (peg$silentFails === 0) {
+                  peg$fail(peg$c52);
+                }
+              }
+              if (s5 !== peg$FAILED) {
+                s4 = [s4, s5];
+                s3 = s4;
+              } else {
+                peg$currPos = s3;
+                s3 = peg$FAILED;
+              }
+            } else {
+              peg$currPos = s3;
+              s3 = peg$FAILED;
+            }
+            if (s3 === peg$FAILED) {
+              s3 = peg$currPos;
+              if (input.substr(peg$currPos, 2) === peg$c53) {
+                s4 = peg$c53;
+                peg$currPos += 2;
+              } else {
+                s4 = peg$FAILED;
+                if (peg$silentFails === 0) {
+                  peg$fail(peg$c54);
+                }
+              }
+              if (s4 !== peg$FAILED) {
+                if (peg$c51.test(input.charAt(peg$currPos))) {
+                  s5 = input.charAt(peg$currPos);
+                  peg$currPos++;
+                } else {
+                  s5 = peg$FAILED;
+                  if (peg$silentFails === 0) {
+                    peg$fail(peg$c52);
+                  }
+                }
+                if (s5 !== peg$FAILED) {
+                  s4 = [s4, s5];
+                  s3 = s4;
+                } else {
+                  peg$currPos = s3;
+                  s3 = peg$FAILED;
+                }
+              } else {
+                peg$currPos = s3;
+                s3 = peg$FAILED;
+              }
+              if (s3 === peg$FAILED) {
+                s3 = peg$currPos;
+                if (input.substr(peg$currPos, 2) === peg$c55) {
+                  s4 = peg$c55;
+                  peg$currPos += 2;
+                } else {
+                  s4 = peg$FAILED;
+                  if (peg$silentFails === 0) {
+                    peg$fail(peg$c56);
+                  }
+                }
+                if (s4 !== peg$FAILED) {
+                  if (peg$c57.test(input.charAt(peg$currPos))) {
+                    s5 = input.charAt(peg$currPos);
+                    peg$currPos++;
+                  } else {
+                    s5 = peg$FAILED;
+                    if (peg$silentFails === 0) {
+                      peg$fail(peg$c58);
+                    }
+                  }
+                  if (s5 !== peg$FAILED) {
+                    s4 = [s4, s5];
+                    s3 = s4;
+                  } else {
+                    peg$currPos = s3;
+                    s3 = peg$FAILED;
+                  }
+                } else {
+                  peg$currPos = s3;
+                  s3 = peg$FAILED;
+                }
+                if (s3 === peg$FAILED) {
+                  s3 = peg$currPos;
+                  if (input.substr(peg$currPos, 2) === peg$c59) {
+                    s4 = peg$c59;
+                    peg$currPos += 2;
+                  } else {
+                    s4 = peg$FAILED;
+                    if (peg$silentFails === 0) {
+                      peg$fail(peg$c60);
+                    }
+                  }
+                  if (s4 !== peg$FAILED) {
+                    if (peg$c42.test(input.charAt(peg$currPos))) {
+                      s5 = input.charAt(peg$currPos);
+                      peg$currPos++;
+                    } else {
+                      s5 = peg$FAILED;
+                      if (peg$silentFails === 0) {
+                        peg$fail(peg$c43);
+                      }
+                    }
+                    if (s5 !== peg$FAILED) {
+                      if (peg$c44.test(input.charAt(peg$currPos))) {
+                        s6 = input.charAt(peg$currPos);
+                        peg$currPos++;
+                      } else {
+                        s6 = peg$FAILED;
+                        if (peg$silentFails === 0) {
+                          peg$fail(peg$c45);
+                        }
+                      }
+                      if (s6 === peg$FAILED) {
+                        s6 = null;
+                      }
+                      if (s6 !== peg$FAILED) {
+                        s4 = [s4, s5, s6];
+                        s3 = s4;
+                      } else {
+                        peg$currPos = s3;
+                        s3 = peg$FAILED;
+                      }
+                    } else {
+                      peg$currPos = s3;
+                      s3 = peg$FAILED;
+                    }
+                  } else {
+                    peg$currPos = s3;
+                    s3 = peg$FAILED;
+                  }
+                  if (s3 === peg$FAILED) {
+                    s3 = peg$currPos;
+                    if (input.substr(peg$currPos, 2) === peg$c61) {
+                      s4 = peg$c61;
+                      peg$currPos += 2;
+                    } else {
+                      s4 = peg$FAILED;
+                      if (peg$silentFails === 0) {
+                        peg$fail(peg$c62);
+                      }
+                    }
+                    if (s4 !== peg$FAILED) {
+                      if (peg$c42.test(input.charAt(peg$currPos))) {
+                        s5 = input.charAt(peg$currPos);
+                        peg$currPos++;
+                      } else {
+                        s5 = peg$FAILED;
+                        if (peg$silentFails === 0) {
+                          peg$fail(peg$c43);
+                        }
+                      }
+                      if (s5 !== peg$FAILED) {
+                        if (peg$c44.test(input.charAt(peg$currPos))) {
+                          s6 = input.charAt(peg$currPos);
+                          peg$currPos++;
+                        } else {
+                          s6 = peg$FAILED;
+                          if (peg$silentFails === 0) {
+                            peg$fail(peg$c45);
+                          }
+                        }
+                        if (s6 === peg$FAILED) {
+                          s6 = null;
+                        }
+                        if (s6 !== peg$FAILED) {
+                          s4 = [s4, s5, s6];
+                          s3 = s4;
+                        } else {
+                          peg$currPos = s3;
+                          s3 = peg$FAILED;
+                        }
+                      } else {
+                        peg$currPos = s3;
+                        s3 = peg$FAILED;
+                      }
+                    } else {
+                      peg$currPos = s3;
+                      s3 = peg$FAILED;
+                    }
+                  }
+                }
+              }
+            }
+          }
+          if (s3 === peg$FAILED) {
+            s3 = null;
+          }
+          if (s3 !== peg$FAILED) {
+            s2 = [s2, s3];
+            s1 = s2;
+          } else {
+            peg$currPos = s1;
+            s1 = peg$FAILED;
+          }
+        } else {
+          peg$currPos = s1;
+          s1 = peg$FAILED;
+        }
+        if (s1 !== peg$FAILED) {
+          peg$savedPos = s0;
+          s1 = peg$c63(s1);
+        }
+        s0 = s1;
+        return s0;
+      }
+      function peg$parsecharge() {
+        var s0, s1;
+        s0 = peg$currPos;
+        s1 = peg$parseposcharge();
+        if (s1 === peg$FAILED) {
+          s1 = peg$parsenegcharge();
+        }
+        if (s1 !== peg$FAILED) {
+          peg$savedPos = s0;
+          s1 = peg$c64(s1);
+        }
+        s0 = s1;
+        return s0;
+      }
+      function peg$parseposcharge() {
+        var s0, s1, s2, s3, s4, s5;
+        s0 = peg$currPos;
+        s1 = peg$currPos;
+        if (input.charCodeAt(peg$currPos) === 43) {
+          s2 = peg$c65;
+          peg$currPos++;
+        } else {
+          s2 = peg$FAILED;
+          if (peg$silentFails === 0) {
+            peg$fail(peg$c66);
+          }
+        }
+        if (s2 !== peg$FAILED) {
+          if (input.charCodeAt(peg$currPos) === 43) {
+            s3 = peg$c65;
+            peg$currPos++;
+          } else {
+            s3 = peg$FAILED;
+            if (peg$silentFails === 0) {
+              peg$fail(peg$c66);
+            }
+          }
+          if (s3 === peg$FAILED) {
+            s3 = peg$currPos;
+            if (peg$c42.test(input.charAt(peg$currPos))) {
+              s4 = input.charAt(peg$currPos);
+              peg$currPos++;
+            } else {
+              s4 = peg$FAILED;
+              if (peg$silentFails === 0) {
+                peg$fail(peg$c43);
+              }
+            }
+            if (s4 !== peg$FAILED) {
+              if (peg$c44.test(input.charAt(peg$currPos))) {
+                s5 = input.charAt(peg$currPos);
+                peg$currPos++;
+              } else {
+                s5 = peg$FAILED;
+                if (peg$silentFails === 0) {
+                  peg$fail(peg$c45);
+                }
+              }
+              if (s5 === peg$FAILED) {
+                s5 = null;
+              }
+              if (s5 !== peg$FAILED) {
+                s4 = [s4, s5];
+                s3 = s4;
+              } else {
+                peg$currPos = s3;
+                s3 = peg$FAILED;
+              }
+            } else {
+              peg$currPos = s3;
+              s3 = peg$FAILED;
+            }
+          }
+          if (s3 === peg$FAILED) {
+            s3 = null;
+          }
+          if (s3 !== peg$FAILED) {
+            s2 = [s2, s3];
+            s1 = s2;
+          } else {
+            peg$currPos = s1;
+            s1 = peg$FAILED;
+          }
+        } else {
+          peg$currPos = s1;
+          s1 = peg$FAILED;
+        }
+        if (s1 !== peg$FAILED) {
+          peg$savedPos = s0;
+          s1 = peg$c67(s1);
+        }
+        s0 = s1;
+        return s0;
+      }
+      function peg$parsenegcharge() {
+        var s0, s1, s2, s3, s4, s5;
+        s0 = peg$currPos;
+        s1 = peg$currPos;
+        if (input.charCodeAt(peg$currPos) === 45) {
+          s2 = peg$c68;
+          peg$currPos++;
+        } else {
+          s2 = peg$FAILED;
+          if (peg$silentFails === 0) {
+            peg$fail(peg$c69);
+          }
+        }
+        if (s2 !== peg$FAILED) {
+          if (input.charCodeAt(peg$currPos) === 45) {
+            s3 = peg$c68;
+            peg$currPos++;
+          } else {
+            s3 = peg$FAILED;
+            if (peg$silentFails === 0) {
+              peg$fail(peg$c69);
+            }
+          }
+          if (s3 === peg$FAILED) {
+            s3 = peg$currPos;
+            if (peg$c42.test(input.charAt(peg$currPos))) {
+              s4 = input.charAt(peg$currPos);
+              peg$currPos++;
+            } else {
+              s4 = peg$FAILED;
+              if (peg$silentFails === 0) {
+                peg$fail(peg$c43);
+              }
+            }
+            if (s4 !== peg$FAILED) {
+              if (peg$c44.test(input.charAt(peg$currPos))) {
+                s5 = input.charAt(peg$currPos);
+                peg$currPos++;
+              } else {
+                s5 = peg$FAILED;
+                if (peg$silentFails === 0) {
+                  peg$fail(peg$c45);
+                }
+              }
+              if (s5 === peg$FAILED) {
+                s5 = null;
+              }
+              if (s5 !== peg$FAILED) {
+                s4 = [s4, s5];
+                s3 = s4;
+              } else {
+                peg$currPos = s3;
+                s3 = peg$FAILED;
+              }
+            } else {
+              peg$currPos = s3;
+              s3 = peg$FAILED;
+            }
+          }
+          if (s3 === peg$FAILED) {
+            s3 = null;
+          }
+          if (s3 !== peg$FAILED) {
+            s2 = [s2, s3];
+            s1 = s2;
+          } else {
+            peg$currPos = s1;
+            s1 = peg$FAILED;
+          }
+        } else {
+          peg$currPos = s1;
+          s1 = peg$FAILED;
+        }
+        if (s1 !== peg$FAILED) {
+          peg$savedPos = s0;
+          s1 = peg$c70(s1);
+        }
+        s0 = s1;
+        return s0;
+      }
+      function peg$parsehcount() {
+        var s0, s1, s2, s3;
+        s0 = peg$currPos;
+        s1 = peg$currPos;
+        if (input.charCodeAt(peg$currPos) === 72) {
+          s2 = peg$c71;
+          peg$currPos++;
+        } else {
+          s2 = peg$FAILED;
+          if (peg$silentFails === 0) {
+            peg$fail(peg$c72);
+          }
+        }
+        if (s2 !== peg$FAILED) {
+          if (peg$c44.test(input.charAt(peg$currPos))) {
+            s3 = input.charAt(peg$currPos);
+            peg$currPos++;
+          } else {
+            s3 = peg$FAILED;
+            if (peg$silentFails === 0) {
+              peg$fail(peg$c45);
+            }
+          }
+          if (s3 === peg$FAILED) {
+            s3 = null;
+          }
+          if (s3 !== peg$FAILED) {
+            s2 = [s2, s3];
+            s1 = s2;
+          } else {
+            peg$currPos = s1;
+            s1 = peg$FAILED;
+          }
+        } else {
+          peg$currPos = s1;
+          s1 = peg$FAILED;
+        }
+        if (s1 !== peg$FAILED) {
+          peg$savedPos = s0;
+          s1 = peg$c73(s1);
+        }
+        s0 = s1;
+        return s0;
+      }
+      function peg$parseclass() {
+        var s0, s1, s2, s3, s4, s5, s6;
+        s0 = peg$currPos;
+        s1 = peg$currPos;
+        if (input.charCodeAt(peg$currPos) === 58) {
+          s2 = peg$c74;
+          peg$currPos++;
+        } else {
+          s2 = peg$FAILED;
+          if (peg$silentFails === 0) {
+            peg$fail(peg$c75);
+          }
+        }
+        if (s2 !== peg$FAILED) {
+          s3 = peg$currPos;
+          if (peg$c42.test(input.charAt(peg$currPos))) {
+            s4 = input.charAt(peg$currPos);
+            peg$currPos++;
+          } else {
+            s4 = peg$FAILED;
+            if (peg$silentFails === 0) {
+              peg$fail(peg$c43);
+            }
+          }
+          if (s4 !== peg$FAILED) {
+            s5 = [];
+            if (peg$c44.test(input.charAt(peg$currPos))) {
+              s6 = input.charAt(peg$currPos);
+              peg$currPos++;
+            } else {
+              s6 = peg$FAILED;
+              if (peg$silentFails === 0) {
+                peg$fail(peg$c45);
+              }
+            }
+            while (s6 !== peg$FAILED) {
+              s5.push(s6);
+              if (peg$c44.test(input.charAt(peg$currPos))) {
+                s6 = input.charAt(peg$currPos);
+                peg$currPos++;
+              } else {
+                s6 = peg$FAILED;
+                if (peg$silentFails === 0) {
+                  peg$fail(peg$c45);
+                }
+              }
+            }
+            if (s5 !== peg$FAILED) {
+              s4 = [s4, s5];
+              s3 = s4;
+            } else {
+              peg$currPos = s3;
+              s3 = peg$FAILED;
+            }
+          } else {
+            peg$currPos = s3;
+            s3 = peg$FAILED;
+          }
+          if (s3 === peg$FAILED) {
+            if (peg$c76.test(input.charAt(peg$currPos))) {
+              s3 = input.charAt(peg$currPos);
+              peg$currPos++;
+            } else {
+              s3 = peg$FAILED;
+              if (peg$silentFails === 0) {
+                peg$fail(peg$c77);
+              }
+            }
+          }
+          if (s3 !== peg$FAILED) {
+            s2 = [s2, s3];
+            s1 = s2;
+          } else {
+            peg$currPos = s1;
+            s1 = peg$FAILED;
+          }
+        } else {
+          peg$currPos = s1;
+          s1 = peg$FAILED;
+        }
+        if (s1 !== peg$FAILED) {
+          peg$savedPos = s0;
+          s1 = peg$c78(s1);
+        }
+        s0 = s1;
+        return s0;
+      }
+      function peg$parseisotope() {
+        var s0, s1, s2, s3, s4;
+        s0 = peg$currPos;
+        s1 = peg$currPos;
+        if (peg$c42.test(input.charAt(peg$currPos))) {
+          s2 = input.charAt(peg$currPos);
+          peg$currPos++;
+        } else {
+          s2 = peg$FAILED;
+          if (peg$silentFails === 0) {
+            peg$fail(peg$c43);
+          }
+        }
+        if (s2 !== peg$FAILED) {
+          if (peg$c44.test(input.charAt(peg$currPos))) {
+            s3 = input.charAt(peg$currPos);
+            peg$currPos++;
+          } else {
+            s3 = peg$FAILED;
+            if (peg$silentFails === 0) {
+              peg$fail(peg$c45);
+            }
+          }
+          if (s3 === peg$FAILED) {
+            s3 = null;
+          }
+          if (s3 !== peg$FAILED) {
+            if (peg$c44.test(input.charAt(peg$currPos))) {
+              s4 = input.charAt(peg$currPos);
+              peg$currPos++;
+            } else {
+              s4 = peg$FAILED;
+              if (peg$silentFails === 0) {
+                peg$fail(peg$c45);
+              }
+            }
+            if (s4 === peg$FAILED) {
+              s4 = null;
+            }
+            if (s4 !== peg$FAILED) {
+              s2 = [s2, s3, s4];
+              s1 = s2;
+            } else {
+              peg$currPos = s1;
+              s1 = peg$FAILED;
+            }
+          } else {
+            peg$currPos = s1;
+            s1 = peg$FAILED;
+          }
+        } else {
+          peg$currPos = s1;
+          s1 = peg$FAILED;
+        }
+        if (s1 !== peg$FAILED) {
+          peg$savedPos = s0;
+          s1 = peg$c79(s1);
+        }
+        s0 = s1;
+        return s0;
+      }
+      peg$result = peg$startRuleFunction();
+      if (peg$result !== peg$FAILED && peg$currPos === input.length) {
+        return peg$result;
+      } else {
+        if (peg$result !== peg$FAILED && peg$currPos < input.length) {
+          peg$fail(peg$endExpectation());
+        }
+        throw peg$buildStructuredError(
+          peg$maxFailExpected,
+          peg$maxFailPos < input.length ? input.charAt(peg$maxFailPos) : null,
+          peg$maxFailPos < input.length ? peg$computeLocation(peg$maxFailPos, peg$maxFailPos + 1) : peg$computeLocation(peg$maxFailPos, peg$maxFailPos)
+        );
+      }
+    }
+    return {
+      SyntaxError: peg$SyntaxError,
+      parse: peg$parse
+    };
+  })();
+
+  // src/core/formats/smiles.js
+  function checkSmiles(smiles) {
+    var _a2, _b;
+    if (!smiles.trim()) return { message: "empty SMILES" };
+    if (/\s/.test(smiles.trim())) return { message: "SMILES cannot contain spaces", col: smiles.trim().search(/\s/) + 1 };
+    try {
+      Parser_default.parse(smiles.trim(), {});
+      return void 0;
+    } catch (e) {
+      const col = (_b = (_a2 = e.location) == null ? void 0 : _a2.start) == null ? void 0 : _b.column;
+      return { message: e.message.replace(/^Expected .* but "(.)" found\.$/, 'unexpected "$1"'), col };
+    }
+  }
+  function splitReaction(s) {
+    const parts = s.trim().split(">");
+    if (parts.length !== 3) return { error: "a reaction SMILES has the form reactants>agents>products (agents may be empty: A.B>>C)" };
+    const [reactants, agents, products] = parts.map((p) => p ? p.split(".") : []);
+    if (!reactants.length || !products.length) return { error: "a reaction needs at least one reactant and one product" };
+    return { reactants, agents, products };
+  }
+
+  // src/components/molecule.js
+  var molecule_default = {
+    name: "molecule",
+    summary: "2D structure drawings from SMILES, one or a grid of several with names.",
+    shorthand: { scalar: "smiles", array: "items" },
+    schema: {
+      type: "object",
+      additionalProperties: false,
+      properties: {
+        title: { type: "string" },
+        smiles: { type: "string" },
+        name: { type: "string" },
+        items: { type: "array", minItems: 1, maxItems: 48, items: {
+          type: ["string", "object"],
+          additionalProperties: false,
+          required: ["smiles"],
+          properties: { smiles: { type: "string" }, name: { type: "string" } }
+        } },
+        size: { type: "integer", minimum: 120, maximum: 800, default: 240, description: "drawing size in px" },
+        hydrogens: { type: "boolean", default: false, description: "draw explicit hydrogens" }
+      }
+    },
+    example: 'items:\n  - {smiles: "CC(=O)Oc1ccccc1C(=O)O", name: aspirin}\n  - {smiles: "CN1C=NC2=C1C(=O)N(C(=O)N2C)C", name: caffeine}',
+    resolve(props, ctx) {
+      if (props.smiles === void 0 === (props.items === void 0)) return ctx.error("", 'give "smiles" (one molecule) or "items" (several)');
+      const items = props.items ? props.items.map((it) => typeof it === "string" ? { smiles: it } : it) : [{ smiles: props.smiles, name: props.name }];
+      for (let i = 0; i < items.length; i++) {
+        const bad = checkSmiles(items[i].smiles);
+        const path2 = props.items ? typeof props.items[i] === "string" ? `/items/${i}` : `/items/${i}/smiles` : "/smiles";
+        if (bad) return ctx.error(path2, `SMILES ${items[i].smiles}: ${bad.message}${bad.col ? ` (column ${bad.col})` : ""}`);
+      }
+      return { title: props.title, items: items.map((it) => ({ smiles: it.smiles.trim(), name: it.name })), size: props.size, hydrogens: props.hydrogens };
+    }
+  };
+
+  // src/components/reaction.js
+  var reaction_default = {
+    name: "reaction",
+    summary: "A chemical reaction drawn from reaction SMILES (reactants>agents>products), with conditions over the arrow.",
+    shorthand: { scalar: "smiles" },
+    schema: {
+      type: "object",
+      additionalProperties: false,
+      required: ["smiles"],
+      properties: {
+        title: { type: "string" },
+        smiles: { type: "string", description: 'e.g. "CCO.CC(=O)O>[H+]>CCOC(C)=O.O"' },
+        conditions: { type: "string", description: 'text over the arrow, e.g. "H2SO4, reflux, 2 h"' },
+        caption: { type: "string", description: "Markdown (inline) under the scheme" }
+      }
+    },
+    example: 'smiles: "CCO.CC(=O)O>[H+]>CCOC(C)=O.O"\nconditions: H\u2082SO\u2084, reflux\ncaption: Fischer esterification',
+    resolve(props, ctx) {
+      const r = splitReaction(props.smiles);
+      if (r.error) return ctx.error("/smiles", r.error);
+      for (const part of [...r.reactants, ...r.agents, ...r.products]) {
+        const bad = checkSmiles(part);
+        if (bad) return ctx.error("/smiles", `${part}: ${bad.message}`);
+      }
+      if (props.caption) ctx.markdown("/caption", props.caption);
+      return __spreadProps(__spreadValues({}, props), { smiles: props.smiles.trim() });
+    }
+  };
+
+  // src/core/formats/fasta.js
+  var ALPHABETS = {
+    dna: "ACGTNRYSWKMBDHV",
+    rna: "ACGUNRYSWKMBDHV",
+    protein: "ACDEFGHIKLMNPQRSTVWYBJOUXZ*"
+  };
+  function parseFasta(text3) {
+    const seqs = [];
+    let cur = null;
+    const lines = text3.replace(/\r/g, "").split("\n");
+    for (let n = 0; n < lines.length; n++) {
+      const line = lines[n].trim();
+      if (!line || line.startsWith(";")) continue;
+      if (line.startsWith(">")) {
+        cur = { name: line.slice(1).trim() || `seq${seqs.length + 1}`, seq: "", line: n + 1 };
+        seqs.push(cur);
+        continue;
+      }
+      if (!cur) return { error: `line ${n + 1}: sequence data before the first ">name" header` };
+      cur.seq += line.replace(/\s+/g, "");
+    }
+    if (!seqs.length) return { error: 'no sequences (FASTA records start with ">name")' };
+    return { seqs };
+  }
+  function guessType(seqs) {
+    const letters2 = seqs.map((s) => s.seq.toUpperCase().replace(/[-.]/g, "")).join("");
+    if (!letters2) return "dna";
+    const nuc = [...letters2].filter((c) => "ACGTUN".includes(c)).length / letters2.length;
+    if (nuc > 0.9) return letters2.includes("U") && !letters2.includes("T") ? "rna" : "dna";
+    return "protein";
+  }
+  function checkAlphabet(seqs, type) {
+    const ok = ALPHABETS[type] + "-.";
+    for (const s of seqs) {
+      const up = s.seq.toUpperCase();
+      for (let i = 0; i < up.length; i++) if (!ok.includes(up[i])) return { name: s.name, pos: i + 1, char: s.seq[i] };
+    }
+    return void 0;
+  }
+
+  // src/components/sequence.js
+  var sequence_default = {
+    name: "sequence",
+    summary: "DNA, RNA or protein sequences and alignments (FASTA file or inline), coloured by residue, with consensus, conservation and annotated regions.",
+    shorthand: { scalar: "seq" },
+    schema: {
+      type: "object",
+      additionalProperties: false,
+      properties: {
+        title: { type: "string" },
+        data: { type: "string", description: "relative path to a FASTA file (.fa .fasta .fna .faa .aln)" },
+        seq: { type: "string", description: "one sequence inline" },
+        sequences: { type: "array", minItems: 1, items: { type: "object", additionalProperties: false, required: ["name", "seq"], properties: { name: { type: "string" }, seq: { type: "string" } } } },
+        type: { enum: ["auto", "dna", "rna", "protein"], default: "auto" },
+        annotations: {
+          type: "array",
+          items: { type: "object", additionalProperties: false, required: ["start", "end"], properties: {
+            start: { type: "integer", minimum: 1 },
+            end: { type: "integer", minimum: 1 },
+            label: { type: "string" },
+            color: { enum: ["accent", "blue", "green", "yellow", "red"] }
+          } },
+          description: "1-based inclusive ranges highlighted under the sequences"
+        },
+        width: { type: "integer", minimum: 10, maximum: 200, default: 60, description: "residues per row" },
+        start: { type: "integer", default: 1, description: "number of the first residue" },
+        consensus: { type: "boolean", description: "consensus and conservation rows (default: on for alignments)" }
+      }
+    },
+    example: "sequences:\n  - {name: human, seq: MKTAYIAKQRQISFVKSHFSRQ}\n  - {name: mouse, seq: MKTAYIAKQRQISFVKAHFSRQ}\nannotations:\n  - {start: 5, end: 12, label: helix 1}",
+    resolve(props, ctx) {
+      var _a2, _b, _c;
+      const given = ["data", "seq", "sequences"].filter((k) => props[k] !== void 0);
+      if (given.length !== 1) return ctx.error("", 'give exactly one of "data", "seq" or "sequences"');
+      let seqs;
+      if (props.data !== void 0) {
+        if (!["fa", "fasta", "fna", "faa", "ffn", "aln", "txt"].includes(extname(props.data))) return ctx.error("/data", "expected a FASTA file (.fa, .fasta, .fna, .faa)");
+        const f = ctx.readText(props.data);
+        if (!f.ok) return ctx.error("/data", f.error);
+        const r = parseFasta(f.text);
+        if (r.error) return ctx.error("/data", `${props.data}: ${r.error}`);
+        seqs = r.seqs;
+      } else seqs = (_a2 = props.sequences) != null ? _a2 : [{ name: "", seq: props.seq }];
+      seqs = seqs.map((s) => ({ name: s.name, seq: s.seq.replace(/\s+/g, "") }));
+      const type = props.type === "auto" ? guessType(seqs) : props.type;
+      const bad = checkAlphabet(seqs, type);
+      if (bad) return ctx.error(props.data ? "/data" : props.seq !== void 0 ? "/seq" : "/sequences", `${bad.name ? `${bad.name}: ` : ""}"${bad.char}" at position ${bad.pos} is not a valid ${type} letter`, props.type === "auto" ? "set type: dna, rna or protein if the guess is wrong" : void 0);
+      const lengths = new Set(seqs.map((s) => s.seq.length));
+      const aligned = seqs.length > 1 && lengths.size === 1;
+      if (seqs.length > 1 && !aligned && props.consensus) ctx.warn("/consensus", "sequences have different lengths, so there is no consensus (not an alignment)");
+      const total = Math.max(...lengths);
+      if (seqs.length * total > 4e5) return ctx.error(props.data ? "/data" : "/sequences", `${seqs.length} \xD7 ${total} residues is too many to show (max 400,000)`);
+      for (const [i, a] of ((_b = props.annotations) != null ? _b : []).entries())
+        if (a.end < a.start || a.end - props.start + 1 > total) return ctx.error(`/annotations/${i}`, `range ${a.start}\u2013${a.end} is outside the sequence (${props.start}\u2013${props.start + total - 1})`);
+      return { title: props.title, seqs, type, aligned, consensus: aligned && props.consensus !== false, annotations: (_c = props.annotations) != null ? _c : [], width: props.width, start: props.start };
+    }
+  };
+
+  // src/core/formats/molecule.js
+  var FORMATS = { pdb: "pdb", ent: "pdb", pqr: "pqr", cif: "cif", mmcif: "cif", sdf: "sdf", mol: "sdf", mol2: "mol2", xyz: "xyz", gro: "gro" };
+  function checkMolecule(text3, format2) {
+    var _a2, _b;
+    const lines = text3.replace(/\r/g, "").split("\n");
+    if (format2 === "pdb" || format2 === "pqr") {
+      const atoms = lines.filter((l) => /^(ATOM  |HETATM)/.test(l));
+      if (!atoms.length) return { error: "no ATOM or HETATM records" };
+      const bad = lines.findIndex((l) => /^(ATOM  |HETATM)/.test(l) && (l.length < 54 || [30, 38, 46].some((c) => !Number.isFinite(Number(l.slice(c, c + 8))))));
+      if (bad >= 0) return { error: `line ${bad + 1}: malformed coordinates (x, y, z are columns 31\u201354)` };
+      const protein = atoms.some((l) => l.startsWith("ATOM  ") && l.slice(12, 16).trim() === "CA");
+      return { atoms: atoms.length, protein, chains: [...new Set(atoms.map((l) => l[21]).filter((c) => c && c.trim()))] };
+    }
+    if (format2 === "xyz") {
+      const n = Number((_a2 = lines[0]) == null ? void 0 : _a2.trim());
+      if (!Number.isInteger(n) || n <= 0) return { error: "line 1: expected the number of atoms" };
+      for (let k = 0; k < n; k++) {
+        const f = ((_b = lines[k + 2]) != null ? _b : "").trim().split(/\s+/);
+        if (f.length < 4 || f.slice(1, 4).some((v) => !Number.isFinite(Number(v)))) return { error: `line ${k + 3}: expected "element x y z" (atom ${k + 1} of ${n})` };
+      }
+      return { atoms: n };
+    }
+    if (format2 === "sdf") {
+      const counts = lines.findIndex((l) => /V[23]000\s*$/.test(l));
+      if (counts < 0) return { error: "no counts line (V2000/V3000) in the molfile header" };
+      const n = Number(lines[counts].slice(0, 3));
+      return { atoms: Number.isFinite(n) ? n : void 0 };
+    }
+    if (format2 === "mol2") {
+      if (!lines.some((l) => l.startsWith("@<TRIPOS>ATOM"))) return { error: "no @<TRIPOS>ATOM section" };
+      return {};
+    }
+    if (format2 === "cif") {
+      if (!lines.some((l) => l.startsWith("_atom_site."))) return { error: "no _atom_site loop" };
+      return { protein: lines.some((l) => /\bCA\b/.test(l)) };
+    }
+    return {};
+  }
+
+  // src/components/structure.js
+  var STYLES = ["auto", "cartoon", "stick", "sphere", "line", "ballstick", "surface"];
+  var structure_default = {
+    name: "structure",
+    summary: "3D molecular structure (WebGL, rotatable) from a PDB, mmCIF, SDF/MOL, MOL2, XYZ or GRO file: proteins as cartoon, small molecules as sticks; highlight residues or chains.",
+    schema: {
+      type: "object",
+      additionalProperties: false,
+      required: ["data"],
+      properties: {
+        title: { type: "string" },
+        data: { type: "string", description: "relative path to a .pdb .cif .sdf .mol .mol2 .xyz .gro .pqr file" },
+        style: { enum: STYLES, default: "auto" },
+        color: { enum: ["element", "chain", "spectrum", "secondary"], description: "default: spectrum for proteins, element otherwise" },
+        highlight: {
+          type: "array",
+          items: { type: "object", additionalProperties: false, properties: {
+            chain: { type: "string" },
+            residues: { type: "string", description: 'e.g. "45-60" or "12,15,19"' },
+            resn: { type: "string", description: "residue name, e.g. HEM" },
+            style: { enum: STYLES.slice(1) },
+            color: { type: "string", description: "a colour name or #hex" },
+            label: { type: "string" }
+          } }
+        },
+        spin: { type: "boolean", default: false },
+        height: { type: "integer", minimum: 200, maximum: 1200, default: 460 }
+      }
+    },
+    example: "data: 1a8o.pdb\nhighlight:\n  - {resn: MSE, style: stick, color: orange, label: selenomethionine}",
+    resolve(props, ctx) {
+      var _a2, _b, _c;
+      const format2 = FORMATS[extname(props.data)];
+      if (!format2) return ctx.error("/data", `unsupported structure file ".${extname(props.data)}"`, `use one of: ${Object.keys(FORMATS).join(", ")}`);
+      const f = ctx.readText(props.data);
+      if (!f.ok) return ctx.error("/data", f.error);
+      const info = checkMolecule(f.text, format2);
+      if (info.error) return ctx.error("/data", `${props.data}: ${info.error}`);
+      for (const [i, h] of ((_a2 = props.highlight) != null ? _a2 : []).entries())
+        if (h.residues !== void 0 && !/^\s*\d+(\s*-\s*\d+)?(\s*,\s*\d+(\s*-\s*\d+)?)*\s*$/.test(h.residues)) return ctx.error(`/highlight/${i}/residues`, `"${h.residues}" is not a residue list`, 'write e.g. "45-60" or "12,15,19"');
+      ctx.ref(props.data);
+      const style = props.style === "auto" ? info.protein ? "cartoon" : "ballstick" : props.style;
+      return {
+        title: props.title,
+        file: props.data,
+        format: format2,
+        style,
+        color: (_b = props.color) != null ? _b : info.protein ? "spectrum" : "element",
+        highlight: (_c = props.highlight) != null ? _c : [],
+        spin: props.spin,
+        height: props.height,
+        atoms: info.atoms,
+        chains: info.chains
+      };
+    }
+  };
+
+  // src/core/formats/bed.js
+  function parseBed(text3, { graph = false } = {}) {
+    const out = [];
+    const lines = text3.replace(/\r/g, "").split("\n");
+    for (let n = 0; n < lines.length; n++) {
+      const line = lines[n];
+      if (!line.trim() || /^(#|track|browser)/.test(line)) continue;
+      const f = line.split(/\t| +/);
+      if (f.length < (graph ? 4 : 3)) return { error: `line ${n + 1}: expected at least ${graph ? 4 : 3} columns (chrom start end${graph ? " value" : ""})` };
+      const start = Number(f[1]), end = Number(f[2]);
+      if (!Number.isInteger(start) || !Number.isInteger(end) || start < 0 || end < start) return { error: `line ${n + 1}: start/end must be integers with 0 \u2264 start \u2264 end` };
+      if (graph) {
+        const value = Number(f[3]);
+        if (!Number.isFinite(value)) return { error: `line ${n + 1}: "${f[3]}" is not a number` };
+        out.push({ chrom: f[0], start, end, value });
+        continue;
+      }
+      const feat = { chrom: f[0], start, end, name: f[3], strand: f[5] === "+" || f[5] === "-" ? f[5] : void 0 };
+      if (f.length >= 12) {
+        const sizes = f[10].split(",").filter(Boolean).map(Number), starts = f[11].split(",").filter(Boolean).map(Number);
+        if (sizes.length !== starts.length || sizes.some((v) => !Number.isFinite(v))) return { error: `line ${n + 1}: blockSizes and blockStarts do not match` };
+        feat.exons = starts.map((s, k) => [start + s, start + s + sizes[k]]);
+        const ts = Number(f[6]), te = Number(f[7]);
+        if (Number.isInteger(ts) && Number.isInteger(te) && te > ts) feat.thick = [ts, te];
+      }
+      out.push(feat);
+    }
+    return { features: out };
+  }
+  function parseRegion(s) {
+    const m = /^\s*([^:\s]+):([\d,]+)-([\d,]+)\s*$/.exec(String(s));
+    if (!m) return void 0;
+    const start = Number(m[2].replace(/,/g, "")), end = Number(m[3].replace(/,/g, ""));
+    return end > start ? { chrom: m[1], start, end } : void 0;
+  }
+
+  // src/components/tracks.js
+  var MAX_FEATURES = 2e4;
+  var tracks_default = {
+    name: "tracks",
+    summary: "Genome-browser style tracks over a region: genes/features (BED or inline, with exons and strand), signal (bedGraph or position,value) and variants.",
+    schema: {
+      type: "object",
+      additionalProperties: false,
+      required: ["region", "tracks"],
+      properties: {
+        title: { type: "string" },
+        region: { type: "string", description: 'e.g. "chr7:117,480,000-117,670,000"' },
+        tracks: {
+          type: "array",
+          minItems: 1,
+          maxItems: 20,
+          items: {
+            type: "object",
+            additionalProperties: false,
+            required: ["type"],
+            properties: {
+              type: { enum: ["features", "signal", "variants"] },
+              label: { type: "string" },
+              data: { type: "string", description: "features: .bed; signal: .bedgraph/.bg or .csv (position,value)" },
+              features: { type: "array", items: { type: "object", additionalProperties: false, required: ["start", "end"], properties: {
+                start: { type: "integer" },
+                end: { type: "integer" },
+                name: { type: "string" },
+                strand: { enum: ["+", "-"] },
+                exons: { type: "array", items: { type: "array", items: { type: "integer" }, minItems: 2, maxItems: 2 } }
+              } } },
+              values: { type: "array", items: { type: "array", items: { type: "number" }, minItems: 2, maxItems: 2 }, description: "signal: [[position, value], \u2026]" },
+              variants: { type: "array", items: { type: "object", additionalProperties: false, required: ["pos"], properties: {
+                pos: { type: "integer" },
+                ref: { type: "string" },
+                alt: { type: "string" },
+                label: { type: "string" },
+                impact: { enum: ["high", "moderate", "low"] }
+              } } },
+              color: { enum: ["accent", "blue", "green", "yellow", "red"] },
+              height: { type: "integer", minimum: 20, maximum: 400 }
+            }
+          }
+        }
+      }
+    },
+    example: 'region: "chr7:117,480,000-117,670,000"\ntracks:\n  - {type: features, label: genes, data: genes.bed}\n  - {type: signal, label: coverage, data: coverage.bedgraph}\n  - {type: variants, variants: [{pos: 117559590, ref: CTT, alt: C, label: F508del, impact: high}]}',
+    resolve(props, ctx) {
+      var _a2, _b, _c, _d;
+      const region = parseRegion(props.region);
+      if (!region) return ctx.error("/region", `"${props.region}" is not a region`, "write chrom:start-end, e.g. chr1:1,000,000-1,050,000");
+      const inRegion = (s, e) => e >= region.start && s <= region.end;
+      const tracks2 = [];
+      for (const [i, t] of props.tracks.entries()) {
+        const at = (k) => `/tracks/${i}${k ? `/${k}` : ""}`;
+        const sources = ["data", "features", "values", "variants"].filter((k) => t[k] !== void 0);
+        const allowed = { features: ["data", "features"], signal: ["data", "values"], variants: ["variants"] }[t.type];
+        if (sources.length !== 1 || !allowed.includes(sources[0])) return ctx.error(at(), `a ${t.type} track takes exactly one of: ${allowed.join(", ")}`);
+        const out = { type: t.type, label: (_b = t.label) != null ? _b : (_a2 = t.data) != null ? _a2 : t.type, color: t.color, height: t.height };
+        if (t.type === "features") {
+          let feats = t.features;
+          if (t.data !== void 0) {
+            if (!["bed", "txt"].includes(extname(t.data))) return ctx.error(at("data"), "expected a .bed file");
+            const f = ctx.readText(t.data);
+            if (!f.ok) return ctx.error(at("data"), f.error);
+            const r = parseBed(f.text);
+            if (r.error) return ctx.error(at("data"), `${t.data}: ${r.error}`);
+            feats = r.features.filter((x) => x.chrom === region.chrom);
+          }
+          out.features = feats.filter((x) => inRegion(x.start, x.end)).slice(0, MAX_FEATURES);
+        } else if (t.type === "signal") {
+          let pts = t.values;
+          if (t.data !== void 0) {
+            const ext = extname(t.data);
+            const f = ctx.readText(t.data);
+            if (!f.ok) return ctx.error(at("data"), f.error);
+            if (ext === "bedgraph" || ext === "bg") {
+              const r = parseBed(f.text, { graph: true });
+              if (r.error) return ctx.error(at("data"), `${t.data}: ${r.error}`);
+              pts = r.features.filter((x) => x.chrom === region.chrom).map((x) => [Math.round((x.start + x.end) / 2), x.value]);
+            } else if (ext === "csv" || ext === "tsv") {
+              const rows = parseDelimited(f.text, ext === "tsv" ? "	" : ",");
+              const body = rows.filter((r) => Number.isFinite(Number(r[0])));
+              pts = body.map((r) => [Number(r[0]), Number(r[1])]);
+              const bad = pts.findIndex((p) => !Number.isFinite(p[1]));
+              if (bad >= 0) return ctx.error(at("data"), `${t.data}: row ${bad + 1} has no numeric value`);
+            } else return ctx.error(at("data"), "expected a .bedgraph/.bg or .csv (position,value) file");
+          }
+          out.values = pts.filter((p) => p[0] >= region.start && p[0] <= region.end);
+          if (out.values.length > 1e5) return ctx.error(at("data"), `${out.values.length} points in the region is too many (max 100,000)`, "bin the signal first");
+        } else out.variants = t.variants.filter((v) => inRegion(v.pos, v.pos));
+        if (!((_d = (_c = out.features) != null ? _c : out.values) != null ? _d : out.variants).length) ctx.warn(at(), `nothing in ${props.region}`);
+        tracks2.push(out);
+      }
+      return { title: props.title, region, tracks: tracks2 };
+    }
+  };
+
+  // src/core/formats/newick.js
+  function parseNewick(text3) {
+    const s = text3.trim();
+    let i = 0;
+    const fail = (message) => ({ error: message, col: i + 1 });
+    const ws = () => {
+      while (i < s.length && /\s/.test(s[i])) i++;
+    };
+    const label = () => {
+      ws();
+      if (s[i] === "'") {
+        const end = s.indexOf("'", i + 1);
+        if (end < 0) throw fail("unclosed quoted label");
+        const v = s.slice(i + 1, end);
+        i = end + 1;
+        return v;
+      }
+      const m = /^[^():,;[\]\s]*/.exec(s.slice(i))[0];
+      i += m.length;
+      return m.replace(/_/g, " ");
+    };
+    const comment2 = () => {
+      ws();
+      if (s[i] === "[") {
+        const end = s.indexOf("]", i);
+        if (end < 0) throw fail("unclosed [comment]");
+        i = end + 1;
+      }
+    };
+    function node(depth) {
+      if (depth > 2e3) throw fail("tree is nested too deeply");
+      ws();
+      const n = { children: [] };
+      if (s[i] === "(") {
+        i++;
+        for (; ; ) {
+          n.children.push(node(depth + 1));
+          ws();
+          if (s[i] === ",") {
+            i++;
+            continue;
+          }
+          if (s[i] === ")") {
+            i++;
+            break;
+          }
+          throw fail(i >= s.length ? 'missing ")"' : `expected "," or ")" but found "${s[i]}"`);
+        }
+      }
+      const name = label();
+      comment2();
+      if (n.children.length && /^\d+(\.\d+)?$/.test(name)) n.support = Number(name);
+      else if (name) n.name = name;
+      ws();
+      if (s[i] === ":") {
+        i++;
+        ws();
+        const m = /^[-+]?(\d+\.?\d*|\.\d+)([eE][-+]?\d+)?/.exec(s.slice(i));
+        if (!m) throw fail('expected a branch length after ":"');
+        n.length = Number(m[0]);
+        i += m[0].length;
+      }
+      comment2();
+      return n;
+    }
+    try {
+      const root = node(0);
+      ws();
+      if (s[i] === ";") i++;
+      ws();
+      if (i < s.length) return fail(`unexpected "${s[i]}" after the tree`);
+      return { tree: root };
+    } catch (e) {
+      if (e && e.error) return e;
+      throw e;
+    }
+  }
+  function leaves(n) {
+    return n.children.length ? n.children.reduce((a, c) => a + leaves(c), 0) : 1;
+  }
+
+  // src/components/tree.js
+  var tree_default = {
+    name: "tree",
+    summary: "Phylogenetic or hierarchical tree from Newick (file or inline), with branch lengths, support values and highlighted clades.",
+    shorthand: { scalar: "newick" },
+    schema: {
+      type: "object",
+      additionalProperties: false,
+      properties: {
+        title: { type: "string" },
+        data: { type: "string", description: "relative path to a Newick file (.nwk .newick .tre .tree)" },
+        newick: { type: "string", description: "e.g. ((A:0.1,B:0.2):0.3,C:0.4);" },
+        lengths: { type: "boolean", description: "scale branches by length (default: when lengths are given)" },
+        support: { type: "boolean", default: true, description: "show support values" },
+        highlight: { type: "array", items: { type: "string" }, description: "leaf names to highlight" }
+      }
+    },
+    example: 'newick: "((human:0.1,chimp:0.12)98:0.3,(mouse:0.4,rat:0.38)100:0.2,chicken:0.9);"\nhighlight: [human]',
+    resolve(props, ctx) {
+      var _a2, _b, _c;
+      if (props.data === void 0 === (props.newick === void 0)) return ctx.error("", 'give exactly one of "data" or "newick"');
+      let text3 = props.newick;
+      if (props.data !== void 0) {
+        if (!["nwk", "newick", "tre", "tree", "txt"].includes(extname(props.data))) return ctx.error("/data", "expected a Newick file (.nwk, .newick, .tre)");
+        const f = ctx.readText(props.data);
+        if (!f.ok) return ctx.error("/data", f.error);
+        text3 = f.text;
+      }
+      const r = parseNewick(text3);
+      if (r.error) return ctx.error(props.data ? "/data" : "/newick", `Newick: ${r.error}${props.data ? "" : ` (column ${r.col})`}`);
+      const n = leaves(r.tree);
+      if (n > 2e3) return ctx.error(props.data ? "/data" : "/newick", `${n} leaves is too many to draw (max 2000)`);
+      const hasLengths = JSON.stringify(r.tree).includes('"length"');
+      const names = /* @__PURE__ */ new Set();
+      (function walk(t) {
+        if (!t.children.length) names.add(t.name);
+        t.children.forEach(walk);
+      })(r.tree);
+      const highlight = ((_a2 = props.highlight) != null ? _a2 : []).map((h) => names.has(h) ? h : h.replace(/_/g, " "));
+      const missing = ((_b = props.highlight) != null ? _b : []).filter((h, i) => !names.has(highlight[i]));
+      if (missing.length) ctx.warn("/highlight", `not leaves of the tree: ${missing.join(", ")}`);
+      return { title: props.title, tree: r.tree, leaves: n, lengths: (_c = props.lengths) != null ? _c : hasLengths, support: props.support, highlight };
     }
   };
 
@@ -27715,7 +29769,29 @@ ${end.comment}` : end.comment;
   };
 
   // src/components/index.js
-  var components = [callout_default, stats_default, table_default, chart_default, chart3d_default, plot_default, matrix_default, math_default, checklist_default, code_default, image_default, html_default];
+  var components = [
+    callout_default,
+    stats_default,
+    table_default,
+    checklist_default,
+    code_default,
+    image_default,
+    html_default,
+    // general
+    chart_default,
+    chart3d_default,
+    plot_default,
+    matrix_default,
+    math_default,
+    // data and math
+    molecule_default,
+    reaction_default,
+    structure_default,
+    sequence_default,
+    tree_default,
+    tracks_default
+    // chemistry and biology
+  ];
   var byName = Object.fromEntries(components.map((c) => [c.name, c]));
 
   // src/core/validators.generated.js
@@ -27731,9 +29807,15 @@ ${end.comment}` : end.comment;
     image: () => image2,
     math: () => math2,
     matrix: () => matrix,
+    molecule: () => molecule,
     plot: () => plot,
+    reaction: () => reaction,
+    sequence: () => sequence,
     stats: () => stats,
-    table: () => table2
+    structure: () => structure,
+    table: () => table2,
+    tracks: () => tracks,
+    tree: () => tree
   });
   var callout = validate10;
   var schema11 = { "type": "object", "additionalProperties": false, "required": ["text"], "properties": { "tone": { "enum": ["info", "success", "warning", "danger", "note"], "default": "info" }, "title": { "type": "string" }, "text": { "type": "string", "description": "Markdown" } } };
@@ -28380,10 +30462,458 @@ ${end.comment}` : end.comment;
     validate12.errors = vErrors;
     return errors2 === 0;
   }
-  var chart = validate13;
-  var schema14 = { "type": "object", "additionalProperties": false, "required": ["type"], "properties": { "type": { "enum": ["line", "bar", "area", "scatter", "pie", "histogram", "box", "heatmap"] }, "title": { "type": "string" }, "data": { "type": "string", "description": "relative path to a .csv, .tsv or .json (array of objects) file" }, "rows": { "type": "array", "items": { "type": ["array", "object"] }, "description": "inline rows: objects, or lists named by columns" }, "columns": { "type": "array", "items": { "type": "string" }, "minItems": 1, "description": "names for list rows" }, "x": { "type": "string", "description": "x / category column (pie: labels; box: optional group column; heatmap: columns of the grid)" }, "y": { "type": ["string", "array"], "items": { "type": "string" }, "minItems": 1, "description": "numeric column(s), one series each (heatmap: rows of the grid)" }, "value": { "type": "string", "description": "heatmap: the numeric column coloured in each cell" }, "error": { "type": ["string", "array"], "items": { "type": "string" }, "description": "\xB1 error column per y column: error bars (line, scatter, bar)" }, "band": { "type": "object", "additionalProperties": false, "required": ["low", "high"], "properties": { "low": { "type": "string" }, "high": { "type": "string" }, "label": { "type": "string" } }, "description": "shaded band between two columns, e.g. a 95% confidence interval" }, "fit": { "enum": ["linear", "quadratic", "cubic", "exponential", "log", "power"], "description": "least-squares curve through each y series, with its equation and R\xB2 (numeric x)" }, "bins": { "type": "integer", "minimum": 2, "maximum": 200, "description": "histogram bins (default: Freedman\u2013Diaconis)" }, "logx": { "type": "boolean", "default": false }, "logy": { "type": "boolean", "default": false }, "stack": { "type": "boolean", "default": false, "description": "stack the series (bar, area)" }, "horizontal": { "type": "boolean", "default": false, "description": "horizontal bars" }, "unit": { "type": "string", "description": "suffix for values, e.g. ms or %" }, "height": { "type": "integer", "minimum": 160, "maximum": 900, "default": 300 } } };
-  var func2 = Object.prototype.hasOwnProperty;
+  var checklist = validate13;
+  var schema14 = { "type": "object", "additionalProperties": false, "required": ["items"], "properties": { "title": { "type": "string" }, "items": { "type": "array", "minItems": 1, "items": { "type": ["string", "object"], "additionalProperties": false, "required": ["text"], "properties": { "text": { "type": "string", "description": "Markdown (inline)" }, "status": { "enum": ["done", "todo", "running", "failed", "skipped"], "default": "todo" }, "note": { "type": "string" } } } } } };
   function validate13(data, { instancePath = "", parentData, parentDataProperty, rootData = data } = {}) {
+    let vErrors = null;
+    let errors2 = 0;
+    if (data && typeof data == "object" && !Array.isArray(data)) {
+      if (data.items === void 0) {
+        const err0 = { instancePath, schemaPath: "#/required", keyword: "required", params: { missingProperty: "items" }, message: "must have required property 'items'", schema: schema14.required, parentSchema: schema14, data };
+        if (vErrors === null) {
+          vErrors = [err0];
+        } else {
+          vErrors.push(err0);
+        }
+        errors2++;
+      }
+      for (const key0 in data) {
+        if (!(key0 === "title" || key0 === "items")) {
+          const err1 = { instancePath, schemaPath: "#/additionalProperties", keyword: "additionalProperties", params: { additionalProperty: key0 }, message: "must NOT have additional properties", schema: false, parentSchema: schema14, data };
+          if (vErrors === null) {
+            vErrors = [err1];
+          } else {
+            vErrors.push(err1);
+          }
+          errors2++;
+        }
+      }
+      if (data.title !== void 0) {
+        let data0 = data.title;
+        if (typeof data0 !== "string") {
+          const err2 = { instancePath: instancePath + "/title", schemaPath: "#/properties/title/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema14.properties.title.type, parentSchema: schema14.properties.title, data: data0 };
+          if (vErrors === null) {
+            vErrors = [err2];
+          } else {
+            vErrors.push(err2);
+          }
+          errors2++;
+        }
+      }
+      if (data.items !== void 0) {
+        let data1 = data.items;
+        if (Array.isArray(data1)) {
+          if (data1.length < 1) {
+            const err3 = { instancePath: instancePath + "/items", schemaPath: "#/properties/items/minItems", keyword: "minItems", params: { limit: 1 }, message: "must NOT have fewer than 1 items", schema: 1, parentSchema: schema14.properties.items, data: data1 };
+            if (vErrors === null) {
+              vErrors = [err3];
+            } else {
+              vErrors.push(err3);
+            }
+            errors2++;
+          }
+          const len0 = data1.length;
+          for (let i0 = 0; i0 < len0; i0++) {
+            let data2 = data1[i0];
+            if (typeof data2 !== "string" && !(data2 && typeof data2 == "object" && !Array.isArray(data2))) {
+              const err4 = { instancePath: instancePath + "/items/" + i0, schemaPath: "#/properties/items/items/type", keyword: "type", params: { type: schema14.properties.items.items.type }, message: "must be string,object", schema: schema14.properties.items.items.type, parentSchema: schema14.properties.items.items, data: data2 };
+              if (vErrors === null) {
+                vErrors = [err4];
+              } else {
+                vErrors.push(err4);
+              }
+              errors2++;
+            }
+            if (data2 && typeof data2 == "object" && !Array.isArray(data2)) {
+              if (data2.status === void 0) {
+                data2.status = "todo";
+              }
+              if (data2.text === void 0) {
+                const err5 = { instancePath: instancePath + "/items/" + i0, schemaPath: "#/properties/items/items/required", keyword: "required", params: { missingProperty: "text" }, message: "must have required property 'text'", schema: schema14.properties.items.items.required, parentSchema: schema14.properties.items.items, data: data2 };
+                if (vErrors === null) {
+                  vErrors = [err5];
+                } else {
+                  vErrors.push(err5);
+                }
+                errors2++;
+              }
+              for (const key1 in data2) {
+                if (!(key1 === "text" || key1 === "status" || key1 === "note")) {
+                  const err6 = { instancePath: instancePath + "/items/" + i0, schemaPath: "#/properties/items/items/additionalProperties", keyword: "additionalProperties", params: { additionalProperty: key1 }, message: "must NOT have additional properties", schema: false, parentSchema: schema14.properties.items.items, data: data2 };
+                  if (vErrors === null) {
+                    vErrors = [err6];
+                  } else {
+                    vErrors.push(err6);
+                  }
+                  errors2++;
+                }
+              }
+              if (data2.text !== void 0) {
+                let data3 = data2.text;
+                if (typeof data3 !== "string") {
+                  const err7 = { instancePath: instancePath + "/items/" + i0 + "/text", schemaPath: "#/properties/items/items/properties/text/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema14.properties.items.items.properties.text.type, parentSchema: schema14.properties.items.items.properties.text, data: data3 };
+                  if (vErrors === null) {
+                    vErrors = [err7];
+                  } else {
+                    vErrors.push(err7);
+                  }
+                  errors2++;
+                }
+              }
+              let data4 = data2.status;
+              if (!(data4 === "done" || data4 === "todo" || data4 === "running" || data4 === "failed" || data4 === "skipped")) {
+                const err8 = { instancePath: instancePath + "/items/" + i0 + "/status", schemaPath: "#/properties/items/items/properties/status/enum", keyword: "enum", params: { allowedValues: schema14.properties.items.items.properties.status.enum }, message: "must be equal to one of the allowed values", schema: schema14.properties.items.items.properties.status.enum, parentSchema: schema14.properties.items.items.properties.status, data: data4 };
+                if (vErrors === null) {
+                  vErrors = [err8];
+                } else {
+                  vErrors.push(err8);
+                }
+                errors2++;
+              }
+              if (data2.note !== void 0) {
+                let data5 = data2.note;
+                if (typeof data5 !== "string") {
+                  const err9 = { instancePath: instancePath + "/items/" + i0 + "/note", schemaPath: "#/properties/items/items/properties/note/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema14.properties.items.items.properties.note.type, parentSchema: schema14.properties.items.items.properties.note, data: data5 };
+                  if (vErrors === null) {
+                    vErrors = [err9];
+                  } else {
+                    vErrors.push(err9);
+                  }
+                  errors2++;
+                }
+              }
+            }
+          }
+        } else {
+          const err10 = { instancePath: instancePath + "/items", schemaPath: "#/properties/items/type", keyword: "type", params: { type: "array" }, message: "must be array", schema: schema14.properties.items.type, parentSchema: schema14.properties.items, data: data1 };
+          if (vErrors === null) {
+            vErrors = [err10];
+          } else {
+            vErrors.push(err10);
+          }
+          errors2++;
+        }
+      }
+    } else {
+      const err11 = { instancePath, schemaPath: "#/type", keyword: "type", params: { type: "object" }, message: "must be object", schema: schema14.type, parentSchema: schema14, data };
+      if (vErrors === null) {
+        vErrors = [err11];
+      } else {
+        vErrors.push(err11);
+      }
+      errors2++;
+    }
+    validate13.errors = vErrors;
+    return errors2 === 0;
+  }
+  var code2 = validate14;
+  var schema15 = { "type": "object", "additionalProperties": false, "properties": { "file": { "type": "string", "description": "relative path; read from disk, so the code need not be pasted" }, "lines": { "type": "string", "pattern": "^[1-9][0-9]*(-[1-9][0-9]*)?$", "description": "line range, e.g. 10-40" }, "code": { "type": "string" }, "lang": { "type": "string", "description": "language; inferred from the file extension" }, "title": { "type": "string" } } };
+  var pattern0 = new RegExp("^[1-9][0-9]*(-[1-9][0-9]*)?$", "u");
+  function validate14(data, { instancePath = "", parentData, parentDataProperty, rootData = data } = {}) {
+    let vErrors = null;
+    let errors2 = 0;
+    if (data && typeof data == "object" && !Array.isArray(data)) {
+      for (const key0 in data) {
+        if (!(key0 === "file" || key0 === "lines" || key0 === "code" || key0 === "lang" || key0 === "title")) {
+          const err0 = { instancePath, schemaPath: "#/additionalProperties", keyword: "additionalProperties", params: { additionalProperty: key0 }, message: "must NOT have additional properties", schema: false, parentSchema: schema15, data };
+          if (vErrors === null) {
+            vErrors = [err0];
+          } else {
+            vErrors.push(err0);
+          }
+          errors2++;
+        }
+      }
+      if (data.file !== void 0) {
+        let data0 = data.file;
+        if (typeof data0 !== "string") {
+          const err1 = { instancePath: instancePath + "/file", schemaPath: "#/properties/file/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema15.properties.file.type, parentSchema: schema15.properties.file, data: data0 };
+          if (vErrors === null) {
+            vErrors = [err1];
+          } else {
+            vErrors.push(err1);
+          }
+          errors2++;
+        }
+      }
+      if (data.lines !== void 0) {
+        let data1 = data.lines;
+        if (typeof data1 === "string") {
+          if (!pattern0.test(data1)) {
+            const err2 = { instancePath: instancePath + "/lines", schemaPath: "#/properties/lines/pattern", keyword: "pattern", params: { pattern: "^[1-9][0-9]*(-[1-9][0-9]*)?$" }, message: 'must match pattern "^[1-9][0-9]*(-[1-9][0-9]*)?$"', schema: "^[1-9][0-9]*(-[1-9][0-9]*)?$", parentSchema: schema15.properties.lines, data: data1 };
+            if (vErrors === null) {
+              vErrors = [err2];
+            } else {
+              vErrors.push(err2);
+            }
+            errors2++;
+          }
+        } else {
+          const err3 = { instancePath: instancePath + "/lines", schemaPath: "#/properties/lines/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema15.properties.lines.type, parentSchema: schema15.properties.lines, data: data1 };
+          if (vErrors === null) {
+            vErrors = [err3];
+          } else {
+            vErrors.push(err3);
+          }
+          errors2++;
+        }
+      }
+      if (data.code !== void 0) {
+        let data2 = data.code;
+        if (typeof data2 !== "string") {
+          const err4 = { instancePath: instancePath + "/code", schemaPath: "#/properties/code/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema15.properties.code.type, parentSchema: schema15.properties.code, data: data2 };
+          if (vErrors === null) {
+            vErrors = [err4];
+          } else {
+            vErrors.push(err4);
+          }
+          errors2++;
+        }
+      }
+      if (data.lang !== void 0) {
+        let data3 = data.lang;
+        if (typeof data3 !== "string") {
+          const err5 = { instancePath: instancePath + "/lang", schemaPath: "#/properties/lang/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema15.properties.lang.type, parentSchema: schema15.properties.lang, data: data3 };
+          if (vErrors === null) {
+            vErrors = [err5];
+          } else {
+            vErrors.push(err5);
+          }
+          errors2++;
+        }
+      }
+      if (data.title !== void 0) {
+        let data4 = data.title;
+        if (typeof data4 !== "string") {
+          const err6 = { instancePath: instancePath + "/title", schemaPath: "#/properties/title/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema15.properties.title.type, parentSchema: schema15.properties.title, data: data4 };
+          if (vErrors === null) {
+            vErrors = [err6];
+          } else {
+            vErrors.push(err6);
+          }
+          errors2++;
+        }
+      }
+    } else {
+      const err7 = { instancePath, schemaPath: "#/type", keyword: "type", params: { type: "object" }, message: "must be object", schema: schema15.type, parentSchema: schema15, data };
+      if (vErrors === null) {
+        vErrors = [err7];
+      } else {
+        vErrors.push(err7);
+      }
+      errors2++;
+    }
+    validate14.errors = vErrors;
+    return errors2 === 0;
+  }
+  var image2 = validate15;
+  var schema16 = { "type": "object", "additionalProperties": false, "required": ["src"], "properties": { "src": { "type": "string", "description": "relative path" }, "alt": { "type": "string" }, "caption": { "type": "string", "description": "Markdown (inline)" }, "width": { "type": "integer", "minimum": 16, "maximum": 4096, "description": "max display width in px" } } };
+  function validate15(data, { instancePath = "", parentData, parentDataProperty, rootData = data } = {}) {
+    let vErrors = null;
+    let errors2 = 0;
+    if (data && typeof data == "object" && !Array.isArray(data)) {
+      if (data.src === void 0) {
+        const err0 = { instancePath, schemaPath: "#/required", keyword: "required", params: { missingProperty: "src" }, message: "must have required property 'src'", schema: schema16.required, parentSchema: schema16, data };
+        if (vErrors === null) {
+          vErrors = [err0];
+        } else {
+          vErrors.push(err0);
+        }
+        errors2++;
+      }
+      for (const key0 in data) {
+        if (!(key0 === "src" || key0 === "alt" || key0 === "caption" || key0 === "width")) {
+          const err1 = { instancePath, schemaPath: "#/additionalProperties", keyword: "additionalProperties", params: { additionalProperty: key0 }, message: "must NOT have additional properties", schema: false, parentSchema: schema16, data };
+          if (vErrors === null) {
+            vErrors = [err1];
+          } else {
+            vErrors.push(err1);
+          }
+          errors2++;
+        }
+      }
+      if (data.src !== void 0) {
+        let data0 = data.src;
+        if (typeof data0 !== "string") {
+          const err2 = { instancePath: instancePath + "/src", schemaPath: "#/properties/src/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema16.properties.src.type, parentSchema: schema16.properties.src, data: data0 };
+          if (vErrors === null) {
+            vErrors = [err2];
+          } else {
+            vErrors.push(err2);
+          }
+          errors2++;
+        }
+      }
+      if (data.alt !== void 0) {
+        let data1 = data.alt;
+        if (typeof data1 !== "string") {
+          const err3 = { instancePath: instancePath + "/alt", schemaPath: "#/properties/alt/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema16.properties.alt.type, parentSchema: schema16.properties.alt, data: data1 };
+          if (vErrors === null) {
+            vErrors = [err3];
+          } else {
+            vErrors.push(err3);
+          }
+          errors2++;
+        }
+      }
+      if (data.caption !== void 0) {
+        let data2 = data.caption;
+        if (typeof data2 !== "string") {
+          const err4 = { instancePath: instancePath + "/caption", schemaPath: "#/properties/caption/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema16.properties.caption.type, parentSchema: schema16.properties.caption, data: data2 };
+          if (vErrors === null) {
+            vErrors = [err4];
+          } else {
+            vErrors.push(err4);
+          }
+          errors2++;
+        }
+      }
+      if (data.width !== void 0) {
+        let data3 = data.width;
+        if (!(typeof data3 == "number" && (!(data3 % 1) && !isNaN(data3)) && isFinite(data3))) {
+          const err5 = { instancePath: instancePath + "/width", schemaPath: "#/properties/width/type", keyword: "type", params: { type: "integer" }, message: "must be integer", schema: schema16.properties.width.type, parentSchema: schema16.properties.width, data: data3 };
+          if (vErrors === null) {
+            vErrors = [err5];
+          } else {
+            vErrors.push(err5);
+          }
+          errors2++;
+        }
+        if (typeof data3 == "number" && isFinite(data3)) {
+          if (data3 > 4096 || isNaN(data3)) {
+            const err6 = { instancePath: instancePath + "/width", schemaPath: "#/properties/width/maximum", keyword: "maximum", params: { comparison: "<=", limit: 4096 }, message: "must be <= 4096", schema: 4096, parentSchema: schema16.properties.width, data: data3 };
+            if (vErrors === null) {
+              vErrors = [err6];
+            } else {
+              vErrors.push(err6);
+            }
+            errors2++;
+          }
+          if (data3 < 16 || isNaN(data3)) {
+            const err7 = { instancePath: instancePath + "/width", schemaPath: "#/properties/width/minimum", keyword: "minimum", params: { comparison: ">=", limit: 16 }, message: "must be >= 16", schema: 16, parentSchema: schema16.properties.width, data: data3 };
+            if (vErrors === null) {
+              vErrors = [err7];
+            } else {
+              vErrors.push(err7);
+            }
+            errors2++;
+          }
+        }
+      }
+    } else {
+      const err8 = { instancePath, schemaPath: "#/type", keyword: "type", params: { type: "object" }, message: "must be object", schema: schema16.type, parentSchema: schema16, data };
+      if (vErrors === null) {
+        vErrors = [err8];
+      } else {
+        vErrors.push(err8);
+      }
+      errors2++;
+    }
+    validate15.errors = vErrors;
+    return errors2 === 0;
+  }
+  var html = validate16;
+  var schema17 = { "type": "object", "additionalProperties": false, "properties": { "html": { "type": "string", "description": "the markup (body content or a full document)" }, "file": { "type": "string", "description": "relative path to an .html file instead of html" }, "title": { "type": "string" }, "height": { "type": "integer", "minimum": 60, "maximum": 2e3, "default": 360 } } };
+  function validate16(data, { instancePath = "", parentData, parentDataProperty, rootData = data } = {}) {
+    let vErrors = null;
+    let errors2 = 0;
+    if (data && typeof data == "object" && !Array.isArray(data)) {
+      if (data.height === void 0) {
+        data.height = 360;
+      }
+      for (const key0 in data) {
+        if (!(key0 === "html" || key0 === "file" || key0 === "title" || key0 === "height")) {
+          const err0 = { instancePath, schemaPath: "#/additionalProperties", keyword: "additionalProperties", params: { additionalProperty: key0 }, message: "must NOT have additional properties", schema: false, parentSchema: schema17, data };
+          if (vErrors === null) {
+            vErrors = [err0];
+          } else {
+            vErrors.push(err0);
+          }
+          errors2++;
+        }
+      }
+      if (data.html !== void 0) {
+        let data0 = data.html;
+        if (typeof data0 !== "string") {
+          const err1 = { instancePath: instancePath + "/html", schemaPath: "#/properties/html/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema17.properties.html.type, parentSchema: schema17.properties.html, data: data0 };
+          if (vErrors === null) {
+            vErrors = [err1];
+          } else {
+            vErrors.push(err1);
+          }
+          errors2++;
+        }
+      }
+      if (data.file !== void 0) {
+        let data1 = data.file;
+        if (typeof data1 !== "string") {
+          const err2 = { instancePath: instancePath + "/file", schemaPath: "#/properties/file/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema17.properties.file.type, parentSchema: schema17.properties.file, data: data1 };
+          if (vErrors === null) {
+            vErrors = [err2];
+          } else {
+            vErrors.push(err2);
+          }
+          errors2++;
+        }
+      }
+      if (data.title !== void 0) {
+        let data2 = data.title;
+        if (typeof data2 !== "string") {
+          const err3 = { instancePath: instancePath + "/title", schemaPath: "#/properties/title/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema17.properties.title.type, parentSchema: schema17.properties.title, data: data2 };
+          if (vErrors === null) {
+            vErrors = [err3];
+          } else {
+            vErrors.push(err3);
+          }
+          errors2++;
+        }
+      }
+      let data3 = data.height;
+      if (!(typeof data3 == "number" && (!(data3 % 1) && !isNaN(data3)) && isFinite(data3))) {
+        const err4 = { instancePath: instancePath + "/height", schemaPath: "#/properties/height/type", keyword: "type", params: { type: "integer" }, message: "must be integer", schema: schema17.properties.height.type, parentSchema: schema17.properties.height, data: data3 };
+        if (vErrors === null) {
+          vErrors = [err4];
+        } else {
+          vErrors.push(err4);
+        }
+        errors2++;
+      }
+      if (typeof data3 == "number" && isFinite(data3)) {
+        if (data3 > 2e3 || isNaN(data3)) {
+          const err5 = { instancePath: instancePath + "/height", schemaPath: "#/properties/height/maximum", keyword: "maximum", params: { comparison: "<=", limit: 2e3 }, message: "must be <= 2000", schema: 2e3, parentSchema: schema17.properties.height, data: data3 };
+          if (vErrors === null) {
+            vErrors = [err5];
+          } else {
+            vErrors.push(err5);
+          }
+          errors2++;
+        }
+        if (data3 < 60 || isNaN(data3)) {
+          const err6 = { instancePath: instancePath + "/height", schemaPath: "#/properties/height/minimum", keyword: "minimum", params: { comparison: ">=", limit: 60 }, message: "must be >= 60", schema: 60, parentSchema: schema17.properties.height, data: data3 };
+          if (vErrors === null) {
+            vErrors = [err6];
+          } else {
+            vErrors.push(err6);
+          }
+          errors2++;
+        }
+      }
+    } else {
+      const err7 = { instancePath, schemaPath: "#/type", keyword: "type", params: { type: "object" }, message: "must be object", schema: schema17.type, parentSchema: schema17, data };
+      if (vErrors === null) {
+        vErrors = [err7];
+      } else {
+        vErrors.push(err7);
+      }
+      errors2++;
+    }
+    validate16.errors = vErrors;
+    return errors2 === 0;
+  }
+  var chart = validate17;
+  var schema18 = { "type": "object", "additionalProperties": false, "required": ["type"], "properties": { "type": { "enum": ["line", "bar", "area", "scatter", "pie", "histogram", "box", "heatmap"] }, "title": { "type": "string" }, "data": { "type": "string", "description": "relative path to a .csv, .tsv or .json (array of objects) file" }, "rows": { "type": "array", "items": { "type": ["array", "object"] }, "description": "inline rows: objects, or lists named by columns" }, "columns": { "type": "array", "items": { "type": "string" }, "minItems": 1, "description": "names for list rows" }, "x": { "type": "string", "description": "x / category column (pie: labels; box: optional group column; heatmap: columns of the grid)" }, "y": { "type": ["string", "array"], "items": { "type": "string" }, "minItems": 1, "description": "numeric column(s), one series each (heatmap: rows of the grid)" }, "value": { "type": "string", "description": "heatmap: the numeric column coloured in each cell" }, "error": { "type": ["string", "array"], "items": { "type": "string" }, "description": "\xB1 error column per y column: error bars (line, scatter, bar)" }, "band": { "type": "object", "additionalProperties": false, "required": ["low", "high"], "properties": { "low": { "type": "string" }, "high": { "type": "string" }, "label": { "type": "string" } }, "description": "shaded band between two columns, e.g. a 95% confidence interval" }, "fit": { "enum": ["linear", "quadratic", "cubic", "exponential", "log", "power"], "description": "least-squares curve through each y series, with its equation and R\xB2 (numeric x)" }, "bins": { "type": "integer", "minimum": 2, "maximum": 200, "description": "histogram bins (default: Freedman\u2013Diaconis)" }, "logx": { "type": "boolean", "default": false }, "logy": { "type": "boolean", "default": false }, "stack": { "type": "boolean", "default": false, "description": "stack the series (bar, area)" }, "horizontal": { "type": "boolean", "default": false, "description": "horizontal bars" }, "unit": { "type": "string", "description": "suffix for values, e.g. ms or %" }, "height": { "type": "integer", "minimum": 160, "maximum": 900, "default": 300 } } };
+  var func2 = Object.prototype.hasOwnProperty;
+  function validate17(data, { instancePath = "", parentData, parentDataProperty, rootData = data } = {}) {
     let vErrors = null;
     let errors2 = 0;
     if (data && typeof data == "object" && !Array.isArray(data)) {
@@ -28403,7 +30933,7 @@ ${end.comment}` : end.comment;
         data.height = 300;
       }
       if (data.type === void 0) {
-        const err0 = { instancePath, schemaPath: "#/required", keyword: "required", params: { missingProperty: "type" }, message: "must have required property 'type'", schema: schema14.required, parentSchema: schema14, data };
+        const err0 = { instancePath, schemaPath: "#/required", keyword: "required", params: { missingProperty: "type" }, message: "must have required property 'type'", schema: schema18.required, parentSchema: schema18, data };
         if (vErrors === null) {
           vErrors = [err0];
         } else {
@@ -28412,8 +30942,8 @@ ${end.comment}` : end.comment;
         errors2++;
       }
       for (const key0 in data) {
-        if (!func2.call(schema14.properties, key0)) {
-          const err1 = { instancePath, schemaPath: "#/additionalProperties", keyword: "additionalProperties", params: { additionalProperty: key0 }, message: "must NOT have additional properties", schema: false, parentSchema: schema14, data };
+        if (!func2.call(schema18.properties, key0)) {
+          const err1 = { instancePath, schemaPath: "#/additionalProperties", keyword: "additionalProperties", params: { additionalProperty: key0 }, message: "must NOT have additional properties", schema: false, parentSchema: schema18, data };
           if (vErrors === null) {
             vErrors = [err1];
           } else {
@@ -28425,7 +30955,7 @@ ${end.comment}` : end.comment;
       if (data.type !== void 0) {
         let data0 = data.type;
         if (!(data0 === "line" || data0 === "bar" || data0 === "area" || data0 === "scatter" || data0 === "pie" || data0 === "histogram" || data0 === "box" || data0 === "heatmap")) {
-          const err2 = { instancePath: instancePath + "/type", schemaPath: "#/properties/type/enum", keyword: "enum", params: { allowedValues: schema14.properties.type.enum }, message: "must be equal to one of the allowed values", schema: schema14.properties.type.enum, parentSchema: schema14.properties.type, data: data0 };
+          const err2 = { instancePath: instancePath + "/type", schemaPath: "#/properties/type/enum", keyword: "enum", params: { allowedValues: schema18.properties.type.enum }, message: "must be equal to one of the allowed values", schema: schema18.properties.type.enum, parentSchema: schema18.properties.type, data: data0 };
           if (vErrors === null) {
             vErrors = [err2];
           } else {
@@ -28437,7 +30967,7 @@ ${end.comment}` : end.comment;
       if (data.title !== void 0) {
         let data1 = data.title;
         if (typeof data1 !== "string") {
-          const err3 = { instancePath: instancePath + "/title", schemaPath: "#/properties/title/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema14.properties.title.type, parentSchema: schema14.properties.title, data: data1 };
+          const err3 = { instancePath: instancePath + "/title", schemaPath: "#/properties/title/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema18.properties.title.type, parentSchema: schema18.properties.title, data: data1 };
           if (vErrors === null) {
             vErrors = [err3];
           } else {
@@ -28449,7 +30979,7 @@ ${end.comment}` : end.comment;
       if (data.data !== void 0) {
         let data2 = data.data;
         if (typeof data2 !== "string") {
-          const err4 = { instancePath: instancePath + "/data", schemaPath: "#/properties/data/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema14.properties.data.type, parentSchema: schema14.properties.data, data: data2 };
+          const err4 = { instancePath: instancePath + "/data", schemaPath: "#/properties/data/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema18.properties.data.type, parentSchema: schema18.properties.data, data: data2 };
           if (vErrors === null) {
             vErrors = [err4];
           } else {
@@ -28465,7 +30995,7 @@ ${end.comment}` : end.comment;
           for (let i0 = 0; i0 < len0; i0++) {
             let data4 = data3[i0];
             if (!data4 || typeof data4 != "object") {
-              const err5 = { instancePath: instancePath + "/rows/" + i0, schemaPath: "#/properties/rows/items/type", keyword: "type", params: { type: schema14.properties.rows.items.type }, message: "must be array,object", schema: schema14.properties.rows.items.type, parentSchema: schema14.properties.rows.items, data: data4 };
+              const err5 = { instancePath: instancePath + "/rows/" + i0, schemaPath: "#/properties/rows/items/type", keyword: "type", params: { type: schema18.properties.rows.items.type }, message: "must be array,object", schema: schema18.properties.rows.items.type, parentSchema: schema18.properties.rows.items, data: data4 };
               if (vErrors === null) {
                 vErrors = [err5];
               } else {
@@ -28475,7 +31005,7 @@ ${end.comment}` : end.comment;
             }
           }
         } else {
-          const err6 = { instancePath: instancePath + "/rows", schemaPath: "#/properties/rows/type", keyword: "type", params: { type: "array" }, message: "must be array", schema: schema14.properties.rows.type, parentSchema: schema14.properties.rows, data: data3 };
+          const err6 = { instancePath: instancePath + "/rows", schemaPath: "#/properties/rows/type", keyword: "type", params: { type: "array" }, message: "must be array", schema: schema18.properties.rows.type, parentSchema: schema18.properties.rows, data: data3 };
           if (vErrors === null) {
             vErrors = [err6];
           } else {
@@ -28488,7 +31018,7 @@ ${end.comment}` : end.comment;
         let data5 = data.columns;
         if (Array.isArray(data5)) {
           if (data5.length < 1) {
-            const err7 = { instancePath: instancePath + "/columns", schemaPath: "#/properties/columns/minItems", keyword: "minItems", params: { limit: 1 }, message: "must NOT have fewer than 1 items", schema: 1, parentSchema: schema14.properties.columns, data: data5 };
+            const err7 = { instancePath: instancePath + "/columns", schemaPath: "#/properties/columns/minItems", keyword: "minItems", params: { limit: 1 }, message: "must NOT have fewer than 1 items", schema: 1, parentSchema: schema18.properties.columns, data: data5 };
             if (vErrors === null) {
               vErrors = [err7];
             } else {
@@ -28500,7 +31030,7 @@ ${end.comment}` : end.comment;
           for (let i1 = 0; i1 < len1; i1++) {
             let data6 = data5[i1];
             if (typeof data6 !== "string") {
-              const err8 = { instancePath: instancePath + "/columns/" + i1, schemaPath: "#/properties/columns/items/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema14.properties.columns.items.type, parentSchema: schema14.properties.columns.items, data: data6 };
+              const err8 = { instancePath: instancePath + "/columns/" + i1, schemaPath: "#/properties/columns/items/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema18.properties.columns.items.type, parentSchema: schema18.properties.columns.items, data: data6 };
               if (vErrors === null) {
                 vErrors = [err8];
               } else {
@@ -28510,7 +31040,7 @@ ${end.comment}` : end.comment;
             }
           }
         } else {
-          const err9 = { instancePath: instancePath + "/columns", schemaPath: "#/properties/columns/type", keyword: "type", params: { type: "array" }, message: "must be array", schema: schema14.properties.columns.type, parentSchema: schema14.properties.columns, data: data5 };
+          const err9 = { instancePath: instancePath + "/columns", schemaPath: "#/properties/columns/type", keyword: "type", params: { type: "array" }, message: "must be array", schema: schema18.properties.columns.type, parentSchema: schema18.properties.columns, data: data5 };
           if (vErrors === null) {
             vErrors = [err9];
           } else {
@@ -28522,7 +31052,7 @@ ${end.comment}` : end.comment;
       if (data.x !== void 0) {
         let data7 = data.x;
         if (typeof data7 !== "string") {
-          const err10 = { instancePath: instancePath + "/x", schemaPath: "#/properties/x/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema14.properties.x.type, parentSchema: schema14.properties.x, data: data7 };
+          const err10 = { instancePath: instancePath + "/x", schemaPath: "#/properties/x/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema18.properties.x.type, parentSchema: schema18.properties.x, data: data7 };
           if (vErrors === null) {
             vErrors = [err10];
           } else {
@@ -28534,7 +31064,7 @@ ${end.comment}` : end.comment;
       if (data.y !== void 0) {
         let data8 = data.y;
         if (typeof data8 !== "string" && !Array.isArray(data8)) {
-          const err11 = { instancePath: instancePath + "/y", schemaPath: "#/properties/y/type", keyword: "type", params: { type: schema14.properties.y.type }, message: "must be string,array", schema: schema14.properties.y.type, parentSchema: schema14.properties.y, data: data8 };
+          const err11 = { instancePath: instancePath + "/y", schemaPath: "#/properties/y/type", keyword: "type", params: { type: schema18.properties.y.type }, message: "must be string,array", schema: schema18.properties.y.type, parentSchema: schema18.properties.y, data: data8 };
           if (vErrors === null) {
             vErrors = [err11];
           } else {
@@ -28544,7 +31074,7 @@ ${end.comment}` : end.comment;
         }
         if (Array.isArray(data8)) {
           if (data8.length < 1) {
-            const err12 = { instancePath: instancePath + "/y", schemaPath: "#/properties/y/minItems", keyword: "minItems", params: { limit: 1 }, message: "must NOT have fewer than 1 items", schema: 1, parentSchema: schema14.properties.y, data: data8 };
+            const err12 = { instancePath: instancePath + "/y", schemaPath: "#/properties/y/minItems", keyword: "minItems", params: { limit: 1 }, message: "must NOT have fewer than 1 items", schema: 1, parentSchema: schema18.properties.y, data: data8 };
             if (vErrors === null) {
               vErrors = [err12];
             } else {
@@ -28556,7 +31086,7 @@ ${end.comment}` : end.comment;
           for (let i2 = 0; i2 < len2; i2++) {
             let data9 = data8[i2];
             if (typeof data9 !== "string") {
-              const err13 = { instancePath: instancePath + "/y/" + i2, schemaPath: "#/properties/y/items/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema14.properties.y.items.type, parentSchema: schema14.properties.y.items, data: data9 };
+              const err13 = { instancePath: instancePath + "/y/" + i2, schemaPath: "#/properties/y/items/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema18.properties.y.items.type, parentSchema: schema18.properties.y.items, data: data9 };
               if (vErrors === null) {
                 vErrors = [err13];
               } else {
@@ -28570,7 +31100,7 @@ ${end.comment}` : end.comment;
       if (data.value !== void 0) {
         let data10 = data.value;
         if (typeof data10 !== "string") {
-          const err14 = { instancePath: instancePath + "/value", schemaPath: "#/properties/value/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema14.properties.value.type, parentSchema: schema14.properties.value, data: data10 };
+          const err14 = { instancePath: instancePath + "/value", schemaPath: "#/properties/value/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema18.properties.value.type, parentSchema: schema18.properties.value, data: data10 };
           if (vErrors === null) {
             vErrors = [err14];
           } else {
@@ -28582,7 +31112,7 @@ ${end.comment}` : end.comment;
       if (data.error !== void 0) {
         let data11 = data.error;
         if (typeof data11 !== "string" && !Array.isArray(data11)) {
-          const err15 = { instancePath: instancePath + "/error", schemaPath: "#/properties/error/type", keyword: "type", params: { type: schema14.properties.error.type }, message: "must be string,array", schema: schema14.properties.error.type, parentSchema: schema14.properties.error, data: data11 };
+          const err15 = { instancePath: instancePath + "/error", schemaPath: "#/properties/error/type", keyword: "type", params: { type: schema18.properties.error.type }, message: "must be string,array", schema: schema18.properties.error.type, parentSchema: schema18.properties.error, data: data11 };
           if (vErrors === null) {
             vErrors = [err15];
           } else {
@@ -28595,7 +31125,7 @@ ${end.comment}` : end.comment;
           for (let i3 = 0; i3 < len3; i3++) {
             let data12 = data11[i3];
             if (typeof data12 !== "string") {
-              const err16 = { instancePath: instancePath + "/error/" + i3, schemaPath: "#/properties/error/items/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema14.properties.error.items.type, parentSchema: schema14.properties.error.items, data: data12 };
+              const err16 = { instancePath: instancePath + "/error/" + i3, schemaPath: "#/properties/error/items/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema18.properties.error.items.type, parentSchema: schema18.properties.error.items, data: data12 };
               if (vErrors === null) {
                 vErrors = [err16];
               } else {
@@ -28610,7 +31140,7 @@ ${end.comment}` : end.comment;
         let data13 = data.band;
         if (data13 && typeof data13 == "object" && !Array.isArray(data13)) {
           if (data13.low === void 0) {
-            const err17 = { instancePath: instancePath + "/band", schemaPath: "#/properties/band/required", keyword: "required", params: { missingProperty: "low" }, message: "must have required property 'low'", schema: schema14.properties.band.required, parentSchema: schema14.properties.band, data: data13 };
+            const err17 = { instancePath: instancePath + "/band", schemaPath: "#/properties/band/required", keyword: "required", params: { missingProperty: "low" }, message: "must have required property 'low'", schema: schema18.properties.band.required, parentSchema: schema18.properties.band, data: data13 };
             if (vErrors === null) {
               vErrors = [err17];
             } else {
@@ -28619,7 +31149,7 @@ ${end.comment}` : end.comment;
             errors2++;
           }
           if (data13.high === void 0) {
-            const err18 = { instancePath: instancePath + "/band", schemaPath: "#/properties/band/required", keyword: "required", params: { missingProperty: "high" }, message: "must have required property 'high'", schema: schema14.properties.band.required, parentSchema: schema14.properties.band, data: data13 };
+            const err18 = { instancePath: instancePath + "/band", schemaPath: "#/properties/band/required", keyword: "required", params: { missingProperty: "high" }, message: "must have required property 'high'", schema: schema18.properties.band.required, parentSchema: schema18.properties.band, data: data13 };
             if (vErrors === null) {
               vErrors = [err18];
             } else {
@@ -28629,7 +31159,7 @@ ${end.comment}` : end.comment;
           }
           for (const key1 in data13) {
             if (!(key1 === "low" || key1 === "high" || key1 === "label")) {
-              const err19 = { instancePath: instancePath + "/band", schemaPath: "#/properties/band/additionalProperties", keyword: "additionalProperties", params: { additionalProperty: key1 }, message: "must NOT have additional properties", schema: false, parentSchema: schema14.properties.band, data: data13 };
+              const err19 = { instancePath: instancePath + "/band", schemaPath: "#/properties/band/additionalProperties", keyword: "additionalProperties", params: { additionalProperty: key1 }, message: "must NOT have additional properties", schema: false, parentSchema: schema18.properties.band, data: data13 };
               if (vErrors === null) {
                 vErrors = [err19];
               } else {
@@ -28641,7 +31171,7 @@ ${end.comment}` : end.comment;
           if (data13.low !== void 0) {
             let data14 = data13.low;
             if (typeof data14 !== "string") {
-              const err20 = { instancePath: instancePath + "/band/low", schemaPath: "#/properties/band/properties/low/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema14.properties.band.properties.low.type, parentSchema: schema14.properties.band.properties.low, data: data14 };
+              const err20 = { instancePath: instancePath + "/band/low", schemaPath: "#/properties/band/properties/low/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema18.properties.band.properties.low.type, parentSchema: schema18.properties.band.properties.low, data: data14 };
               if (vErrors === null) {
                 vErrors = [err20];
               } else {
@@ -28653,7 +31183,7 @@ ${end.comment}` : end.comment;
           if (data13.high !== void 0) {
             let data15 = data13.high;
             if (typeof data15 !== "string") {
-              const err21 = { instancePath: instancePath + "/band/high", schemaPath: "#/properties/band/properties/high/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema14.properties.band.properties.high.type, parentSchema: schema14.properties.band.properties.high, data: data15 };
+              const err21 = { instancePath: instancePath + "/band/high", schemaPath: "#/properties/band/properties/high/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema18.properties.band.properties.high.type, parentSchema: schema18.properties.band.properties.high, data: data15 };
               if (vErrors === null) {
                 vErrors = [err21];
               } else {
@@ -28665,7 +31195,7 @@ ${end.comment}` : end.comment;
           if (data13.label !== void 0) {
             let data16 = data13.label;
             if (typeof data16 !== "string") {
-              const err22 = { instancePath: instancePath + "/band/label", schemaPath: "#/properties/band/properties/label/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema14.properties.band.properties.label.type, parentSchema: schema14.properties.band.properties.label, data: data16 };
+              const err22 = { instancePath: instancePath + "/band/label", schemaPath: "#/properties/band/properties/label/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema18.properties.band.properties.label.type, parentSchema: schema18.properties.band.properties.label, data: data16 };
               if (vErrors === null) {
                 vErrors = [err22];
               } else {
@@ -28675,7 +31205,7 @@ ${end.comment}` : end.comment;
             }
           }
         } else {
-          const err23 = { instancePath: instancePath + "/band", schemaPath: "#/properties/band/type", keyword: "type", params: { type: "object" }, message: "must be object", schema: schema14.properties.band.type, parentSchema: schema14.properties.band, data: data13 };
+          const err23 = { instancePath: instancePath + "/band", schemaPath: "#/properties/band/type", keyword: "type", params: { type: "object" }, message: "must be object", schema: schema18.properties.band.type, parentSchema: schema18.properties.band, data: data13 };
           if (vErrors === null) {
             vErrors = [err23];
           } else {
@@ -28687,7 +31217,7 @@ ${end.comment}` : end.comment;
       if (data.fit !== void 0) {
         let data17 = data.fit;
         if (!(data17 === "linear" || data17 === "quadratic" || data17 === "cubic" || data17 === "exponential" || data17 === "log" || data17 === "power")) {
-          const err24 = { instancePath: instancePath + "/fit", schemaPath: "#/properties/fit/enum", keyword: "enum", params: { allowedValues: schema14.properties.fit.enum }, message: "must be equal to one of the allowed values", schema: schema14.properties.fit.enum, parentSchema: schema14.properties.fit, data: data17 };
+          const err24 = { instancePath: instancePath + "/fit", schemaPath: "#/properties/fit/enum", keyword: "enum", params: { allowedValues: schema18.properties.fit.enum }, message: "must be equal to one of the allowed values", schema: schema18.properties.fit.enum, parentSchema: schema18.properties.fit, data: data17 };
           if (vErrors === null) {
             vErrors = [err24];
           } else {
@@ -28699,7 +31229,7 @@ ${end.comment}` : end.comment;
       if (data.bins !== void 0) {
         let data18 = data.bins;
         if (!(typeof data18 == "number" && (!(data18 % 1) && !isNaN(data18)) && isFinite(data18))) {
-          const err25 = { instancePath: instancePath + "/bins", schemaPath: "#/properties/bins/type", keyword: "type", params: { type: "integer" }, message: "must be integer", schema: schema14.properties.bins.type, parentSchema: schema14.properties.bins, data: data18 };
+          const err25 = { instancePath: instancePath + "/bins", schemaPath: "#/properties/bins/type", keyword: "type", params: { type: "integer" }, message: "must be integer", schema: schema18.properties.bins.type, parentSchema: schema18.properties.bins, data: data18 };
           if (vErrors === null) {
             vErrors = [err25];
           } else {
@@ -28709,7 +31239,7 @@ ${end.comment}` : end.comment;
         }
         if (typeof data18 == "number" && isFinite(data18)) {
           if (data18 > 200 || isNaN(data18)) {
-            const err26 = { instancePath: instancePath + "/bins", schemaPath: "#/properties/bins/maximum", keyword: "maximum", params: { comparison: "<=", limit: 200 }, message: "must be <= 200", schema: 200, parentSchema: schema14.properties.bins, data: data18 };
+            const err26 = { instancePath: instancePath + "/bins", schemaPath: "#/properties/bins/maximum", keyword: "maximum", params: { comparison: "<=", limit: 200 }, message: "must be <= 200", schema: 200, parentSchema: schema18.properties.bins, data: data18 };
             if (vErrors === null) {
               vErrors = [err26];
             } else {
@@ -28718,7 +31248,7 @@ ${end.comment}` : end.comment;
             errors2++;
           }
           if (data18 < 2 || isNaN(data18)) {
-            const err27 = { instancePath: instancePath + "/bins", schemaPath: "#/properties/bins/minimum", keyword: "minimum", params: { comparison: ">=", limit: 2 }, message: "must be >= 2", schema: 2, parentSchema: schema14.properties.bins, data: data18 };
+            const err27 = { instancePath: instancePath + "/bins", schemaPath: "#/properties/bins/minimum", keyword: "minimum", params: { comparison: ">=", limit: 2 }, message: "must be >= 2", schema: 2, parentSchema: schema18.properties.bins, data: data18 };
             if (vErrors === null) {
               vErrors = [err27];
             } else {
@@ -28730,7 +31260,7 @@ ${end.comment}` : end.comment;
       }
       let data19 = data.logx;
       if (typeof data19 !== "boolean") {
-        const err28 = { instancePath: instancePath + "/logx", schemaPath: "#/properties/logx/type", keyword: "type", params: { type: "boolean" }, message: "must be boolean", schema: schema14.properties.logx.type, parentSchema: schema14.properties.logx, data: data19 };
+        const err28 = { instancePath: instancePath + "/logx", schemaPath: "#/properties/logx/type", keyword: "type", params: { type: "boolean" }, message: "must be boolean", schema: schema18.properties.logx.type, parentSchema: schema18.properties.logx, data: data19 };
         if (vErrors === null) {
           vErrors = [err28];
         } else {
@@ -28740,7 +31270,7 @@ ${end.comment}` : end.comment;
       }
       let data20 = data.logy;
       if (typeof data20 !== "boolean") {
-        const err29 = { instancePath: instancePath + "/logy", schemaPath: "#/properties/logy/type", keyword: "type", params: { type: "boolean" }, message: "must be boolean", schema: schema14.properties.logy.type, parentSchema: schema14.properties.logy, data: data20 };
+        const err29 = { instancePath: instancePath + "/logy", schemaPath: "#/properties/logy/type", keyword: "type", params: { type: "boolean" }, message: "must be boolean", schema: schema18.properties.logy.type, parentSchema: schema18.properties.logy, data: data20 };
         if (vErrors === null) {
           vErrors = [err29];
         } else {
@@ -28750,7 +31280,7 @@ ${end.comment}` : end.comment;
       }
       let data21 = data.stack;
       if (typeof data21 !== "boolean") {
-        const err30 = { instancePath: instancePath + "/stack", schemaPath: "#/properties/stack/type", keyword: "type", params: { type: "boolean" }, message: "must be boolean", schema: schema14.properties.stack.type, parentSchema: schema14.properties.stack, data: data21 };
+        const err30 = { instancePath: instancePath + "/stack", schemaPath: "#/properties/stack/type", keyword: "type", params: { type: "boolean" }, message: "must be boolean", schema: schema18.properties.stack.type, parentSchema: schema18.properties.stack, data: data21 };
         if (vErrors === null) {
           vErrors = [err30];
         } else {
@@ -28760,7 +31290,7 @@ ${end.comment}` : end.comment;
       }
       let data22 = data.horizontal;
       if (typeof data22 !== "boolean") {
-        const err31 = { instancePath: instancePath + "/horizontal", schemaPath: "#/properties/horizontal/type", keyword: "type", params: { type: "boolean" }, message: "must be boolean", schema: schema14.properties.horizontal.type, parentSchema: schema14.properties.horizontal, data: data22 };
+        const err31 = { instancePath: instancePath + "/horizontal", schemaPath: "#/properties/horizontal/type", keyword: "type", params: { type: "boolean" }, message: "must be boolean", schema: schema18.properties.horizontal.type, parentSchema: schema18.properties.horizontal, data: data22 };
         if (vErrors === null) {
           vErrors = [err31];
         } else {
@@ -28771,7 +31301,7 @@ ${end.comment}` : end.comment;
       if (data.unit !== void 0) {
         let data23 = data.unit;
         if (typeof data23 !== "string") {
-          const err32 = { instancePath: instancePath + "/unit", schemaPath: "#/properties/unit/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema14.properties.unit.type, parentSchema: schema14.properties.unit, data: data23 };
+          const err32 = { instancePath: instancePath + "/unit", schemaPath: "#/properties/unit/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema18.properties.unit.type, parentSchema: schema18.properties.unit, data: data23 };
           if (vErrors === null) {
             vErrors = [err32];
           } else {
@@ -28782,7 +31312,7 @@ ${end.comment}` : end.comment;
       }
       let data24 = data.height;
       if (!(typeof data24 == "number" && (!(data24 % 1) && !isNaN(data24)) && isFinite(data24))) {
-        const err33 = { instancePath: instancePath + "/height", schemaPath: "#/properties/height/type", keyword: "type", params: { type: "integer" }, message: "must be integer", schema: schema14.properties.height.type, parentSchema: schema14.properties.height, data: data24 };
+        const err33 = { instancePath: instancePath + "/height", schemaPath: "#/properties/height/type", keyword: "type", params: { type: "integer" }, message: "must be integer", schema: schema18.properties.height.type, parentSchema: schema18.properties.height, data: data24 };
         if (vErrors === null) {
           vErrors = [err33];
         } else {
@@ -28792,7 +31322,7 @@ ${end.comment}` : end.comment;
       }
       if (typeof data24 == "number" && isFinite(data24)) {
         if (data24 > 900 || isNaN(data24)) {
-          const err34 = { instancePath: instancePath + "/height", schemaPath: "#/properties/height/maximum", keyword: "maximum", params: { comparison: "<=", limit: 900 }, message: "must be <= 900", schema: 900, parentSchema: schema14.properties.height, data: data24 };
+          const err34 = { instancePath: instancePath + "/height", schemaPath: "#/properties/height/maximum", keyword: "maximum", params: { comparison: "<=", limit: 900 }, message: "must be <= 900", schema: 900, parentSchema: schema18.properties.height, data: data24 };
           if (vErrors === null) {
             vErrors = [err34];
           } else {
@@ -28801,7 +31331,7 @@ ${end.comment}` : end.comment;
           errors2++;
         }
         if (data24 < 160 || isNaN(data24)) {
-          const err35 = { instancePath: instancePath + "/height", schemaPath: "#/properties/height/minimum", keyword: "minimum", params: { comparison: ">=", limit: 160 }, message: "must be >= 160", schema: 160, parentSchema: schema14.properties.height, data: data24 };
+          const err35 = { instancePath: instancePath + "/height", schemaPath: "#/properties/height/minimum", keyword: "minimum", params: { comparison: ">=", limit: 160 }, message: "must be >= 160", schema: 160, parentSchema: schema18.properties.height, data: data24 };
           if (vErrors === null) {
             vErrors = [err35];
           } else {
@@ -28811,7 +31341,7 @@ ${end.comment}` : end.comment;
         }
       }
     } else {
-      const err36 = { instancePath, schemaPath: "#/type", keyword: "type", params: { type: "object" }, message: "must be object", schema: schema14.type, parentSchema: schema14, data };
+      const err36 = { instancePath, schemaPath: "#/type", keyword: "type", params: { type: "object" }, message: "must be object", schema: schema18.type, parentSchema: schema18, data };
       if (vErrors === null) {
         vErrors = [err36];
       } else {
@@ -28819,12 +31349,12 @@ ${end.comment}` : end.comment;
       }
       errors2++;
     }
-    validate13.errors = vErrors;
+    validate17.errors = vErrors;
     return errors2 === 0;
   }
-  var chart3d = validate14;
-  var schema15 = { "type": "object", "additionalProperties": false, "required": ["type", "x", "y", "z"], "properties": { "type": { "enum": ["scatter", "bar", "line", "surface"] }, "title": { "type": "string" }, "data": { "type": "string", "description": "relative path to a .csv, .tsv or .json (array of objects) file" }, "rows": { "type": "array", "items": { "type": ["array", "object"] }, "description": "inline rows: objects, or lists named by columns" }, "columns": { "type": "array", "items": { "type": "string" }, "minItems": 1, "description": "names for list rows" }, "x": { "type": "string" }, "y": { "type": "string" }, "z": { "type": "string" }, "color": { "type": "string", "description": "numeric column mapped to a colour scale (default: z)" }, "height": { "type": "integer", "minimum": 200, "maximum": 1200, "default": 440 }, "rotate": { "type": "boolean", "default": false, "description": "turn slowly until the user drags it" } } };
-  function validate14(data, { instancePath = "", parentData, parentDataProperty, rootData = data } = {}) {
+  var chart3d = validate18;
+  var schema19 = { "type": "object", "additionalProperties": false, "required": ["type", "x", "y", "z"], "properties": { "type": { "enum": ["scatter", "bar", "line", "surface"] }, "title": { "type": "string" }, "data": { "type": "string", "description": "relative path to a .csv, .tsv or .json (array of objects) file" }, "rows": { "type": "array", "items": { "type": ["array", "object"] }, "description": "inline rows: objects, or lists named by columns" }, "columns": { "type": "array", "items": { "type": "string" }, "minItems": 1, "description": "names for list rows" }, "x": { "type": "string" }, "y": { "type": "string" }, "z": { "type": "string" }, "color": { "type": "string", "description": "numeric column mapped to a colour scale (default: z)" }, "height": { "type": "integer", "minimum": 200, "maximum": 1200, "default": 440 }, "rotate": { "type": "boolean", "default": false, "description": "turn slowly until the user drags it" } } };
+  function validate18(data, { instancePath = "", parentData, parentDataProperty, rootData = data } = {}) {
     let vErrors = null;
     let errors2 = 0;
     if (data && typeof data == "object" && !Array.isArray(data)) {
@@ -28835,7 +31365,7 @@ ${end.comment}` : end.comment;
         data.rotate = false;
       }
       if (data.type === void 0) {
-        const err0 = { instancePath, schemaPath: "#/required", keyword: "required", params: { missingProperty: "type" }, message: "must have required property 'type'", schema: schema15.required, parentSchema: schema15, data };
+        const err0 = { instancePath, schemaPath: "#/required", keyword: "required", params: { missingProperty: "type" }, message: "must have required property 'type'", schema: schema19.required, parentSchema: schema19, data };
         if (vErrors === null) {
           vErrors = [err0];
         } else {
@@ -28844,7 +31374,7 @@ ${end.comment}` : end.comment;
         errors2++;
       }
       if (data.x === void 0) {
-        const err1 = { instancePath, schemaPath: "#/required", keyword: "required", params: { missingProperty: "x" }, message: "must have required property 'x'", schema: schema15.required, parentSchema: schema15, data };
+        const err1 = { instancePath, schemaPath: "#/required", keyword: "required", params: { missingProperty: "x" }, message: "must have required property 'x'", schema: schema19.required, parentSchema: schema19, data };
         if (vErrors === null) {
           vErrors = [err1];
         } else {
@@ -28853,7 +31383,7 @@ ${end.comment}` : end.comment;
         errors2++;
       }
       if (data.y === void 0) {
-        const err2 = { instancePath, schemaPath: "#/required", keyword: "required", params: { missingProperty: "y" }, message: "must have required property 'y'", schema: schema15.required, parentSchema: schema15, data };
+        const err2 = { instancePath, schemaPath: "#/required", keyword: "required", params: { missingProperty: "y" }, message: "must have required property 'y'", schema: schema19.required, parentSchema: schema19, data };
         if (vErrors === null) {
           vErrors = [err2];
         } else {
@@ -28862,7 +31392,7 @@ ${end.comment}` : end.comment;
         errors2++;
       }
       if (data.z === void 0) {
-        const err3 = { instancePath, schemaPath: "#/required", keyword: "required", params: { missingProperty: "z" }, message: "must have required property 'z'", schema: schema15.required, parentSchema: schema15, data };
+        const err3 = { instancePath, schemaPath: "#/required", keyword: "required", params: { missingProperty: "z" }, message: "must have required property 'z'", schema: schema19.required, parentSchema: schema19, data };
         if (vErrors === null) {
           vErrors = [err3];
         } else {
@@ -28871,8 +31401,8 @@ ${end.comment}` : end.comment;
         errors2++;
       }
       for (const key0 in data) {
-        if (!func2.call(schema15.properties, key0)) {
-          const err4 = { instancePath, schemaPath: "#/additionalProperties", keyword: "additionalProperties", params: { additionalProperty: key0 }, message: "must NOT have additional properties", schema: false, parentSchema: schema15, data };
+        if (!func2.call(schema19.properties, key0)) {
+          const err4 = { instancePath, schemaPath: "#/additionalProperties", keyword: "additionalProperties", params: { additionalProperty: key0 }, message: "must NOT have additional properties", schema: false, parentSchema: schema19, data };
           if (vErrors === null) {
             vErrors = [err4];
           } else {
@@ -28884,7 +31414,7 @@ ${end.comment}` : end.comment;
       if (data.type !== void 0) {
         let data0 = data.type;
         if (!(data0 === "scatter" || data0 === "bar" || data0 === "line" || data0 === "surface")) {
-          const err5 = { instancePath: instancePath + "/type", schemaPath: "#/properties/type/enum", keyword: "enum", params: { allowedValues: schema15.properties.type.enum }, message: "must be equal to one of the allowed values", schema: schema15.properties.type.enum, parentSchema: schema15.properties.type, data: data0 };
+          const err5 = { instancePath: instancePath + "/type", schemaPath: "#/properties/type/enum", keyword: "enum", params: { allowedValues: schema19.properties.type.enum }, message: "must be equal to one of the allowed values", schema: schema19.properties.type.enum, parentSchema: schema19.properties.type, data: data0 };
           if (vErrors === null) {
             vErrors = [err5];
           } else {
@@ -28896,7 +31426,7 @@ ${end.comment}` : end.comment;
       if (data.title !== void 0) {
         let data1 = data.title;
         if (typeof data1 !== "string") {
-          const err6 = { instancePath: instancePath + "/title", schemaPath: "#/properties/title/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema15.properties.title.type, parentSchema: schema15.properties.title, data: data1 };
+          const err6 = { instancePath: instancePath + "/title", schemaPath: "#/properties/title/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema19.properties.title.type, parentSchema: schema19.properties.title, data: data1 };
           if (vErrors === null) {
             vErrors = [err6];
           } else {
@@ -28908,7 +31438,7 @@ ${end.comment}` : end.comment;
       if (data.data !== void 0) {
         let data2 = data.data;
         if (typeof data2 !== "string") {
-          const err7 = { instancePath: instancePath + "/data", schemaPath: "#/properties/data/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema15.properties.data.type, parentSchema: schema15.properties.data, data: data2 };
+          const err7 = { instancePath: instancePath + "/data", schemaPath: "#/properties/data/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema19.properties.data.type, parentSchema: schema19.properties.data, data: data2 };
           if (vErrors === null) {
             vErrors = [err7];
           } else {
@@ -28924,7 +31454,7 @@ ${end.comment}` : end.comment;
           for (let i0 = 0; i0 < len0; i0++) {
             let data4 = data3[i0];
             if (!data4 || typeof data4 != "object") {
-              const err8 = { instancePath: instancePath + "/rows/" + i0, schemaPath: "#/properties/rows/items/type", keyword: "type", params: { type: schema15.properties.rows.items.type }, message: "must be array,object", schema: schema15.properties.rows.items.type, parentSchema: schema15.properties.rows.items, data: data4 };
+              const err8 = { instancePath: instancePath + "/rows/" + i0, schemaPath: "#/properties/rows/items/type", keyword: "type", params: { type: schema19.properties.rows.items.type }, message: "must be array,object", schema: schema19.properties.rows.items.type, parentSchema: schema19.properties.rows.items, data: data4 };
               if (vErrors === null) {
                 vErrors = [err8];
               } else {
@@ -28934,7 +31464,7 @@ ${end.comment}` : end.comment;
             }
           }
         } else {
-          const err9 = { instancePath: instancePath + "/rows", schemaPath: "#/properties/rows/type", keyword: "type", params: { type: "array" }, message: "must be array", schema: schema15.properties.rows.type, parentSchema: schema15.properties.rows, data: data3 };
+          const err9 = { instancePath: instancePath + "/rows", schemaPath: "#/properties/rows/type", keyword: "type", params: { type: "array" }, message: "must be array", schema: schema19.properties.rows.type, parentSchema: schema19.properties.rows, data: data3 };
           if (vErrors === null) {
             vErrors = [err9];
           } else {
@@ -28947,7 +31477,7 @@ ${end.comment}` : end.comment;
         let data5 = data.columns;
         if (Array.isArray(data5)) {
           if (data5.length < 1) {
-            const err10 = { instancePath: instancePath + "/columns", schemaPath: "#/properties/columns/minItems", keyword: "minItems", params: { limit: 1 }, message: "must NOT have fewer than 1 items", schema: 1, parentSchema: schema15.properties.columns, data: data5 };
+            const err10 = { instancePath: instancePath + "/columns", schemaPath: "#/properties/columns/minItems", keyword: "minItems", params: { limit: 1 }, message: "must NOT have fewer than 1 items", schema: 1, parentSchema: schema19.properties.columns, data: data5 };
             if (vErrors === null) {
               vErrors = [err10];
             } else {
@@ -28959,7 +31489,7 @@ ${end.comment}` : end.comment;
           for (let i1 = 0; i1 < len1; i1++) {
             let data6 = data5[i1];
             if (typeof data6 !== "string") {
-              const err11 = { instancePath: instancePath + "/columns/" + i1, schemaPath: "#/properties/columns/items/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema15.properties.columns.items.type, parentSchema: schema15.properties.columns.items, data: data6 };
+              const err11 = { instancePath: instancePath + "/columns/" + i1, schemaPath: "#/properties/columns/items/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema19.properties.columns.items.type, parentSchema: schema19.properties.columns.items, data: data6 };
               if (vErrors === null) {
                 vErrors = [err11];
               } else {
@@ -28969,7 +31499,7 @@ ${end.comment}` : end.comment;
             }
           }
         } else {
-          const err12 = { instancePath: instancePath + "/columns", schemaPath: "#/properties/columns/type", keyword: "type", params: { type: "array" }, message: "must be array", schema: schema15.properties.columns.type, parentSchema: schema15.properties.columns, data: data5 };
+          const err12 = { instancePath: instancePath + "/columns", schemaPath: "#/properties/columns/type", keyword: "type", params: { type: "array" }, message: "must be array", schema: schema19.properties.columns.type, parentSchema: schema19.properties.columns, data: data5 };
           if (vErrors === null) {
             vErrors = [err12];
           } else {
@@ -28981,7 +31511,7 @@ ${end.comment}` : end.comment;
       if (data.x !== void 0) {
         let data7 = data.x;
         if (typeof data7 !== "string") {
-          const err13 = { instancePath: instancePath + "/x", schemaPath: "#/properties/x/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema15.properties.x.type, parentSchema: schema15.properties.x, data: data7 };
+          const err13 = { instancePath: instancePath + "/x", schemaPath: "#/properties/x/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema19.properties.x.type, parentSchema: schema19.properties.x, data: data7 };
           if (vErrors === null) {
             vErrors = [err13];
           } else {
@@ -28993,7 +31523,7 @@ ${end.comment}` : end.comment;
       if (data.y !== void 0) {
         let data8 = data.y;
         if (typeof data8 !== "string") {
-          const err14 = { instancePath: instancePath + "/y", schemaPath: "#/properties/y/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema15.properties.y.type, parentSchema: schema15.properties.y, data: data8 };
+          const err14 = { instancePath: instancePath + "/y", schemaPath: "#/properties/y/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema19.properties.y.type, parentSchema: schema19.properties.y, data: data8 };
           if (vErrors === null) {
             vErrors = [err14];
           } else {
@@ -29005,7 +31535,7 @@ ${end.comment}` : end.comment;
       if (data.z !== void 0) {
         let data9 = data.z;
         if (typeof data9 !== "string") {
-          const err15 = { instancePath: instancePath + "/z", schemaPath: "#/properties/z/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema15.properties.z.type, parentSchema: schema15.properties.z, data: data9 };
+          const err15 = { instancePath: instancePath + "/z", schemaPath: "#/properties/z/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema19.properties.z.type, parentSchema: schema19.properties.z, data: data9 };
           if (vErrors === null) {
             vErrors = [err15];
           } else {
@@ -29017,7 +31547,7 @@ ${end.comment}` : end.comment;
       if (data.color !== void 0) {
         let data10 = data.color;
         if (typeof data10 !== "string") {
-          const err16 = { instancePath: instancePath + "/color", schemaPath: "#/properties/color/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema15.properties.color.type, parentSchema: schema15.properties.color, data: data10 };
+          const err16 = { instancePath: instancePath + "/color", schemaPath: "#/properties/color/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema19.properties.color.type, parentSchema: schema19.properties.color, data: data10 };
           if (vErrors === null) {
             vErrors = [err16];
           } else {
@@ -29028,7 +31558,7 @@ ${end.comment}` : end.comment;
       }
       let data11 = data.height;
       if (!(typeof data11 == "number" && (!(data11 % 1) && !isNaN(data11)) && isFinite(data11))) {
-        const err17 = { instancePath: instancePath + "/height", schemaPath: "#/properties/height/type", keyword: "type", params: { type: "integer" }, message: "must be integer", schema: schema15.properties.height.type, parentSchema: schema15.properties.height, data: data11 };
+        const err17 = { instancePath: instancePath + "/height", schemaPath: "#/properties/height/type", keyword: "type", params: { type: "integer" }, message: "must be integer", schema: schema19.properties.height.type, parentSchema: schema19.properties.height, data: data11 };
         if (vErrors === null) {
           vErrors = [err17];
         } else {
@@ -29038,7 +31568,7 @@ ${end.comment}` : end.comment;
       }
       if (typeof data11 == "number" && isFinite(data11)) {
         if (data11 > 1200 || isNaN(data11)) {
-          const err18 = { instancePath: instancePath + "/height", schemaPath: "#/properties/height/maximum", keyword: "maximum", params: { comparison: "<=", limit: 1200 }, message: "must be <= 1200", schema: 1200, parentSchema: schema15.properties.height, data: data11 };
+          const err18 = { instancePath: instancePath + "/height", schemaPath: "#/properties/height/maximum", keyword: "maximum", params: { comparison: "<=", limit: 1200 }, message: "must be <= 1200", schema: 1200, parentSchema: schema19.properties.height, data: data11 };
           if (vErrors === null) {
             vErrors = [err18];
           } else {
@@ -29047,7 +31577,7 @@ ${end.comment}` : end.comment;
           errors2++;
         }
         if (data11 < 200 || isNaN(data11)) {
-          const err19 = { instancePath: instancePath + "/height", schemaPath: "#/properties/height/minimum", keyword: "minimum", params: { comparison: ">=", limit: 200 }, message: "must be >= 200", schema: 200, parentSchema: schema15.properties.height, data: data11 };
+          const err19 = { instancePath: instancePath + "/height", schemaPath: "#/properties/height/minimum", keyword: "minimum", params: { comparison: ">=", limit: 200 }, message: "must be >= 200", schema: 200, parentSchema: schema19.properties.height, data: data11 };
           if (vErrors === null) {
             vErrors = [err19];
           } else {
@@ -29058,7 +31588,7 @@ ${end.comment}` : end.comment;
       }
       let data12 = data.rotate;
       if (typeof data12 !== "boolean") {
-        const err20 = { instancePath: instancePath + "/rotate", schemaPath: "#/properties/rotate/type", keyword: "type", params: { type: "boolean" }, message: "must be boolean", schema: schema15.properties.rotate.type, parentSchema: schema15.properties.rotate, data: data12 };
+        const err20 = { instancePath: instancePath + "/rotate", schemaPath: "#/properties/rotate/type", keyword: "type", params: { type: "boolean" }, message: "must be boolean", schema: schema19.properties.rotate.type, parentSchema: schema19.properties.rotate, data: data12 };
         if (vErrors === null) {
           vErrors = [err20];
         } else {
@@ -29067,7 +31597,7 @@ ${end.comment}` : end.comment;
         errors2++;
       }
     } else {
-      const err21 = { instancePath, schemaPath: "#/type", keyword: "type", params: { type: "object" }, message: "must be object", schema: schema15.type, parentSchema: schema15, data };
+      const err21 = { instancePath, schemaPath: "#/type", keyword: "type", params: { type: "object" }, message: "must be object", schema: schema19.type, parentSchema: schema19, data };
       if (vErrors === null) {
         vErrors = [err21];
       } else {
@@ -29075,12 +31605,12 @@ ${end.comment}` : end.comment;
       }
       errors2++;
     }
-    validate14.errors = vErrors;
+    validate18.errors = vErrors;
     return errors2 === 0;
   }
-  var plot = validate15;
-  var schema16 = { "type": "object", "additionalProperties": false, "required": ["functions"], "properties": { "type": { "enum": ["function", "parametric", "polar", "surface"], "default": "function" }, "title": { "type": "string" }, "functions": { "type": ["array", "string"], "minItems": 1, "maxItems": 12, "items": { "type": ["string", "object"], "additionalProperties": false, "properties": { "y": { "type": ["string", "number"] }, "x": { "type": ["string", "number"] }, "r": { "type": ["string", "number"] }, "z": { "type": ["string", "number"] }, "label": { "type": "string" } } }, "description": "expressions: strings, or {y|x,y|r|z, label} by type" }, "x": { "type": "array", "items": { "type": "number" }, "minItems": 2, "maxItems": 2, "description": "x range (function, surface; default [-10, 10])" }, "y": { "type": "array", "items": { "type": "number" }, "minItems": 2, "maxItems": 2, "description": "y range: the view for functions (default: automatic), the domain for surfaces" }, "t": { "type": "array", "items": { "type": "number" }, "minItems": 2, "maxItems": 2, "description": "parameter range for parametric and polar (default [0, 2pi])" }, "params": { "type": "object", "additionalProperties": { "type": "number" }, "description": "named constants, e.g. {a: 2, k: 0.5}" }, "samples": { "type": "integer", "minimum": 10, "maximum": 5e3, "description": "points per curve (default 600) or grid size per axis for surfaces (default 60, max 150)" }, "xlabel": { "type": "string" }, "ylabel": { "type": "string" }, "height": { "type": "integer", "minimum": 160, "maximum": 1200 }, "rotate": { "type": "boolean", "default": false, "description": "surfaces: turn slowly until the user drags" } } };
-  function validate15(data, { instancePath = "", parentData, parentDataProperty, rootData = data } = {}) {
+  var plot = validate19;
+  var schema20 = { "type": "object", "additionalProperties": false, "required": ["functions"], "properties": { "type": { "enum": ["function", "parametric", "polar", "surface"], "default": "function" }, "title": { "type": "string" }, "functions": { "type": ["array", "string"], "minItems": 1, "maxItems": 12, "items": { "type": ["string", "object"], "additionalProperties": false, "properties": { "y": { "type": ["string", "number"] }, "x": { "type": ["string", "number"] }, "r": { "type": ["string", "number"] }, "z": { "type": ["string", "number"] }, "label": { "type": "string" } } }, "description": "expressions: strings, or {y|x,y|r|z, label} by type" }, "x": { "type": "array", "items": { "type": "number" }, "minItems": 2, "maxItems": 2, "description": "x range (function, surface; default [-10, 10])" }, "y": { "type": "array", "items": { "type": "number" }, "minItems": 2, "maxItems": 2, "description": "y range: the view for functions (default: automatic), the domain for surfaces" }, "t": { "type": "array", "items": { "type": "number" }, "minItems": 2, "maxItems": 2, "description": "parameter range for parametric and polar (default [0, 2pi])" }, "params": { "type": "object", "additionalProperties": { "type": "number" }, "description": "named constants, e.g. {a: 2, k: 0.5}" }, "samples": { "type": "integer", "minimum": 10, "maximum": 5e3, "description": "points per curve (default 600) or grid size per axis for surfaces (default 60, max 150)" }, "xlabel": { "type": "string" }, "ylabel": { "type": "string" }, "height": { "type": "integer", "minimum": 160, "maximum": 1200 }, "rotate": { "type": "boolean", "default": false, "description": "surfaces: turn slowly until the user drags" } } };
+  function validate19(data, { instancePath = "", parentData, parentDataProperty, rootData = data } = {}) {
     let vErrors = null;
     let errors2 = 0;
     if (data && typeof data == "object" && !Array.isArray(data)) {
@@ -29091,7 +31621,7 @@ ${end.comment}` : end.comment;
         data.rotate = false;
       }
       if (data.functions === void 0) {
-        const err0 = { instancePath, schemaPath: "#/required", keyword: "required", params: { missingProperty: "functions" }, message: "must have required property 'functions'", schema: schema16.required, parentSchema: schema16, data };
+        const err0 = { instancePath, schemaPath: "#/required", keyword: "required", params: { missingProperty: "functions" }, message: "must have required property 'functions'", schema: schema20.required, parentSchema: schema20, data };
         if (vErrors === null) {
           vErrors = [err0];
         } else {
@@ -29100,8 +31630,8 @@ ${end.comment}` : end.comment;
         errors2++;
       }
       for (const key0 in data) {
-        if (!func2.call(schema16.properties, key0)) {
-          const err1 = { instancePath, schemaPath: "#/additionalProperties", keyword: "additionalProperties", params: { additionalProperty: key0 }, message: "must NOT have additional properties", schema: false, parentSchema: schema16, data };
+        if (!func2.call(schema20.properties, key0)) {
+          const err1 = { instancePath, schemaPath: "#/additionalProperties", keyword: "additionalProperties", params: { additionalProperty: key0 }, message: "must NOT have additional properties", schema: false, parentSchema: schema20, data };
           if (vErrors === null) {
             vErrors = [err1];
           } else {
@@ -29112,7 +31642,7 @@ ${end.comment}` : end.comment;
       }
       let data0 = data.type;
       if (!(data0 === "function" || data0 === "parametric" || data0 === "polar" || data0 === "surface")) {
-        const err2 = { instancePath: instancePath + "/type", schemaPath: "#/properties/type/enum", keyword: "enum", params: { allowedValues: schema16.properties.type.enum }, message: "must be equal to one of the allowed values", schema: schema16.properties.type.enum, parentSchema: schema16.properties.type, data: data0 };
+        const err2 = { instancePath: instancePath + "/type", schemaPath: "#/properties/type/enum", keyword: "enum", params: { allowedValues: schema20.properties.type.enum }, message: "must be equal to one of the allowed values", schema: schema20.properties.type.enum, parentSchema: schema20.properties.type, data: data0 };
         if (vErrors === null) {
           vErrors = [err2];
         } else {
@@ -29123,7 +31653,7 @@ ${end.comment}` : end.comment;
       if (data.title !== void 0) {
         let data1 = data.title;
         if (typeof data1 !== "string") {
-          const err3 = { instancePath: instancePath + "/title", schemaPath: "#/properties/title/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema16.properties.title.type, parentSchema: schema16.properties.title, data: data1 };
+          const err3 = { instancePath: instancePath + "/title", schemaPath: "#/properties/title/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema20.properties.title.type, parentSchema: schema20.properties.title, data: data1 };
           if (vErrors === null) {
             vErrors = [err3];
           } else {
@@ -29135,7 +31665,7 @@ ${end.comment}` : end.comment;
       if (data.functions !== void 0) {
         let data2 = data.functions;
         if (!Array.isArray(data2) && typeof data2 !== "string") {
-          const err4 = { instancePath: instancePath + "/functions", schemaPath: "#/properties/functions/type", keyword: "type", params: { type: schema16.properties.functions.type }, message: "must be array,string", schema: schema16.properties.functions.type, parentSchema: schema16.properties.functions, data: data2 };
+          const err4 = { instancePath: instancePath + "/functions", schemaPath: "#/properties/functions/type", keyword: "type", params: { type: schema20.properties.functions.type }, message: "must be array,string", schema: schema20.properties.functions.type, parentSchema: schema20.properties.functions, data: data2 };
           if (vErrors === null) {
             vErrors = [err4];
           } else {
@@ -29145,7 +31675,7 @@ ${end.comment}` : end.comment;
         }
         if (Array.isArray(data2)) {
           if (data2.length > 12) {
-            const err5 = { instancePath: instancePath + "/functions", schemaPath: "#/properties/functions/maxItems", keyword: "maxItems", params: { limit: 12 }, message: "must NOT have more than 12 items", schema: 12, parentSchema: schema16.properties.functions, data: data2 };
+            const err5 = { instancePath: instancePath + "/functions", schemaPath: "#/properties/functions/maxItems", keyword: "maxItems", params: { limit: 12 }, message: "must NOT have more than 12 items", schema: 12, parentSchema: schema20.properties.functions, data: data2 };
             if (vErrors === null) {
               vErrors = [err5];
             } else {
@@ -29154,7 +31684,7 @@ ${end.comment}` : end.comment;
             errors2++;
           }
           if (data2.length < 1) {
-            const err6 = { instancePath: instancePath + "/functions", schemaPath: "#/properties/functions/minItems", keyword: "minItems", params: { limit: 1 }, message: "must NOT have fewer than 1 items", schema: 1, parentSchema: schema16.properties.functions, data: data2 };
+            const err6 = { instancePath: instancePath + "/functions", schemaPath: "#/properties/functions/minItems", keyword: "minItems", params: { limit: 1 }, message: "must NOT have fewer than 1 items", schema: 1, parentSchema: schema20.properties.functions, data: data2 };
             if (vErrors === null) {
               vErrors = [err6];
             } else {
@@ -29166,7 +31696,7 @@ ${end.comment}` : end.comment;
           for (let i0 = 0; i0 < len0; i0++) {
             let data3 = data2[i0];
             if (typeof data3 !== "string" && !(data3 && typeof data3 == "object" && !Array.isArray(data3))) {
-              const err7 = { instancePath: instancePath + "/functions/" + i0, schemaPath: "#/properties/functions/items/type", keyword: "type", params: { type: schema16.properties.functions.items.type }, message: "must be string,object", schema: schema16.properties.functions.items.type, parentSchema: schema16.properties.functions.items, data: data3 };
+              const err7 = { instancePath: instancePath + "/functions/" + i0, schemaPath: "#/properties/functions/items/type", keyword: "type", params: { type: schema20.properties.functions.items.type }, message: "must be string,object", schema: schema20.properties.functions.items.type, parentSchema: schema20.properties.functions.items, data: data3 };
               if (vErrors === null) {
                 vErrors = [err7];
               } else {
@@ -29177,7 +31707,7 @@ ${end.comment}` : end.comment;
             if (data3 && typeof data3 == "object" && !Array.isArray(data3)) {
               for (const key1 in data3) {
                 if (!(key1 === "y" || key1 === "x" || key1 === "r" || key1 === "z" || key1 === "label")) {
-                  const err8 = { instancePath: instancePath + "/functions/" + i0, schemaPath: "#/properties/functions/items/additionalProperties", keyword: "additionalProperties", params: { additionalProperty: key1 }, message: "must NOT have additional properties", schema: false, parentSchema: schema16.properties.functions.items, data: data3 };
+                  const err8 = { instancePath: instancePath + "/functions/" + i0, schemaPath: "#/properties/functions/items/additionalProperties", keyword: "additionalProperties", params: { additionalProperty: key1 }, message: "must NOT have additional properties", schema: false, parentSchema: schema20.properties.functions.items, data: data3 };
                   if (vErrors === null) {
                     vErrors = [err8];
                   } else {
@@ -29189,7 +31719,7 @@ ${end.comment}` : end.comment;
               if (data3.y !== void 0) {
                 let data4 = data3.y;
                 if (typeof data4 !== "string" && !(typeof data4 == "number" && isFinite(data4))) {
-                  const err9 = { instancePath: instancePath + "/functions/" + i0 + "/y", schemaPath: "#/properties/functions/items/properties/y/type", keyword: "type", params: { type: schema16.properties.functions.items.properties.y.type }, message: "must be string,number", schema: schema16.properties.functions.items.properties.y.type, parentSchema: schema16.properties.functions.items.properties.y, data: data4 };
+                  const err9 = { instancePath: instancePath + "/functions/" + i0 + "/y", schemaPath: "#/properties/functions/items/properties/y/type", keyword: "type", params: { type: schema20.properties.functions.items.properties.y.type }, message: "must be string,number", schema: schema20.properties.functions.items.properties.y.type, parentSchema: schema20.properties.functions.items.properties.y, data: data4 };
                   if (vErrors === null) {
                     vErrors = [err9];
                   } else {
@@ -29201,7 +31731,7 @@ ${end.comment}` : end.comment;
               if (data3.x !== void 0) {
                 let data5 = data3.x;
                 if (typeof data5 !== "string" && !(typeof data5 == "number" && isFinite(data5))) {
-                  const err10 = { instancePath: instancePath + "/functions/" + i0 + "/x", schemaPath: "#/properties/functions/items/properties/x/type", keyword: "type", params: { type: schema16.properties.functions.items.properties.x.type }, message: "must be string,number", schema: schema16.properties.functions.items.properties.x.type, parentSchema: schema16.properties.functions.items.properties.x, data: data5 };
+                  const err10 = { instancePath: instancePath + "/functions/" + i0 + "/x", schemaPath: "#/properties/functions/items/properties/x/type", keyword: "type", params: { type: schema20.properties.functions.items.properties.x.type }, message: "must be string,number", schema: schema20.properties.functions.items.properties.x.type, parentSchema: schema20.properties.functions.items.properties.x, data: data5 };
                   if (vErrors === null) {
                     vErrors = [err10];
                   } else {
@@ -29213,7 +31743,7 @@ ${end.comment}` : end.comment;
               if (data3.r !== void 0) {
                 let data6 = data3.r;
                 if (typeof data6 !== "string" && !(typeof data6 == "number" && isFinite(data6))) {
-                  const err11 = { instancePath: instancePath + "/functions/" + i0 + "/r", schemaPath: "#/properties/functions/items/properties/r/type", keyword: "type", params: { type: schema16.properties.functions.items.properties.r.type }, message: "must be string,number", schema: schema16.properties.functions.items.properties.r.type, parentSchema: schema16.properties.functions.items.properties.r, data: data6 };
+                  const err11 = { instancePath: instancePath + "/functions/" + i0 + "/r", schemaPath: "#/properties/functions/items/properties/r/type", keyword: "type", params: { type: schema20.properties.functions.items.properties.r.type }, message: "must be string,number", schema: schema20.properties.functions.items.properties.r.type, parentSchema: schema20.properties.functions.items.properties.r, data: data6 };
                   if (vErrors === null) {
                     vErrors = [err11];
                   } else {
@@ -29225,7 +31755,7 @@ ${end.comment}` : end.comment;
               if (data3.z !== void 0) {
                 let data7 = data3.z;
                 if (typeof data7 !== "string" && !(typeof data7 == "number" && isFinite(data7))) {
-                  const err12 = { instancePath: instancePath + "/functions/" + i0 + "/z", schemaPath: "#/properties/functions/items/properties/z/type", keyword: "type", params: { type: schema16.properties.functions.items.properties.z.type }, message: "must be string,number", schema: schema16.properties.functions.items.properties.z.type, parentSchema: schema16.properties.functions.items.properties.z, data: data7 };
+                  const err12 = { instancePath: instancePath + "/functions/" + i0 + "/z", schemaPath: "#/properties/functions/items/properties/z/type", keyword: "type", params: { type: schema20.properties.functions.items.properties.z.type }, message: "must be string,number", schema: schema20.properties.functions.items.properties.z.type, parentSchema: schema20.properties.functions.items.properties.z, data: data7 };
                   if (vErrors === null) {
                     vErrors = [err12];
                   } else {
@@ -29237,7 +31767,7 @@ ${end.comment}` : end.comment;
               if (data3.label !== void 0) {
                 let data8 = data3.label;
                 if (typeof data8 !== "string") {
-                  const err13 = { instancePath: instancePath + "/functions/" + i0 + "/label", schemaPath: "#/properties/functions/items/properties/label/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema16.properties.functions.items.properties.label.type, parentSchema: schema16.properties.functions.items.properties.label, data: data8 };
+                  const err13 = { instancePath: instancePath + "/functions/" + i0 + "/label", schemaPath: "#/properties/functions/items/properties/label/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema20.properties.functions.items.properties.label.type, parentSchema: schema20.properties.functions.items.properties.label, data: data8 };
                   if (vErrors === null) {
                     vErrors = [err13];
                   } else {
@@ -29254,7 +31784,7 @@ ${end.comment}` : end.comment;
         let data9 = data.x;
         if (Array.isArray(data9)) {
           if (data9.length > 2) {
-            const err14 = { instancePath: instancePath + "/x", schemaPath: "#/properties/x/maxItems", keyword: "maxItems", params: { limit: 2 }, message: "must NOT have more than 2 items", schema: 2, parentSchema: schema16.properties.x, data: data9 };
+            const err14 = { instancePath: instancePath + "/x", schemaPath: "#/properties/x/maxItems", keyword: "maxItems", params: { limit: 2 }, message: "must NOT have more than 2 items", schema: 2, parentSchema: schema20.properties.x, data: data9 };
             if (vErrors === null) {
               vErrors = [err14];
             } else {
@@ -29263,7 +31793,7 @@ ${end.comment}` : end.comment;
             errors2++;
           }
           if (data9.length < 2) {
-            const err15 = { instancePath: instancePath + "/x", schemaPath: "#/properties/x/minItems", keyword: "minItems", params: { limit: 2 }, message: "must NOT have fewer than 2 items", schema: 2, parentSchema: schema16.properties.x, data: data9 };
+            const err15 = { instancePath: instancePath + "/x", schemaPath: "#/properties/x/minItems", keyword: "minItems", params: { limit: 2 }, message: "must NOT have fewer than 2 items", schema: 2, parentSchema: schema20.properties.x, data: data9 };
             if (vErrors === null) {
               vErrors = [err15];
             } else {
@@ -29275,7 +31805,7 @@ ${end.comment}` : end.comment;
           for (let i1 = 0; i1 < len1; i1++) {
             let data10 = data9[i1];
             if (!(typeof data10 == "number" && isFinite(data10))) {
-              const err16 = { instancePath: instancePath + "/x/" + i1, schemaPath: "#/properties/x/items/type", keyword: "type", params: { type: "number" }, message: "must be number", schema: schema16.properties.x.items.type, parentSchema: schema16.properties.x.items, data: data10 };
+              const err16 = { instancePath: instancePath + "/x/" + i1, schemaPath: "#/properties/x/items/type", keyword: "type", params: { type: "number" }, message: "must be number", schema: schema20.properties.x.items.type, parentSchema: schema20.properties.x.items, data: data10 };
               if (vErrors === null) {
                 vErrors = [err16];
               } else {
@@ -29285,7 +31815,7 @@ ${end.comment}` : end.comment;
             }
           }
         } else {
-          const err17 = { instancePath: instancePath + "/x", schemaPath: "#/properties/x/type", keyword: "type", params: { type: "array" }, message: "must be array", schema: schema16.properties.x.type, parentSchema: schema16.properties.x, data: data9 };
+          const err17 = { instancePath: instancePath + "/x", schemaPath: "#/properties/x/type", keyword: "type", params: { type: "array" }, message: "must be array", schema: schema20.properties.x.type, parentSchema: schema20.properties.x, data: data9 };
           if (vErrors === null) {
             vErrors = [err17];
           } else {
@@ -29298,7 +31828,7 @@ ${end.comment}` : end.comment;
         let data11 = data.y;
         if (Array.isArray(data11)) {
           if (data11.length > 2) {
-            const err18 = { instancePath: instancePath + "/y", schemaPath: "#/properties/y/maxItems", keyword: "maxItems", params: { limit: 2 }, message: "must NOT have more than 2 items", schema: 2, parentSchema: schema16.properties.y, data: data11 };
+            const err18 = { instancePath: instancePath + "/y", schemaPath: "#/properties/y/maxItems", keyword: "maxItems", params: { limit: 2 }, message: "must NOT have more than 2 items", schema: 2, parentSchema: schema20.properties.y, data: data11 };
             if (vErrors === null) {
               vErrors = [err18];
             } else {
@@ -29307,7 +31837,7 @@ ${end.comment}` : end.comment;
             errors2++;
           }
           if (data11.length < 2) {
-            const err19 = { instancePath: instancePath + "/y", schemaPath: "#/properties/y/minItems", keyword: "minItems", params: { limit: 2 }, message: "must NOT have fewer than 2 items", schema: 2, parentSchema: schema16.properties.y, data: data11 };
+            const err19 = { instancePath: instancePath + "/y", schemaPath: "#/properties/y/minItems", keyword: "minItems", params: { limit: 2 }, message: "must NOT have fewer than 2 items", schema: 2, parentSchema: schema20.properties.y, data: data11 };
             if (vErrors === null) {
               vErrors = [err19];
             } else {
@@ -29319,7 +31849,7 @@ ${end.comment}` : end.comment;
           for (let i2 = 0; i2 < len2; i2++) {
             let data12 = data11[i2];
             if (!(typeof data12 == "number" && isFinite(data12))) {
-              const err20 = { instancePath: instancePath + "/y/" + i2, schemaPath: "#/properties/y/items/type", keyword: "type", params: { type: "number" }, message: "must be number", schema: schema16.properties.y.items.type, parentSchema: schema16.properties.y.items, data: data12 };
+              const err20 = { instancePath: instancePath + "/y/" + i2, schemaPath: "#/properties/y/items/type", keyword: "type", params: { type: "number" }, message: "must be number", schema: schema20.properties.y.items.type, parentSchema: schema20.properties.y.items, data: data12 };
               if (vErrors === null) {
                 vErrors = [err20];
               } else {
@@ -29329,7 +31859,7 @@ ${end.comment}` : end.comment;
             }
           }
         } else {
-          const err21 = { instancePath: instancePath + "/y", schemaPath: "#/properties/y/type", keyword: "type", params: { type: "array" }, message: "must be array", schema: schema16.properties.y.type, parentSchema: schema16.properties.y, data: data11 };
+          const err21 = { instancePath: instancePath + "/y", schemaPath: "#/properties/y/type", keyword: "type", params: { type: "array" }, message: "must be array", schema: schema20.properties.y.type, parentSchema: schema20.properties.y, data: data11 };
           if (vErrors === null) {
             vErrors = [err21];
           } else {
@@ -29342,7 +31872,7 @@ ${end.comment}` : end.comment;
         let data13 = data.t;
         if (Array.isArray(data13)) {
           if (data13.length > 2) {
-            const err22 = { instancePath: instancePath + "/t", schemaPath: "#/properties/t/maxItems", keyword: "maxItems", params: { limit: 2 }, message: "must NOT have more than 2 items", schema: 2, parentSchema: schema16.properties.t, data: data13 };
+            const err22 = { instancePath: instancePath + "/t", schemaPath: "#/properties/t/maxItems", keyword: "maxItems", params: { limit: 2 }, message: "must NOT have more than 2 items", schema: 2, parentSchema: schema20.properties.t, data: data13 };
             if (vErrors === null) {
               vErrors = [err22];
             } else {
@@ -29351,7 +31881,7 @@ ${end.comment}` : end.comment;
             errors2++;
           }
           if (data13.length < 2) {
-            const err23 = { instancePath: instancePath + "/t", schemaPath: "#/properties/t/minItems", keyword: "minItems", params: { limit: 2 }, message: "must NOT have fewer than 2 items", schema: 2, parentSchema: schema16.properties.t, data: data13 };
+            const err23 = { instancePath: instancePath + "/t", schemaPath: "#/properties/t/minItems", keyword: "minItems", params: { limit: 2 }, message: "must NOT have fewer than 2 items", schema: 2, parentSchema: schema20.properties.t, data: data13 };
             if (vErrors === null) {
               vErrors = [err23];
             } else {
@@ -29363,7 +31893,7 @@ ${end.comment}` : end.comment;
           for (let i3 = 0; i3 < len3; i3++) {
             let data14 = data13[i3];
             if (!(typeof data14 == "number" && isFinite(data14))) {
-              const err24 = { instancePath: instancePath + "/t/" + i3, schemaPath: "#/properties/t/items/type", keyword: "type", params: { type: "number" }, message: "must be number", schema: schema16.properties.t.items.type, parentSchema: schema16.properties.t.items, data: data14 };
+              const err24 = { instancePath: instancePath + "/t/" + i3, schemaPath: "#/properties/t/items/type", keyword: "type", params: { type: "number" }, message: "must be number", schema: schema20.properties.t.items.type, parentSchema: schema20.properties.t.items, data: data14 };
               if (vErrors === null) {
                 vErrors = [err24];
               } else {
@@ -29373,7 +31903,7 @@ ${end.comment}` : end.comment;
             }
           }
         } else {
-          const err25 = { instancePath: instancePath + "/t", schemaPath: "#/properties/t/type", keyword: "type", params: { type: "array" }, message: "must be array", schema: schema16.properties.t.type, parentSchema: schema16.properties.t, data: data13 };
+          const err25 = { instancePath: instancePath + "/t", schemaPath: "#/properties/t/type", keyword: "type", params: { type: "array" }, message: "must be array", schema: schema20.properties.t.type, parentSchema: schema20.properties.t, data: data13 };
           if (vErrors === null) {
             vErrors = [err25];
           } else {
@@ -29388,7 +31918,7 @@ ${end.comment}` : end.comment;
           for (const key2 in data15) {
             let data16 = data15[key2];
             if (!(typeof data16 == "number" && isFinite(data16))) {
-              const err26 = { instancePath: instancePath + "/params/" + key2.replace(/~/g, "~0").replace(/\//g, "~1"), schemaPath: "#/properties/params/additionalProperties/type", keyword: "type", params: { type: "number" }, message: "must be number", schema: schema16.properties.params.additionalProperties.type, parentSchema: schema16.properties.params.additionalProperties, data: data16 };
+              const err26 = { instancePath: instancePath + "/params/" + key2.replace(/~/g, "~0").replace(/\//g, "~1"), schemaPath: "#/properties/params/additionalProperties/type", keyword: "type", params: { type: "number" }, message: "must be number", schema: schema20.properties.params.additionalProperties.type, parentSchema: schema20.properties.params.additionalProperties, data: data16 };
               if (vErrors === null) {
                 vErrors = [err26];
               } else {
@@ -29398,7 +31928,7 @@ ${end.comment}` : end.comment;
             }
           }
         } else {
-          const err27 = { instancePath: instancePath + "/params", schemaPath: "#/properties/params/type", keyword: "type", params: { type: "object" }, message: "must be object", schema: schema16.properties.params.type, parentSchema: schema16.properties.params, data: data15 };
+          const err27 = { instancePath: instancePath + "/params", schemaPath: "#/properties/params/type", keyword: "type", params: { type: "object" }, message: "must be object", schema: schema20.properties.params.type, parentSchema: schema20.properties.params, data: data15 };
           if (vErrors === null) {
             vErrors = [err27];
           } else {
@@ -29410,7 +31940,7 @@ ${end.comment}` : end.comment;
       if (data.samples !== void 0) {
         let data17 = data.samples;
         if (!(typeof data17 == "number" && (!(data17 % 1) && !isNaN(data17)) && isFinite(data17))) {
-          const err28 = { instancePath: instancePath + "/samples", schemaPath: "#/properties/samples/type", keyword: "type", params: { type: "integer" }, message: "must be integer", schema: schema16.properties.samples.type, parentSchema: schema16.properties.samples, data: data17 };
+          const err28 = { instancePath: instancePath + "/samples", schemaPath: "#/properties/samples/type", keyword: "type", params: { type: "integer" }, message: "must be integer", schema: schema20.properties.samples.type, parentSchema: schema20.properties.samples, data: data17 };
           if (vErrors === null) {
             vErrors = [err28];
           } else {
@@ -29420,7 +31950,7 @@ ${end.comment}` : end.comment;
         }
         if (typeof data17 == "number" && isFinite(data17)) {
           if (data17 > 5e3 || isNaN(data17)) {
-            const err29 = { instancePath: instancePath + "/samples", schemaPath: "#/properties/samples/maximum", keyword: "maximum", params: { comparison: "<=", limit: 5e3 }, message: "must be <= 5000", schema: 5e3, parentSchema: schema16.properties.samples, data: data17 };
+            const err29 = { instancePath: instancePath + "/samples", schemaPath: "#/properties/samples/maximum", keyword: "maximum", params: { comparison: "<=", limit: 5e3 }, message: "must be <= 5000", schema: 5e3, parentSchema: schema20.properties.samples, data: data17 };
             if (vErrors === null) {
               vErrors = [err29];
             } else {
@@ -29429,7 +31959,7 @@ ${end.comment}` : end.comment;
             errors2++;
           }
           if (data17 < 10 || isNaN(data17)) {
-            const err30 = { instancePath: instancePath + "/samples", schemaPath: "#/properties/samples/minimum", keyword: "minimum", params: { comparison: ">=", limit: 10 }, message: "must be >= 10", schema: 10, parentSchema: schema16.properties.samples, data: data17 };
+            const err30 = { instancePath: instancePath + "/samples", schemaPath: "#/properties/samples/minimum", keyword: "minimum", params: { comparison: ">=", limit: 10 }, message: "must be >= 10", schema: 10, parentSchema: schema20.properties.samples, data: data17 };
             if (vErrors === null) {
               vErrors = [err30];
             } else {
@@ -29442,7 +31972,7 @@ ${end.comment}` : end.comment;
       if (data.xlabel !== void 0) {
         let data18 = data.xlabel;
         if (typeof data18 !== "string") {
-          const err31 = { instancePath: instancePath + "/xlabel", schemaPath: "#/properties/xlabel/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema16.properties.xlabel.type, parentSchema: schema16.properties.xlabel, data: data18 };
+          const err31 = { instancePath: instancePath + "/xlabel", schemaPath: "#/properties/xlabel/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema20.properties.xlabel.type, parentSchema: schema20.properties.xlabel, data: data18 };
           if (vErrors === null) {
             vErrors = [err31];
           } else {
@@ -29454,7 +31984,7 @@ ${end.comment}` : end.comment;
       if (data.ylabel !== void 0) {
         let data19 = data.ylabel;
         if (typeof data19 !== "string") {
-          const err32 = { instancePath: instancePath + "/ylabel", schemaPath: "#/properties/ylabel/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema16.properties.ylabel.type, parentSchema: schema16.properties.ylabel, data: data19 };
+          const err32 = { instancePath: instancePath + "/ylabel", schemaPath: "#/properties/ylabel/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema20.properties.ylabel.type, parentSchema: schema20.properties.ylabel, data: data19 };
           if (vErrors === null) {
             vErrors = [err32];
           } else {
@@ -29466,7 +31996,7 @@ ${end.comment}` : end.comment;
       if (data.height !== void 0) {
         let data20 = data.height;
         if (!(typeof data20 == "number" && (!(data20 % 1) && !isNaN(data20)) && isFinite(data20))) {
-          const err33 = { instancePath: instancePath + "/height", schemaPath: "#/properties/height/type", keyword: "type", params: { type: "integer" }, message: "must be integer", schema: schema16.properties.height.type, parentSchema: schema16.properties.height, data: data20 };
+          const err33 = { instancePath: instancePath + "/height", schemaPath: "#/properties/height/type", keyword: "type", params: { type: "integer" }, message: "must be integer", schema: schema20.properties.height.type, parentSchema: schema20.properties.height, data: data20 };
           if (vErrors === null) {
             vErrors = [err33];
           } else {
@@ -29476,7 +32006,7 @@ ${end.comment}` : end.comment;
         }
         if (typeof data20 == "number" && isFinite(data20)) {
           if (data20 > 1200 || isNaN(data20)) {
-            const err34 = { instancePath: instancePath + "/height", schemaPath: "#/properties/height/maximum", keyword: "maximum", params: { comparison: "<=", limit: 1200 }, message: "must be <= 1200", schema: 1200, parentSchema: schema16.properties.height, data: data20 };
+            const err34 = { instancePath: instancePath + "/height", schemaPath: "#/properties/height/maximum", keyword: "maximum", params: { comparison: "<=", limit: 1200 }, message: "must be <= 1200", schema: 1200, parentSchema: schema20.properties.height, data: data20 };
             if (vErrors === null) {
               vErrors = [err34];
             } else {
@@ -29485,7 +32015,7 @@ ${end.comment}` : end.comment;
             errors2++;
           }
           if (data20 < 160 || isNaN(data20)) {
-            const err35 = { instancePath: instancePath + "/height", schemaPath: "#/properties/height/minimum", keyword: "minimum", params: { comparison: ">=", limit: 160 }, message: "must be >= 160", schema: 160, parentSchema: schema16.properties.height, data: data20 };
+            const err35 = { instancePath: instancePath + "/height", schemaPath: "#/properties/height/minimum", keyword: "minimum", params: { comparison: ">=", limit: 160 }, message: "must be >= 160", schema: 160, parentSchema: schema20.properties.height, data: data20 };
             if (vErrors === null) {
               vErrors = [err35];
             } else {
@@ -29497,7 +32027,7 @@ ${end.comment}` : end.comment;
       }
       let data21 = data.rotate;
       if (typeof data21 !== "boolean") {
-        const err36 = { instancePath: instancePath + "/rotate", schemaPath: "#/properties/rotate/type", keyword: "type", params: { type: "boolean" }, message: "must be boolean", schema: schema16.properties.rotate.type, parentSchema: schema16.properties.rotate, data: data21 };
+        const err36 = { instancePath: instancePath + "/rotate", schemaPath: "#/properties/rotate/type", keyword: "type", params: { type: "boolean" }, message: "must be boolean", schema: schema20.properties.rotate.type, parentSchema: schema20.properties.rotate, data: data21 };
         if (vErrors === null) {
           vErrors = [err36];
         } else {
@@ -29506,7 +32036,7 @@ ${end.comment}` : end.comment;
         errors2++;
       }
     } else {
-      const err37 = { instancePath, schemaPath: "#/type", keyword: "type", params: { type: "object" }, message: "must be object", schema: schema16.type, parentSchema: schema16, data };
+      const err37 = { instancePath, schemaPath: "#/type", keyword: "type", params: { type: "object" }, message: "must be object", schema: schema20.type, parentSchema: schema20, data };
       if (vErrors === null) {
         vErrors = [err37];
       } else {
@@ -29514,12 +32044,12 @@ ${end.comment}` : end.comment;
       }
       errors2++;
     }
-    validate15.errors = vErrors;
+    validate19.errors = vErrors;
     return errors2 === 0;
   }
-  var matrix = validate16;
-  var schema17 = { "type": "object", "additionalProperties": false, "properties": { "title": { "type": "string" }, "data": { "type": "string", "description": "relative path to a .csv, .tsv or .npy (1-D or 2-D) file" }, "values": { "type": "array", "items": { "type": "array", "items": { "type": ["number", "null"] } }, "description": "inline rows of numbers" }, "rows": { "type": "array", "items": { "type": ["string", "number"] }, "description": "row labels" }, "cols": { "type": "array", "items": { "type": ["string", "number"] }, "description": "column labels" }, "style": { "enum": ["heatmap", "contour", "surface"], "default": "heatmap" }, "scale": { "enum": ["sequential", "diverging"], "description": "colour scale; diverging centres on 0 (default: diverging when values have both signs)" }, "levels": { "type": "integer", "minimum": 2, "maximum": 40, "default": 10, "description": "contour levels" }, "annotate": { "type": "boolean", "description": "print values in the cells (default: when there are at most 150 cells)" }, "digits": { "type": "integer", "minimum": 1, "maximum": 8, "default": 3, "description": "significant figures in cells and tooltips" }, "unit": { "type": "string" }, "height": { "type": "integer", "minimum": 160, "maximum": 1200 } } };
-  function validate16(data, { instancePath = "", parentData, parentDataProperty, rootData = data } = {}) {
+  var matrix = validate20;
+  var schema21 = { "type": "object", "additionalProperties": false, "properties": { "title": { "type": "string" }, "data": { "type": "string", "description": "relative path to a .csv, .tsv or .npy (1-D or 2-D) file" }, "values": { "type": "array", "items": { "type": "array", "items": { "type": ["number", "null"] } }, "description": "inline rows of numbers" }, "rows": { "type": "array", "items": { "type": ["string", "number"] }, "description": "row labels" }, "cols": { "type": "array", "items": { "type": ["string", "number"] }, "description": "column labels" }, "style": { "enum": ["heatmap", "contour", "surface"], "default": "heatmap" }, "scale": { "enum": ["sequential", "diverging"], "description": "colour scale; diverging centres on 0 (default: diverging when values have both signs)" }, "levels": { "type": "integer", "minimum": 2, "maximum": 40, "default": 10, "description": "contour levels" }, "annotate": { "type": "boolean", "description": "print values in the cells (default: when there are at most 150 cells)" }, "digits": { "type": "integer", "minimum": 1, "maximum": 8, "default": 3, "description": "significant figures in cells and tooltips" }, "unit": { "type": "string" }, "height": { "type": "integer", "minimum": 160, "maximum": 1200 } } };
+  function validate20(data, { instancePath = "", parentData, parentDataProperty, rootData = data } = {}) {
     let vErrors = null;
     let errors2 = 0;
     if (data && typeof data == "object" && !Array.isArray(data)) {
@@ -29533,8 +32063,8 @@ ${end.comment}` : end.comment;
         data.digits = 3;
       }
       for (const key0 in data) {
-        if (!func2.call(schema17.properties, key0)) {
-          const err0 = { instancePath, schemaPath: "#/additionalProperties", keyword: "additionalProperties", params: { additionalProperty: key0 }, message: "must NOT have additional properties", schema: false, parentSchema: schema17, data };
+        if (!func2.call(schema21.properties, key0)) {
+          const err0 = { instancePath, schemaPath: "#/additionalProperties", keyword: "additionalProperties", params: { additionalProperty: key0 }, message: "must NOT have additional properties", schema: false, parentSchema: schema21, data };
           if (vErrors === null) {
             vErrors = [err0];
           } else {
@@ -29546,7 +32076,7 @@ ${end.comment}` : end.comment;
       if (data.title !== void 0) {
         let data0 = data.title;
         if (typeof data0 !== "string") {
-          const err1 = { instancePath: instancePath + "/title", schemaPath: "#/properties/title/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema17.properties.title.type, parentSchema: schema17.properties.title, data: data0 };
+          const err1 = { instancePath: instancePath + "/title", schemaPath: "#/properties/title/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema21.properties.title.type, parentSchema: schema21.properties.title, data: data0 };
           if (vErrors === null) {
             vErrors = [err1];
           } else {
@@ -29558,7 +32088,7 @@ ${end.comment}` : end.comment;
       if (data.data !== void 0) {
         let data1 = data.data;
         if (typeof data1 !== "string") {
-          const err2 = { instancePath: instancePath + "/data", schemaPath: "#/properties/data/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema17.properties.data.type, parentSchema: schema17.properties.data, data: data1 };
+          const err2 = { instancePath: instancePath + "/data", schemaPath: "#/properties/data/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema21.properties.data.type, parentSchema: schema21.properties.data, data: data1 };
           if (vErrors === null) {
             vErrors = [err2];
           } else {
@@ -29578,7 +32108,7 @@ ${end.comment}` : end.comment;
               for (let i1 = 0; i1 < len1; i1++) {
                 let data4 = data3[i1];
                 if (!(typeof data4 == "number" && isFinite(data4)) && data4 !== null) {
-                  const err3 = { instancePath: instancePath + "/values/" + i0 + "/" + i1, schemaPath: "#/properties/values/items/items/type", keyword: "type", params: { type: schema17.properties.values.items.items.type }, message: "must be number,null", schema: schema17.properties.values.items.items.type, parentSchema: schema17.properties.values.items.items, data: data4 };
+                  const err3 = { instancePath: instancePath + "/values/" + i0 + "/" + i1, schemaPath: "#/properties/values/items/items/type", keyword: "type", params: { type: schema21.properties.values.items.items.type }, message: "must be number,null", schema: schema21.properties.values.items.items.type, parentSchema: schema21.properties.values.items.items, data: data4 };
                   if (vErrors === null) {
                     vErrors = [err3];
                   } else {
@@ -29588,7 +32118,7 @@ ${end.comment}` : end.comment;
                 }
               }
             } else {
-              const err4 = { instancePath: instancePath + "/values/" + i0, schemaPath: "#/properties/values/items/type", keyword: "type", params: { type: "array" }, message: "must be array", schema: schema17.properties.values.items.type, parentSchema: schema17.properties.values.items, data: data3 };
+              const err4 = { instancePath: instancePath + "/values/" + i0, schemaPath: "#/properties/values/items/type", keyword: "type", params: { type: "array" }, message: "must be array", schema: schema21.properties.values.items.type, parentSchema: schema21.properties.values.items, data: data3 };
               if (vErrors === null) {
                 vErrors = [err4];
               } else {
@@ -29598,7 +32128,7 @@ ${end.comment}` : end.comment;
             }
           }
         } else {
-          const err5 = { instancePath: instancePath + "/values", schemaPath: "#/properties/values/type", keyword: "type", params: { type: "array" }, message: "must be array", schema: schema17.properties.values.type, parentSchema: schema17.properties.values, data: data2 };
+          const err5 = { instancePath: instancePath + "/values", schemaPath: "#/properties/values/type", keyword: "type", params: { type: "array" }, message: "must be array", schema: schema21.properties.values.type, parentSchema: schema21.properties.values, data: data2 };
           if (vErrors === null) {
             vErrors = [err5];
           } else {
@@ -29614,7 +32144,7 @@ ${end.comment}` : end.comment;
           for (let i2 = 0; i2 < len2; i2++) {
             let data6 = data5[i2];
             if (typeof data6 !== "string" && !(typeof data6 == "number" && isFinite(data6))) {
-              const err6 = { instancePath: instancePath + "/rows/" + i2, schemaPath: "#/properties/rows/items/type", keyword: "type", params: { type: schema17.properties.rows.items.type }, message: "must be string,number", schema: schema17.properties.rows.items.type, parentSchema: schema17.properties.rows.items, data: data6 };
+              const err6 = { instancePath: instancePath + "/rows/" + i2, schemaPath: "#/properties/rows/items/type", keyword: "type", params: { type: schema21.properties.rows.items.type }, message: "must be string,number", schema: schema21.properties.rows.items.type, parentSchema: schema21.properties.rows.items, data: data6 };
               if (vErrors === null) {
                 vErrors = [err6];
               } else {
@@ -29624,7 +32154,7 @@ ${end.comment}` : end.comment;
             }
           }
         } else {
-          const err7 = { instancePath: instancePath + "/rows", schemaPath: "#/properties/rows/type", keyword: "type", params: { type: "array" }, message: "must be array", schema: schema17.properties.rows.type, parentSchema: schema17.properties.rows, data: data5 };
+          const err7 = { instancePath: instancePath + "/rows", schemaPath: "#/properties/rows/type", keyword: "type", params: { type: "array" }, message: "must be array", schema: schema21.properties.rows.type, parentSchema: schema21.properties.rows, data: data5 };
           if (vErrors === null) {
             vErrors = [err7];
           } else {
@@ -29640,7 +32170,7 @@ ${end.comment}` : end.comment;
           for (let i3 = 0; i3 < len3; i3++) {
             let data8 = data7[i3];
             if (typeof data8 !== "string" && !(typeof data8 == "number" && isFinite(data8))) {
-              const err8 = { instancePath: instancePath + "/cols/" + i3, schemaPath: "#/properties/cols/items/type", keyword: "type", params: { type: schema17.properties.cols.items.type }, message: "must be string,number", schema: schema17.properties.cols.items.type, parentSchema: schema17.properties.cols.items, data: data8 };
+              const err8 = { instancePath: instancePath + "/cols/" + i3, schemaPath: "#/properties/cols/items/type", keyword: "type", params: { type: schema21.properties.cols.items.type }, message: "must be string,number", schema: schema21.properties.cols.items.type, parentSchema: schema21.properties.cols.items, data: data8 };
               if (vErrors === null) {
                 vErrors = [err8];
               } else {
@@ -29650,7 +32180,7 @@ ${end.comment}` : end.comment;
             }
           }
         } else {
-          const err9 = { instancePath: instancePath + "/cols", schemaPath: "#/properties/cols/type", keyword: "type", params: { type: "array" }, message: "must be array", schema: schema17.properties.cols.type, parentSchema: schema17.properties.cols, data: data7 };
+          const err9 = { instancePath: instancePath + "/cols", schemaPath: "#/properties/cols/type", keyword: "type", params: { type: "array" }, message: "must be array", schema: schema21.properties.cols.type, parentSchema: schema21.properties.cols, data: data7 };
           if (vErrors === null) {
             vErrors = [err9];
           } else {
@@ -29661,7 +32191,7 @@ ${end.comment}` : end.comment;
       }
       let data9 = data.style;
       if (!(data9 === "heatmap" || data9 === "contour" || data9 === "surface")) {
-        const err10 = { instancePath: instancePath + "/style", schemaPath: "#/properties/style/enum", keyword: "enum", params: { allowedValues: schema17.properties.style.enum }, message: "must be equal to one of the allowed values", schema: schema17.properties.style.enum, parentSchema: schema17.properties.style, data: data9 };
+        const err10 = { instancePath: instancePath + "/style", schemaPath: "#/properties/style/enum", keyword: "enum", params: { allowedValues: schema21.properties.style.enum }, message: "must be equal to one of the allowed values", schema: schema21.properties.style.enum, parentSchema: schema21.properties.style, data: data9 };
         if (vErrors === null) {
           vErrors = [err10];
         } else {
@@ -29672,7 +32202,7 @@ ${end.comment}` : end.comment;
       if (data.scale !== void 0) {
         let data10 = data.scale;
         if (!(data10 === "sequential" || data10 === "diverging")) {
-          const err11 = { instancePath: instancePath + "/scale", schemaPath: "#/properties/scale/enum", keyword: "enum", params: { allowedValues: schema17.properties.scale.enum }, message: "must be equal to one of the allowed values", schema: schema17.properties.scale.enum, parentSchema: schema17.properties.scale, data: data10 };
+          const err11 = { instancePath: instancePath + "/scale", schemaPath: "#/properties/scale/enum", keyword: "enum", params: { allowedValues: schema21.properties.scale.enum }, message: "must be equal to one of the allowed values", schema: schema21.properties.scale.enum, parentSchema: schema21.properties.scale, data: data10 };
           if (vErrors === null) {
             vErrors = [err11];
           } else {
@@ -29683,7 +32213,7 @@ ${end.comment}` : end.comment;
       }
       let data11 = data.levels;
       if (!(typeof data11 == "number" && (!(data11 % 1) && !isNaN(data11)) && isFinite(data11))) {
-        const err12 = { instancePath: instancePath + "/levels", schemaPath: "#/properties/levels/type", keyword: "type", params: { type: "integer" }, message: "must be integer", schema: schema17.properties.levels.type, parentSchema: schema17.properties.levels, data: data11 };
+        const err12 = { instancePath: instancePath + "/levels", schemaPath: "#/properties/levels/type", keyword: "type", params: { type: "integer" }, message: "must be integer", schema: schema21.properties.levels.type, parentSchema: schema21.properties.levels, data: data11 };
         if (vErrors === null) {
           vErrors = [err12];
         } else {
@@ -29693,7 +32223,7 @@ ${end.comment}` : end.comment;
       }
       if (typeof data11 == "number" && isFinite(data11)) {
         if (data11 > 40 || isNaN(data11)) {
-          const err13 = { instancePath: instancePath + "/levels", schemaPath: "#/properties/levels/maximum", keyword: "maximum", params: { comparison: "<=", limit: 40 }, message: "must be <= 40", schema: 40, parentSchema: schema17.properties.levels, data: data11 };
+          const err13 = { instancePath: instancePath + "/levels", schemaPath: "#/properties/levels/maximum", keyword: "maximum", params: { comparison: "<=", limit: 40 }, message: "must be <= 40", schema: 40, parentSchema: schema21.properties.levels, data: data11 };
           if (vErrors === null) {
             vErrors = [err13];
           } else {
@@ -29702,7 +32232,7 @@ ${end.comment}` : end.comment;
           errors2++;
         }
         if (data11 < 2 || isNaN(data11)) {
-          const err14 = { instancePath: instancePath + "/levels", schemaPath: "#/properties/levels/minimum", keyword: "minimum", params: { comparison: ">=", limit: 2 }, message: "must be >= 2", schema: 2, parentSchema: schema17.properties.levels, data: data11 };
+          const err14 = { instancePath: instancePath + "/levels", schemaPath: "#/properties/levels/minimum", keyword: "minimum", params: { comparison: ">=", limit: 2 }, message: "must be >= 2", schema: 2, parentSchema: schema21.properties.levels, data: data11 };
           if (vErrors === null) {
             vErrors = [err14];
           } else {
@@ -29714,7 +32244,7 @@ ${end.comment}` : end.comment;
       if (data.annotate !== void 0) {
         let data12 = data.annotate;
         if (typeof data12 !== "boolean") {
-          const err15 = { instancePath: instancePath + "/annotate", schemaPath: "#/properties/annotate/type", keyword: "type", params: { type: "boolean" }, message: "must be boolean", schema: schema17.properties.annotate.type, parentSchema: schema17.properties.annotate, data: data12 };
+          const err15 = { instancePath: instancePath + "/annotate", schemaPath: "#/properties/annotate/type", keyword: "type", params: { type: "boolean" }, message: "must be boolean", schema: schema21.properties.annotate.type, parentSchema: schema21.properties.annotate, data: data12 };
           if (vErrors === null) {
             vErrors = [err15];
           } else {
@@ -29725,7 +32255,7 @@ ${end.comment}` : end.comment;
       }
       let data13 = data.digits;
       if (!(typeof data13 == "number" && (!(data13 % 1) && !isNaN(data13)) && isFinite(data13))) {
-        const err16 = { instancePath: instancePath + "/digits", schemaPath: "#/properties/digits/type", keyword: "type", params: { type: "integer" }, message: "must be integer", schema: schema17.properties.digits.type, parentSchema: schema17.properties.digits, data: data13 };
+        const err16 = { instancePath: instancePath + "/digits", schemaPath: "#/properties/digits/type", keyword: "type", params: { type: "integer" }, message: "must be integer", schema: schema21.properties.digits.type, parentSchema: schema21.properties.digits, data: data13 };
         if (vErrors === null) {
           vErrors = [err16];
         } else {
@@ -29735,7 +32265,7 @@ ${end.comment}` : end.comment;
       }
       if (typeof data13 == "number" && isFinite(data13)) {
         if (data13 > 8 || isNaN(data13)) {
-          const err17 = { instancePath: instancePath + "/digits", schemaPath: "#/properties/digits/maximum", keyword: "maximum", params: { comparison: "<=", limit: 8 }, message: "must be <= 8", schema: 8, parentSchema: schema17.properties.digits, data: data13 };
+          const err17 = { instancePath: instancePath + "/digits", schemaPath: "#/properties/digits/maximum", keyword: "maximum", params: { comparison: "<=", limit: 8 }, message: "must be <= 8", schema: 8, parentSchema: schema21.properties.digits, data: data13 };
           if (vErrors === null) {
             vErrors = [err17];
           } else {
@@ -29744,7 +32274,7 @@ ${end.comment}` : end.comment;
           errors2++;
         }
         if (data13 < 1 || isNaN(data13)) {
-          const err18 = { instancePath: instancePath + "/digits", schemaPath: "#/properties/digits/minimum", keyword: "minimum", params: { comparison: ">=", limit: 1 }, message: "must be >= 1", schema: 1, parentSchema: schema17.properties.digits, data: data13 };
+          const err18 = { instancePath: instancePath + "/digits", schemaPath: "#/properties/digits/minimum", keyword: "minimum", params: { comparison: ">=", limit: 1 }, message: "must be >= 1", schema: 1, parentSchema: schema21.properties.digits, data: data13 };
           if (vErrors === null) {
             vErrors = [err18];
           } else {
@@ -29756,7 +32286,7 @@ ${end.comment}` : end.comment;
       if (data.unit !== void 0) {
         let data14 = data.unit;
         if (typeof data14 !== "string") {
-          const err19 = { instancePath: instancePath + "/unit", schemaPath: "#/properties/unit/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema17.properties.unit.type, parentSchema: schema17.properties.unit, data: data14 };
+          const err19 = { instancePath: instancePath + "/unit", schemaPath: "#/properties/unit/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema21.properties.unit.type, parentSchema: schema21.properties.unit, data: data14 };
           if (vErrors === null) {
             vErrors = [err19];
           } else {
@@ -29768,7 +32298,7 @@ ${end.comment}` : end.comment;
       if (data.height !== void 0) {
         let data15 = data.height;
         if (!(typeof data15 == "number" && (!(data15 % 1) && !isNaN(data15)) && isFinite(data15))) {
-          const err20 = { instancePath: instancePath + "/height", schemaPath: "#/properties/height/type", keyword: "type", params: { type: "integer" }, message: "must be integer", schema: schema17.properties.height.type, parentSchema: schema17.properties.height, data: data15 };
+          const err20 = { instancePath: instancePath + "/height", schemaPath: "#/properties/height/type", keyword: "type", params: { type: "integer" }, message: "must be integer", schema: schema21.properties.height.type, parentSchema: schema21.properties.height, data: data15 };
           if (vErrors === null) {
             vErrors = [err20];
           } else {
@@ -29778,7 +32308,7 @@ ${end.comment}` : end.comment;
         }
         if (typeof data15 == "number" && isFinite(data15)) {
           if (data15 > 1200 || isNaN(data15)) {
-            const err21 = { instancePath: instancePath + "/height", schemaPath: "#/properties/height/maximum", keyword: "maximum", params: { comparison: "<=", limit: 1200 }, message: "must be <= 1200", schema: 1200, parentSchema: schema17.properties.height, data: data15 };
+            const err21 = { instancePath: instancePath + "/height", schemaPath: "#/properties/height/maximum", keyword: "maximum", params: { comparison: "<=", limit: 1200 }, message: "must be <= 1200", schema: 1200, parentSchema: schema21.properties.height, data: data15 };
             if (vErrors === null) {
               vErrors = [err21];
             } else {
@@ -29787,7 +32317,7 @@ ${end.comment}` : end.comment;
             errors2++;
           }
           if (data15 < 160 || isNaN(data15)) {
-            const err22 = { instancePath: instancePath + "/height", schemaPath: "#/properties/height/minimum", keyword: "minimum", params: { comparison: ">=", limit: 160 }, message: "must be >= 160", schema: 160, parentSchema: schema17.properties.height, data: data15 };
+            const err22 = { instancePath: instancePath + "/height", schemaPath: "#/properties/height/minimum", keyword: "minimum", params: { comparison: ">=", limit: 160 }, message: "must be >= 160", schema: 160, parentSchema: schema21.properties.height, data: data15 };
             if (vErrors === null) {
               vErrors = [err22];
             } else {
@@ -29798,7 +32328,7 @@ ${end.comment}` : end.comment;
         }
       }
     } else {
-      const err23 = { instancePath, schemaPath: "#/type", keyword: "type", params: { type: "object" }, message: "must be object", schema: schema17.type, parentSchema: schema17, data };
+      const err23 = { instancePath, schemaPath: "#/type", keyword: "type", params: { type: "object" }, message: "must be object", schema: schema21.type, parentSchema: schema21, data };
       if (vErrors === null) {
         vErrors = [err23];
       } else {
@@ -29806,12 +32336,12 @@ ${end.comment}` : end.comment;
       }
       errors2++;
     }
-    validate16.errors = vErrors;
+    validate20.errors = vErrors;
     return errors2 === 0;
   }
-  var math2 = validate17;
-  var schema18 = { "type": "object", "additionalProperties": false, "required": ["tex"], "properties": { "tex": { "type": "string", "description": "TeX source; use a | block for several lines" }, "number": { "type": "boolean", "default": false, "description": "number the equation (1), (2), \u2026" }, "caption": { "type": "string", "description": "Markdown (inline) under the equation" } } };
-  function validate17(data, { instancePath = "", parentData, parentDataProperty, rootData = data } = {}) {
+  var math2 = validate21;
+  var schema22 = { "type": "object", "additionalProperties": false, "required": ["tex"], "properties": { "tex": { "type": "string", "description": "TeX source; use a | block for several lines" }, "number": { "type": "boolean", "default": false, "description": "number the equation (1), (2), \u2026" }, "caption": { "type": "string", "description": "Markdown (inline) under the equation" } } };
+  function validate21(data, { instancePath = "", parentData, parentDataProperty, rootData = data } = {}) {
     let vErrors = null;
     let errors2 = 0;
     if (data && typeof data == "object" && !Array.isArray(data)) {
@@ -29819,7 +32349,7 @@ ${end.comment}` : end.comment;
         data.number = false;
       }
       if (data.tex === void 0) {
-        const err0 = { instancePath, schemaPath: "#/required", keyword: "required", params: { missingProperty: "tex" }, message: "must have required property 'tex'", schema: schema18.required, parentSchema: schema18, data };
+        const err0 = { instancePath, schemaPath: "#/required", keyword: "required", params: { missingProperty: "tex" }, message: "must have required property 'tex'", schema: schema22.required, parentSchema: schema22, data };
         if (vErrors === null) {
           vErrors = [err0];
         } else {
@@ -29829,7 +32359,7 @@ ${end.comment}` : end.comment;
       }
       for (const key0 in data) {
         if (!(key0 === "tex" || key0 === "number" || key0 === "caption")) {
-          const err1 = { instancePath, schemaPath: "#/additionalProperties", keyword: "additionalProperties", params: { additionalProperty: key0 }, message: "must NOT have additional properties", schema: false, parentSchema: schema18, data };
+          const err1 = { instancePath, schemaPath: "#/additionalProperties", keyword: "additionalProperties", params: { additionalProperty: key0 }, message: "must NOT have additional properties", schema: false, parentSchema: schema22, data };
           if (vErrors === null) {
             vErrors = [err1];
           } else {
@@ -29841,7 +32371,7 @@ ${end.comment}` : end.comment;
       if (data.tex !== void 0) {
         let data0 = data.tex;
         if (typeof data0 !== "string") {
-          const err2 = { instancePath: instancePath + "/tex", schemaPath: "#/properties/tex/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema18.properties.tex.type, parentSchema: schema18.properties.tex, data: data0 };
+          const err2 = { instancePath: instancePath + "/tex", schemaPath: "#/properties/tex/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema22.properties.tex.type, parentSchema: schema22.properties.tex, data: data0 };
           if (vErrors === null) {
             vErrors = [err2];
           } else {
@@ -29852,7 +32382,7 @@ ${end.comment}` : end.comment;
       }
       let data1 = data.number;
       if (typeof data1 !== "boolean") {
-        const err3 = { instancePath: instancePath + "/number", schemaPath: "#/properties/number/type", keyword: "type", params: { type: "boolean" }, message: "must be boolean", schema: schema18.properties.number.type, parentSchema: schema18.properties.number, data: data1 };
+        const err3 = { instancePath: instancePath + "/number", schemaPath: "#/properties/number/type", keyword: "type", params: { type: "boolean" }, message: "must be boolean", schema: schema22.properties.number.type, parentSchema: schema22.properties.number, data: data1 };
         if (vErrors === null) {
           vErrors = [err3];
         } else {
@@ -29863,7 +32393,7 @@ ${end.comment}` : end.comment;
       if (data.caption !== void 0) {
         let data2 = data.caption;
         if (typeof data2 !== "string") {
-          const err4 = { instancePath: instancePath + "/caption", schemaPath: "#/properties/caption/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema18.properties.caption.type, parentSchema: schema18.properties.caption, data: data2 };
+          const err4 = { instancePath: instancePath + "/caption", schemaPath: "#/properties/caption/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema22.properties.caption.type, parentSchema: schema22.properties.caption, data: data2 };
           if (vErrors === null) {
             vErrors = [err4];
           } else {
@@ -29873,7 +32403,7 @@ ${end.comment}` : end.comment;
         }
       }
     } else {
-      const err5 = { instancePath, schemaPath: "#/type", keyword: "type", params: { type: "object" }, message: "must be object", schema: schema18.type, parentSchema: schema18, data };
+      const err5 = { instancePath, schemaPath: "#/type", keyword: "type", params: { type: "object" }, message: "must be object", schema: schema22.type, parentSchema: schema22, data };
       if (vErrors === null) {
         vErrors = [err5];
       } else {
@@ -29881,465 +32411,23 @@ ${end.comment}` : end.comment;
       }
       errors2++;
     }
-    validate17.errors = vErrors;
-    return errors2 === 0;
-  }
-  var checklist = validate18;
-  var schema19 = { "type": "object", "additionalProperties": false, "required": ["items"], "properties": { "title": { "type": "string" }, "items": { "type": "array", "minItems": 1, "items": { "type": ["string", "object"], "additionalProperties": false, "required": ["text"], "properties": { "text": { "type": "string", "description": "Markdown (inline)" }, "status": { "enum": ["done", "todo", "running", "failed", "skipped"], "default": "todo" }, "note": { "type": "string" } } } } } };
-  function validate18(data, { instancePath = "", parentData, parentDataProperty, rootData = data } = {}) {
-    let vErrors = null;
-    let errors2 = 0;
-    if (data && typeof data == "object" && !Array.isArray(data)) {
-      if (data.items === void 0) {
-        const err0 = { instancePath, schemaPath: "#/required", keyword: "required", params: { missingProperty: "items" }, message: "must have required property 'items'", schema: schema19.required, parentSchema: schema19, data };
-        if (vErrors === null) {
-          vErrors = [err0];
-        } else {
-          vErrors.push(err0);
-        }
-        errors2++;
-      }
-      for (const key0 in data) {
-        if (!(key0 === "title" || key0 === "items")) {
-          const err1 = { instancePath, schemaPath: "#/additionalProperties", keyword: "additionalProperties", params: { additionalProperty: key0 }, message: "must NOT have additional properties", schema: false, parentSchema: schema19, data };
-          if (vErrors === null) {
-            vErrors = [err1];
-          } else {
-            vErrors.push(err1);
-          }
-          errors2++;
-        }
-      }
-      if (data.title !== void 0) {
-        let data0 = data.title;
-        if (typeof data0 !== "string") {
-          const err2 = { instancePath: instancePath + "/title", schemaPath: "#/properties/title/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema19.properties.title.type, parentSchema: schema19.properties.title, data: data0 };
-          if (vErrors === null) {
-            vErrors = [err2];
-          } else {
-            vErrors.push(err2);
-          }
-          errors2++;
-        }
-      }
-      if (data.items !== void 0) {
-        let data1 = data.items;
-        if (Array.isArray(data1)) {
-          if (data1.length < 1) {
-            const err3 = { instancePath: instancePath + "/items", schemaPath: "#/properties/items/minItems", keyword: "minItems", params: { limit: 1 }, message: "must NOT have fewer than 1 items", schema: 1, parentSchema: schema19.properties.items, data: data1 };
-            if (vErrors === null) {
-              vErrors = [err3];
-            } else {
-              vErrors.push(err3);
-            }
-            errors2++;
-          }
-          const len0 = data1.length;
-          for (let i0 = 0; i0 < len0; i0++) {
-            let data2 = data1[i0];
-            if (typeof data2 !== "string" && !(data2 && typeof data2 == "object" && !Array.isArray(data2))) {
-              const err4 = { instancePath: instancePath + "/items/" + i0, schemaPath: "#/properties/items/items/type", keyword: "type", params: { type: schema19.properties.items.items.type }, message: "must be string,object", schema: schema19.properties.items.items.type, parentSchema: schema19.properties.items.items, data: data2 };
-              if (vErrors === null) {
-                vErrors = [err4];
-              } else {
-                vErrors.push(err4);
-              }
-              errors2++;
-            }
-            if (data2 && typeof data2 == "object" && !Array.isArray(data2)) {
-              if (data2.status === void 0) {
-                data2.status = "todo";
-              }
-              if (data2.text === void 0) {
-                const err5 = { instancePath: instancePath + "/items/" + i0, schemaPath: "#/properties/items/items/required", keyword: "required", params: { missingProperty: "text" }, message: "must have required property 'text'", schema: schema19.properties.items.items.required, parentSchema: schema19.properties.items.items, data: data2 };
-                if (vErrors === null) {
-                  vErrors = [err5];
-                } else {
-                  vErrors.push(err5);
-                }
-                errors2++;
-              }
-              for (const key1 in data2) {
-                if (!(key1 === "text" || key1 === "status" || key1 === "note")) {
-                  const err6 = { instancePath: instancePath + "/items/" + i0, schemaPath: "#/properties/items/items/additionalProperties", keyword: "additionalProperties", params: { additionalProperty: key1 }, message: "must NOT have additional properties", schema: false, parentSchema: schema19.properties.items.items, data: data2 };
-                  if (vErrors === null) {
-                    vErrors = [err6];
-                  } else {
-                    vErrors.push(err6);
-                  }
-                  errors2++;
-                }
-              }
-              if (data2.text !== void 0) {
-                let data3 = data2.text;
-                if (typeof data3 !== "string") {
-                  const err7 = { instancePath: instancePath + "/items/" + i0 + "/text", schemaPath: "#/properties/items/items/properties/text/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema19.properties.items.items.properties.text.type, parentSchema: schema19.properties.items.items.properties.text, data: data3 };
-                  if (vErrors === null) {
-                    vErrors = [err7];
-                  } else {
-                    vErrors.push(err7);
-                  }
-                  errors2++;
-                }
-              }
-              let data4 = data2.status;
-              if (!(data4 === "done" || data4 === "todo" || data4 === "running" || data4 === "failed" || data4 === "skipped")) {
-                const err8 = { instancePath: instancePath + "/items/" + i0 + "/status", schemaPath: "#/properties/items/items/properties/status/enum", keyword: "enum", params: { allowedValues: schema19.properties.items.items.properties.status.enum }, message: "must be equal to one of the allowed values", schema: schema19.properties.items.items.properties.status.enum, parentSchema: schema19.properties.items.items.properties.status, data: data4 };
-                if (vErrors === null) {
-                  vErrors = [err8];
-                } else {
-                  vErrors.push(err8);
-                }
-                errors2++;
-              }
-              if (data2.note !== void 0) {
-                let data5 = data2.note;
-                if (typeof data5 !== "string") {
-                  const err9 = { instancePath: instancePath + "/items/" + i0 + "/note", schemaPath: "#/properties/items/items/properties/note/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema19.properties.items.items.properties.note.type, parentSchema: schema19.properties.items.items.properties.note, data: data5 };
-                  if (vErrors === null) {
-                    vErrors = [err9];
-                  } else {
-                    vErrors.push(err9);
-                  }
-                  errors2++;
-                }
-              }
-            }
-          }
-        } else {
-          const err10 = { instancePath: instancePath + "/items", schemaPath: "#/properties/items/type", keyword: "type", params: { type: "array" }, message: "must be array", schema: schema19.properties.items.type, parentSchema: schema19.properties.items, data: data1 };
-          if (vErrors === null) {
-            vErrors = [err10];
-          } else {
-            vErrors.push(err10);
-          }
-          errors2++;
-        }
-      }
-    } else {
-      const err11 = { instancePath, schemaPath: "#/type", keyword: "type", params: { type: "object" }, message: "must be object", schema: schema19.type, parentSchema: schema19, data };
-      if (vErrors === null) {
-        vErrors = [err11];
-      } else {
-        vErrors.push(err11);
-      }
-      errors2++;
-    }
-    validate18.errors = vErrors;
-    return errors2 === 0;
-  }
-  var code2 = validate19;
-  var schema20 = { "type": "object", "additionalProperties": false, "properties": { "file": { "type": "string", "description": "relative path; read from disk, so the code need not be pasted" }, "lines": { "type": "string", "pattern": "^[1-9][0-9]*(-[1-9][0-9]*)?$", "description": "line range, e.g. 10-40" }, "code": { "type": "string" }, "lang": { "type": "string", "description": "language; inferred from the file extension" }, "title": { "type": "string" } } };
-  var pattern0 = new RegExp("^[1-9][0-9]*(-[1-9][0-9]*)?$", "u");
-  function validate19(data, { instancePath = "", parentData, parentDataProperty, rootData = data } = {}) {
-    let vErrors = null;
-    let errors2 = 0;
-    if (data && typeof data == "object" && !Array.isArray(data)) {
-      for (const key0 in data) {
-        if (!(key0 === "file" || key0 === "lines" || key0 === "code" || key0 === "lang" || key0 === "title")) {
-          const err0 = { instancePath, schemaPath: "#/additionalProperties", keyword: "additionalProperties", params: { additionalProperty: key0 }, message: "must NOT have additional properties", schema: false, parentSchema: schema20, data };
-          if (vErrors === null) {
-            vErrors = [err0];
-          } else {
-            vErrors.push(err0);
-          }
-          errors2++;
-        }
-      }
-      if (data.file !== void 0) {
-        let data0 = data.file;
-        if (typeof data0 !== "string") {
-          const err1 = { instancePath: instancePath + "/file", schemaPath: "#/properties/file/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema20.properties.file.type, parentSchema: schema20.properties.file, data: data0 };
-          if (vErrors === null) {
-            vErrors = [err1];
-          } else {
-            vErrors.push(err1);
-          }
-          errors2++;
-        }
-      }
-      if (data.lines !== void 0) {
-        let data1 = data.lines;
-        if (typeof data1 === "string") {
-          if (!pattern0.test(data1)) {
-            const err2 = { instancePath: instancePath + "/lines", schemaPath: "#/properties/lines/pattern", keyword: "pattern", params: { pattern: "^[1-9][0-9]*(-[1-9][0-9]*)?$" }, message: 'must match pattern "^[1-9][0-9]*(-[1-9][0-9]*)?$"', schema: "^[1-9][0-9]*(-[1-9][0-9]*)?$", parentSchema: schema20.properties.lines, data: data1 };
-            if (vErrors === null) {
-              vErrors = [err2];
-            } else {
-              vErrors.push(err2);
-            }
-            errors2++;
-          }
-        } else {
-          const err3 = { instancePath: instancePath + "/lines", schemaPath: "#/properties/lines/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema20.properties.lines.type, parentSchema: schema20.properties.lines, data: data1 };
-          if (vErrors === null) {
-            vErrors = [err3];
-          } else {
-            vErrors.push(err3);
-          }
-          errors2++;
-        }
-      }
-      if (data.code !== void 0) {
-        let data2 = data.code;
-        if (typeof data2 !== "string") {
-          const err4 = { instancePath: instancePath + "/code", schemaPath: "#/properties/code/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema20.properties.code.type, parentSchema: schema20.properties.code, data: data2 };
-          if (vErrors === null) {
-            vErrors = [err4];
-          } else {
-            vErrors.push(err4);
-          }
-          errors2++;
-        }
-      }
-      if (data.lang !== void 0) {
-        let data3 = data.lang;
-        if (typeof data3 !== "string") {
-          const err5 = { instancePath: instancePath + "/lang", schemaPath: "#/properties/lang/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema20.properties.lang.type, parentSchema: schema20.properties.lang, data: data3 };
-          if (vErrors === null) {
-            vErrors = [err5];
-          } else {
-            vErrors.push(err5);
-          }
-          errors2++;
-        }
-      }
-      if (data.title !== void 0) {
-        let data4 = data.title;
-        if (typeof data4 !== "string") {
-          const err6 = { instancePath: instancePath + "/title", schemaPath: "#/properties/title/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema20.properties.title.type, parentSchema: schema20.properties.title, data: data4 };
-          if (vErrors === null) {
-            vErrors = [err6];
-          } else {
-            vErrors.push(err6);
-          }
-          errors2++;
-        }
-      }
-    } else {
-      const err7 = { instancePath, schemaPath: "#/type", keyword: "type", params: { type: "object" }, message: "must be object", schema: schema20.type, parentSchema: schema20, data };
-      if (vErrors === null) {
-        vErrors = [err7];
-      } else {
-        vErrors.push(err7);
-      }
-      errors2++;
-    }
-    validate19.errors = vErrors;
-    return errors2 === 0;
-  }
-  var image2 = validate20;
-  var schema21 = { "type": "object", "additionalProperties": false, "required": ["src"], "properties": { "src": { "type": "string", "description": "relative path" }, "alt": { "type": "string" }, "caption": { "type": "string", "description": "Markdown (inline)" }, "width": { "type": "integer", "minimum": 16, "maximum": 4096, "description": "max display width in px" } } };
-  function validate20(data, { instancePath = "", parentData, parentDataProperty, rootData = data } = {}) {
-    let vErrors = null;
-    let errors2 = 0;
-    if (data && typeof data == "object" && !Array.isArray(data)) {
-      if (data.src === void 0) {
-        const err0 = { instancePath, schemaPath: "#/required", keyword: "required", params: { missingProperty: "src" }, message: "must have required property 'src'", schema: schema21.required, parentSchema: schema21, data };
-        if (vErrors === null) {
-          vErrors = [err0];
-        } else {
-          vErrors.push(err0);
-        }
-        errors2++;
-      }
-      for (const key0 in data) {
-        if (!(key0 === "src" || key0 === "alt" || key0 === "caption" || key0 === "width")) {
-          const err1 = { instancePath, schemaPath: "#/additionalProperties", keyword: "additionalProperties", params: { additionalProperty: key0 }, message: "must NOT have additional properties", schema: false, parentSchema: schema21, data };
-          if (vErrors === null) {
-            vErrors = [err1];
-          } else {
-            vErrors.push(err1);
-          }
-          errors2++;
-        }
-      }
-      if (data.src !== void 0) {
-        let data0 = data.src;
-        if (typeof data0 !== "string") {
-          const err2 = { instancePath: instancePath + "/src", schemaPath: "#/properties/src/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema21.properties.src.type, parentSchema: schema21.properties.src, data: data0 };
-          if (vErrors === null) {
-            vErrors = [err2];
-          } else {
-            vErrors.push(err2);
-          }
-          errors2++;
-        }
-      }
-      if (data.alt !== void 0) {
-        let data1 = data.alt;
-        if (typeof data1 !== "string") {
-          const err3 = { instancePath: instancePath + "/alt", schemaPath: "#/properties/alt/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema21.properties.alt.type, parentSchema: schema21.properties.alt, data: data1 };
-          if (vErrors === null) {
-            vErrors = [err3];
-          } else {
-            vErrors.push(err3);
-          }
-          errors2++;
-        }
-      }
-      if (data.caption !== void 0) {
-        let data2 = data.caption;
-        if (typeof data2 !== "string") {
-          const err4 = { instancePath: instancePath + "/caption", schemaPath: "#/properties/caption/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema21.properties.caption.type, parentSchema: schema21.properties.caption, data: data2 };
-          if (vErrors === null) {
-            vErrors = [err4];
-          } else {
-            vErrors.push(err4);
-          }
-          errors2++;
-        }
-      }
-      if (data.width !== void 0) {
-        let data3 = data.width;
-        if (!(typeof data3 == "number" && (!(data3 % 1) && !isNaN(data3)) && isFinite(data3))) {
-          const err5 = { instancePath: instancePath + "/width", schemaPath: "#/properties/width/type", keyword: "type", params: { type: "integer" }, message: "must be integer", schema: schema21.properties.width.type, parentSchema: schema21.properties.width, data: data3 };
-          if (vErrors === null) {
-            vErrors = [err5];
-          } else {
-            vErrors.push(err5);
-          }
-          errors2++;
-        }
-        if (typeof data3 == "number" && isFinite(data3)) {
-          if (data3 > 4096 || isNaN(data3)) {
-            const err6 = { instancePath: instancePath + "/width", schemaPath: "#/properties/width/maximum", keyword: "maximum", params: { comparison: "<=", limit: 4096 }, message: "must be <= 4096", schema: 4096, parentSchema: schema21.properties.width, data: data3 };
-            if (vErrors === null) {
-              vErrors = [err6];
-            } else {
-              vErrors.push(err6);
-            }
-            errors2++;
-          }
-          if (data3 < 16 || isNaN(data3)) {
-            const err7 = { instancePath: instancePath + "/width", schemaPath: "#/properties/width/minimum", keyword: "minimum", params: { comparison: ">=", limit: 16 }, message: "must be >= 16", schema: 16, parentSchema: schema21.properties.width, data: data3 };
-            if (vErrors === null) {
-              vErrors = [err7];
-            } else {
-              vErrors.push(err7);
-            }
-            errors2++;
-          }
-        }
-      }
-    } else {
-      const err8 = { instancePath, schemaPath: "#/type", keyword: "type", params: { type: "object" }, message: "must be object", schema: schema21.type, parentSchema: schema21, data };
-      if (vErrors === null) {
-        vErrors = [err8];
-      } else {
-        vErrors.push(err8);
-      }
-      errors2++;
-    }
-    validate20.errors = vErrors;
-    return errors2 === 0;
-  }
-  var html = validate21;
-  var schema22 = { "type": "object", "additionalProperties": false, "properties": { "html": { "type": "string", "description": "the markup (body content or a full document)" }, "file": { "type": "string", "description": "relative path to an .html file instead of html" }, "title": { "type": "string" }, "height": { "type": "integer", "minimum": 60, "maximum": 2e3, "default": 360 } } };
-  function validate21(data, { instancePath = "", parentData, parentDataProperty, rootData = data } = {}) {
-    let vErrors = null;
-    let errors2 = 0;
-    if (data && typeof data == "object" && !Array.isArray(data)) {
-      if (data.height === void 0) {
-        data.height = 360;
-      }
-      for (const key0 in data) {
-        if (!(key0 === "html" || key0 === "file" || key0 === "title" || key0 === "height")) {
-          const err0 = { instancePath, schemaPath: "#/additionalProperties", keyword: "additionalProperties", params: { additionalProperty: key0 }, message: "must NOT have additional properties", schema: false, parentSchema: schema22, data };
-          if (vErrors === null) {
-            vErrors = [err0];
-          } else {
-            vErrors.push(err0);
-          }
-          errors2++;
-        }
-      }
-      if (data.html !== void 0) {
-        let data0 = data.html;
-        if (typeof data0 !== "string") {
-          const err1 = { instancePath: instancePath + "/html", schemaPath: "#/properties/html/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema22.properties.html.type, parentSchema: schema22.properties.html, data: data0 };
-          if (vErrors === null) {
-            vErrors = [err1];
-          } else {
-            vErrors.push(err1);
-          }
-          errors2++;
-        }
-      }
-      if (data.file !== void 0) {
-        let data1 = data.file;
-        if (typeof data1 !== "string") {
-          const err2 = { instancePath: instancePath + "/file", schemaPath: "#/properties/file/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema22.properties.file.type, parentSchema: schema22.properties.file, data: data1 };
-          if (vErrors === null) {
-            vErrors = [err2];
-          } else {
-            vErrors.push(err2);
-          }
-          errors2++;
-        }
-      }
-      if (data.title !== void 0) {
-        let data2 = data.title;
-        if (typeof data2 !== "string") {
-          const err3 = { instancePath: instancePath + "/title", schemaPath: "#/properties/title/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema22.properties.title.type, parentSchema: schema22.properties.title, data: data2 };
-          if (vErrors === null) {
-            vErrors = [err3];
-          } else {
-            vErrors.push(err3);
-          }
-          errors2++;
-        }
-      }
-      let data3 = data.height;
-      if (!(typeof data3 == "number" && (!(data3 % 1) && !isNaN(data3)) && isFinite(data3))) {
-        const err4 = { instancePath: instancePath + "/height", schemaPath: "#/properties/height/type", keyword: "type", params: { type: "integer" }, message: "must be integer", schema: schema22.properties.height.type, parentSchema: schema22.properties.height, data: data3 };
-        if (vErrors === null) {
-          vErrors = [err4];
-        } else {
-          vErrors.push(err4);
-        }
-        errors2++;
-      }
-      if (typeof data3 == "number" && isFinite(data3)) {
-        if (data3 > 2e3 || isNaN(data3)) {
-          const err5 = { instancePath: instancePath + "/height", schemaPath: "#/properties/height/maximum", keyword: "maximum", params: { comparison: "<=", limit: 2e3 }, message: "must be <= 2000", schema: 2e3, parentSchema: schema22.properties.height, data: data3 };
-          if (vErrors === null) {
-            vErrors = [err5];
-          } else {
-            vErrors.push(err5);
-          }
-          errors2++;
-        }
-        if (data3 < 60 || isNaN(data3)) {
-          const err6 = { instancePath: instancePath + "/height", schemaPath: "#/properties/height/minimum", keyword: "minimum", params: { comparison: ">=", limit: 60 }, message: "must be >= 60", schema: 60, parentSchema: schema22.properties.height, data: data3 };
-          if (vErrors === null) {
-            vErrors = [err6];
-          } else {
-            vErrors.push(err6);
-          }
-          errors2++;
-        }
-      }
-    } else {
-      const err7 = { instancePath, schemaPath: "#/type", keyword: "type", params: { type: "object" }, message: "must be object", schema: schema22.type, parentSchema: schema22, data };
-      if (vErrors === null) {
-        vErrors = [err7];
-      } else {
-        vErrors.push(err7);
-      }
-      errors2++;
-    }
     validate21.errors = vErrors;
     return errors2 === 0;
   }
-  var frontMatter = validate22;
-  var schema23 = { "type": "object", "additionalProperties": false, "properties": { "title": { "type": "string" } } };
+  var molecule = validate22;
+  var schema23 = { "type": "object", "additionalProperties": false, "properties": { "title": { "type": "string" }, "smiles": { "type": "string" }, "name": { "type": "string" }, "items": { "type": "array", "minItems": 1, "maxItems": 48, "items": { "type": ["string", "object"], "additionalProperties": false, "required": ["smiles"], "properties": { "smiles": { "type": "string" }, "name": { "type": "string" } } } }, "size": { "type": "integer", "minimum": 120, "maximum": 800, "default": 240, "description": "drawing size in px" }, "hydrogens": { "type": "boolean", "default": false, "description": "draw explicit hydrogens" } } };
   function validate22(data, { instancePath = "", parentData, parentDataProperty, rootData = data } = {}) {
     let vErrors = null;
     let errors2 = 0;
     if (data && typeof data == "object" && !Array.isArray(data)) {
+      if (data.size === void 0) {
+        data.size = 240;
+      }
+      if (data.hydrogens === void 0) {
+        data.hydrogens = false;
+      }
       for (const key0 in data) {
-        if (!(key0 === "title")) {
+        if (!(key0 === "title" || key0 === "smiles" || key0 === "name" || key0 === "items" || key0 === "size" || key0 === "hydrogens")) {
           const err0 = { instancePath, schemaPath: "#/additionalProperties", keyword: "additionalProperties", params: { additionalProperty: key0 }, message: "must NOT have additional properties", schema: false, parentSchema: schema23, data };
           if (vErrors === null) {
             vErrors = [err0];
@@ -30361,8 +32449,1542 @@ ${end.comment}` : end.comment;
           errors2++;
         }
       }
+      if (data.smiles !== void 0) {
+        let data1 = data.smiles;
+        if (typeof data1 !== "string") {
+          const err2 = { instancePath: instancePath + "/smiles", schemaPath: "#/properties/smiles/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema23.properties.smiles.type, parentSchema: schema23.properties.smiles, data: data1 };
+          if (vErrors === null) {
+            vErrors = [err2];
+          } else {
+            vErrors.push(err2);
+          }
+          errors2++;
+        }
+      }
+      if (data.name !== void 0) {
+        let data2 = data.name;
+        if (typeof data2 !== "string") {
+          const err3 = { instancePath: instancePath + "/name", schemaPath: "#/properties/name/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema23.properties.name.type, parentSchema: schema23.properties.name, data: data2 };
+          if (vErrors === null) {
+            vErrors = [err3];
+          } else {
+            vErrors.push(err3);
+          }
+          errors2++;
+        }
+      }
+      if (data.items !== void 0) {
+        let data3 = data.items;
+        if (Array.isArray(data3)) {
+          if (data3.length > 48) {
+            const err4 = { instancePath: instancePath + "/items", schemaPath: "#/properties/items/maxItems", keyword: "maxItems", params: { limit: 48 }, message: "must NOT have more than 48 items", schema: 48, parentSchema: schema23.properties.items, data: data3 };
+            if (vErrors === null) {
+              vErrors = [err4];
+            } else {
+              vErrors.push(err4);
+            }
+            errors2++;
+          }
+          if (data3.length < 1) {
+            const err5 = { instancePath: instancePath + "/items", schemaPath: "#/properties/items/minItems", keyword: "minItems", params: { limit: 1 }, message: "must NOT have fewer than 1 items", schema: 1, parentSchema: schema23.properties.items, data: data3 };
+            if (vErrors === null) {
+              vErrors = [err5];
+            } else {
+              vErrors.push(err5);
+            }
+            errors2++;
+          }
+          const len0 = data3.length;
+          for (let i0 = 0; i0 < len0; i0++) {
+            let data4 = data3[i0];
+            if (typeof data4 !== "string" && !(data4 && typeof data4 == "object" && !Array.isArray(data4))) {
+              const err6 = { instancePath: instancePath + "/items/" + i0, schemaPath: "#/properties/items/items/type", keyword: "type", params: { type: schema23.properties.items.items.type }, message: "must be string,object", schema: schema23.properties.items.items.type, parentSchema: schema23.properties.items.items, data: data4 };
+              if (vErrors === null) {
+                vErrors = [err6];
+              } else {
+                vErrors.push(err6);
+              }
+              errors2++;
+            }
+            if (data4 && typeof data4 == "object" && !Array.isArray(data4)) {
+              if (data4.smiles === void 0) {
+                const err7 = { instancePath: instancePath + "/items/" + i0, schemaPath: "#/properties/items/items/required", keyword: "required", params: { missingProperty: "smiles" }, message: "must have required property 'smiles'", schema: schema23.properties.items.items.required, parentSchema: schema23.properties.items.items, data: data4 };
+                if (vErrors === null) {
+                  vErrors = [err7];
+                } else {
+                  vErrors.push(err7);
+                }
+                errors2++;
+              }
+              for (const key1 in data4) {
+                if (!(key1 === "smiles" || key1 === "name")) {
+                  const err8 = { instancePath: instancePath + "/items/" + i0, schemaPath: "#/properties/items/items/additionalProperties", keyword: "additionalProperties", params: { additionalProperty: key1 }, message: "must NOT have additional properties", schema: false, parentSchema: schema23.properties.items.items, data: data4 };
+                  if (vErrors === null) {
+                    vErrors = [err8];
+                  } else {
+                    vErrors.push(err8);
+                  }
+                  errors2++;
+                }
+              }
+              if (data4.smiles !== void 0) {
+                let data5 = data4.smiles;
+                if (typeof data5 !== "string") {
+                  const err9 = { instancePath: instancePath + "/items/" + i0 + "/smiles", schemaPath: "#/properties/items/items/properties/smiles/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema23.properties.items.items.properties.smiles.type, parentSchema: schema23.properties.items.items.properties.smiles, data: data5 };
+                  if (vErrors === null) {
+                    vErrors = [err9];
+                  } else {
+                    vErrors.push(err9);
+                  }
+                  errors2++;
+                }
+              }
+              if (data4.name !== void 0) {
+                let data6 = data4.name;
+                if (typeof data6 !== "string") {
+                  const err10 = { instancePath: instancePath + "/items/" + i0 + "/name", schemaPath: "#/properties/items/items/properties/name/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema23.properties.items.items.properties.name.type, parentSchema: schema23.properties.items.items.properties.name, data: data6 };
+                  if (vErrors === null) {
+                    vErrors = [err10];
+                  } else {
+                    vErrors.push(err10);
+                  }
+                  errors2++;
+                }
+              }
+            }
+          }
+        } else {
+          const err11 = { instancePath: instancePath + "/items", schemaPath: "#/properties/items/type", keyword: "type", params: { type: "array" }, message: "must be array", schema: schema23.properties.items.type, parentSchema: schema23.properties.items, data: data3 };
+          if (vErrors === null) {
+            vErrors = [err11];
+          } else {
+            vErrors.push(err11);
+          }
+          errors2++;
+        }
+      }
+      let data7 = data.size;
+      if (!(typeof data7 == "number" && (!(data7 % 1) && !isNaN(data7)) && isFinite(data7))) {
+        const err12 = { instancePath: instancePath + "/size", schemaPath: "#/properties/size/type", keyword: "type", params: { type: "integer" }, message: "must be integer", schema: schema23.properties.size.type, parentSchema: schema23.properties.size, data: data7 };
+        if (vErrors === null) {
+          vErrors = [err12];
+        } else {
+          vErrors.push(err12);
+        }
+        errors2++;
+      }
+      if (typeof data7 == "number" && isFinite(data7)) {
+        if (data7 > 800 || isNaN(data7)) {
+          const err13 = { instancePath: instancePath + "/size", schemaPath: "#/properties/size/maximum", keyword: "maximum", params: { comparison: "<=", limit: 800 }, message: "must be <= 800", schema: 800, parentSchema: schema23.properties.size, data: data7 };
+          if (vErrors === null) {
+            vErrors = [err13];
+          } else {
+            vErrors.push(err13);
+          }
+          errors2++;
+        }
+        if (data7 < 120 || isNaN(data7)) {
+          const err14 = { instancePath: instancePath + "/size", schemaPath: "#/properties/size/minimum", keyword: "minimum", params: { comparison: ">=", limit: 120 }, message: "must be >= 120", schema: 120, parentSchema: schema23.properties.size, data: data7 };
+          if (vErrors === null) {
+            vErrors = [err14];
+          } else {
+            vErrors.push(err14);
+          }
+          errors2++;
+        }
+      }
+      let data8 = data.hydrogens;
+      if (typeof data8 !== "boolean") {
+        const err15 = { instancePath: instancePath + "/hydrogens", schemaPath: "#/properties/hydrogens/type", keyword: "type", params: { type: "boolean" }, message: "must be boolean", schema: schema23.properties.hydrogens.type, parentSchema: schema23.properties.hydrogens, data: data8 };
+        if (vErrors === null) {
+          vErrors = [err15];
+        } else {
+          vErrors.push(err15);
+        }
+        errors2++;
+      }
     } else {
-      const err2 = { instancePath, schemaPath: "#/type", keyword: "type", params: { type: "object" }, message: "must be object", schema: schema23.type, parentSchema: schema23, data };
+      const err16 = { instancePath, schemaPath: "#/type", keyword: "type", params: { type: "object" }, message: "must be object", schema: schema23.type, parentSchema: schema23, data };
+      if (vErrors === null) {
+        vErrors = [err16];
+      } else {
+        vErrors.push(err16);
+      }
+      errors2++;
+    }
+    validate22.errors = vErrors;
+    return errors2 === 0;
+  }
+  var reaction = validate23;
+  var schema24 = { "type": "object", "additionalProperties": false, "required": ["smiles"], "properties": { "title": { "type": "string" }, "smiles": { "type": "string", "description": 'e.g. "CCO.CC(=O)O>[H+]>CCOC(C)=O.O"' }, "conditions": { "type": "string", "description": 'text over the arrow, e.g. "H2SO4, reflux, 2 h"' }, "caption": { "type": "string", "description": "Markdown (inline) under the scheme" } } };
+  function validate23(data, { instancePath = "", parentData, parentDataProperty, rootData = data } = {}) {
+    let vErrors = null;
+    let errors2 = 0;
+    if (data && typeof data == "object" && !Array.isArray(data)) {
+      if (data.smiles === void 0) {
+        const err0 = { instancePath, schemaPath: "#/required", keyword: "required", params: { missingProperty: "smiles" }, message: "must have required property 'smiles'", schema: schema24.required, parentSchema: schema24, data };
+        if (vErrors === null) {
+          vErrors = [err0];
+        } else {
+          vErrors.push(err0);
+        }
+        errors2++;
+      }
+      for (const key0 in data) {
+        if (!(key0 === "title" || key0 === "smiles" || key0 === "conditions" || key0 === "caption")) {
+          const err1 = { instancePath, schemaPath: "#/additionalProperties", keyword: "additionalProperties", params: { additionalProperty: key0 }, message: "must NOT have additional properties", schema: false, parentSchema: schema24, data };
+          if (vErrors === null) {
+            vErrors = [err1];
+          } else {
+            vErrors.push(err1);
+          }
+          errors2++;
+        }
+      }
+      if (data.title !== void 0) {
+        let data0 = data.title;
+        if (typeof data0 !== "string") {
+          const err2 = { instancePath: instancePath + "/title", schemaPath: "#/properties/title/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema24.properties.title.type, parentSchema: schema24.properties.title, data: data0 };
+          if (vErrors === null) {
+            vErrors = [err2];
+          } else {
+            vErrors.push(err2);
+          }
+          errors2++;
+        }
+      }
+      if (data.smiles !== void 0) {
+        let data1 = data.smiles;
+        if (typeof data1 !== "string") {
+          const err3 = { instancePath: instancePath + "/smiles", schemaPath: "#/properties/smiles/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema24.properties.smiles.type, parentSchema: schema24.properties.smiles, data: data1 };
+          if (vErrors === null) {
+            vErrors = [err3];
+          } else {
+            vErrors.push(err3);
+          }
+          errors2++;
+        }
+      }
+      if (data.conditions !== void 0) {
+        let data2 = data.conditions;
+        if (typeof data2 !== "string") {
+          const err4 = { instancePath: instancePath + "/conditions", schemaPath: "#/properties/conditions/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema24.properties.conditions.type, parentSchema: schema24.properties.conditions, data: data2 };
+          if (vErrors === null) {
+            vErrors = [err4];
+          } else {
+            vErrors.push(err4);
+          }
+          errors2++;
+        }
+      }
+      if (data.caption !== void 0) {
+        let data3 = data.caption;
+        if (typeof data3 !== "string") {
+          const err5 = { instancePath: instancePath + "/caption", schemaPath: "#/properties/caption/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema24.properties.caption.type, parentSchema: schema24.properties.caption, data: data3 };
+          if (vErrors === null) {
+            vErrors = [err5];
+          } else {
+            vErrors.push(err5);
+          }
+          errors2++;
+        }
+      }
+    } else {
+      const err6 = { instancePath, schemaPath: "#/type", keyword: "type", params: { type: "object" }, message: "must be object", schema: schema24.type, parentSchema: schema24, data };
+      if (vErrors === null) {
+        vErrors = [err6];
+      } else {
+        vErrors.push(err6);
+      }
+      errors2++;
+    }
+    validate23.errors = vErrors;
+    return errors2 === 0;
+  }
+  var structure = validate24;
+  var schema25 = { "type": "object", "additionalProperties": false, "required": ["data"], "properties": { "title": { "type": "string" }, "data": { "type": "string", "description": "relative path to a .pdb .cif .sdf .mol .mol2 .xyz .gro .pqr file" }, "style": { "enum": ["auto", "cartoon", "stick", "sphere", "line", "ballstick", "surface"], "default": "auto" }, "color": { "enum": ["element", "chain", "spectrum", "secondary"], "description": "default: spectrum for proteins, element otherwise" }, "highlight": { "type": "array", "items": { "type": "object", "additionalProperties": false, "properties": { "chain": { "type": "string" }, "residues": { "type": "string", "description": 'e.g. "45-60" or "12,15,19"' }, "resn": { "type": "string", "description": "residue name, e.g. HEM" }, "style": { "enum": ["cartoon", "stick", "sphere", "line", "ballstick", "surface"] }, "color": { "type": "string", "description": "a colour name or #hex" }, "label": { "type": "string" } } } }, "spin": { "type": "boolean", "default": false }, "height": { "type": "integer", "minimum": 200, "maximum": 1200, "default": 460 } } };
+  function validate24(data, { instancePath = "", parentData, parentDataProperty, rootData = data } = {}) {
+    let vErrors = null;
+    let errors2 = 0;
+    if (data && typeof data == "object" && !Array.isArray(data)) {
+      if (data.style === void 0) {
+        data.style = "auto";
+      }
+      if (data.spin === void 0) {
+        data.spin = false;
+      }
+      if (data.height === void 0) {
+        data.height = 460;
+      }
+      if (data.data === void 0) {
+        const err0 = { instancePath, schemaPath: "#/required", keyword: "required", params: { missingProperty: "data" }, message: "must have required property 'data'", schema: schema25.required, parentSchema: schema25, data };
+        if (vErrors === null) {
+          vErrors = [err0];
+        } else {
+          vErrors.push(err0);
+        }
+        errors2++;
+      }
+      for (const key0 in data) {
+        if (!(key0 === "title" || key0 === "data" || key0 === "style" || key0 === "color" || key0 === "highlight" || key0 === "spin" || key0 === "height")) {
+          const err1 = { instancePath, schemaPath: "#/additionalProperties", keyword: "additionalProperties", params: { additionalProperty: key0 }, message: "must NOT have additional properties", schema: false, parentSchema: schema25, data };
+          if (vErrors === null) {
+            vErrors = [err1];
+          } else {
+            vErrors.push(err1);
+          }
+          errors2++;
+        }
+      }
+      if (data.title !== void 0) {
+        let data0 = data.title;
+        if (typeof data0 !== "string") {
+          const err2 = { instancePath: instancePath + "/title", schemaPath: "#/properties/title/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema25.properties.title.type, parentSchema: schema25.properties.title, data: data0 };
+          if (vErrors === null) {
+            vErrors = [err2];
+          } else {
+            vErrors.push(err2);
+          }
+          errors2++;
+        }
+      }
+      if (data.data !== void 0) {
+        let data1 = data.data;
+        if (typeof data1 !== "string") {
+          const err3 = { instancePath: instancePath + "/data", schemaPath: "#/properties/data/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema25.properties.data.type, parentSchema: schema25.properties.data, data: data1 };
+          if (vErrors === null) {
+            vErrors = [err3];
+          } else {
+            vErrors.push(err3);
+          }
+          errors2++;
+        }
+      }
+      let data2 = data.style;
+      if (!(data2 === "auto" || data2 === "cartoon" || data2 === "stick" || data2 === "sphere" || data2 === "line" || data2 === "ballstick" || data2 === "surface")) {
+        const err4 = { instancePath: instancePath + "/style", schemaPath: "#/properties/style/enum", keyword: "enum", params: { allowedValues: schema25.properties.style.enum }, message: "must be equal to one of the allowed values", schema: schema25.properties.style.enum, parentSchema: schema25.properties.style, data: data2 };
+        if (vErrors === null) {
+          vErrors = [err4];
+        } else {
+          vErrors.push(err4);
+        }
+        errors2++;
+      }
+      if (data.color !== void 0) {
+        let data3 = data.color;
+        if (!(data3 === "element" || data3 === "chain" || data3 === "spectrum" || data3 === "secondary")) {
+          const err5 = { instancePath: instancePath + "/color", schemaPath: "#/properties/color/enum", keyword: "enum", params: { allowedValues: schema25.properties.color.enum }, message: "must be equal to one of the allowed values", schema: schema25.properties.color.enum, parentSchema: schema25.properties.color, data: data3 };
+          if (vErrors === null) {
+            vErrors = [err5];
+          } else {
+            vErrors.push(err5);
+          }
+          errors2++;
+        }
+      }
+      if (data.highlight !== void 0) {
+        let data4 = data.highlight;
+        if (Array.isArray(data4)) {
+          const len0 = data4.length;
+          for (let i0 = 0; i0 < len0; i0++) {
+            let data5 = data4[i0];
+            if (data5 && typeof data5 == "object" && !Array.isArray(data5)) {
+              for (const key1 in data5) {
+                if (!(key1 === "chain" || key1 === "residues" || key1 === "resn" || key1 === "style" || key1 === "color" || key1 === "label")) {
+                  const err6 = { instancePath: instancePath + "/highlight/" + i0, schemaPath: "#/properties/highlight/items/additionalProperties", keyword: "additionalProperties", params: { additionalProperty: key1 }, message: "must NOT have additional properties", schema: false, parentSchema: schema25.properties.highlight.items, data: data5 };
+                  if (vErrors === null) {
+                    vErrors = [err6];
+                  } else {
+                    vErrors.push(err6);
+                  }
+                  errors2++;
+                }
+              }
+              if (data5.chain !== void 0) {
+                let data6 = data5.chain;
+                if (typeof data6 !== "string") {
+                  const err7 = { instancePath: instancePath + "/highlight/" + i0 + "/chain", schemaPath: "#/properties/highlight/items/properties/chain/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema25.properties.highlight.items.properties.chain.type, parentSchema: schema25.properties.highlight.items.properties.chain, data: data6 };
+                  if (vErrors === null) {
+                    vErrors = [err7];
+                  } else {
+                    vErrors.push(err7);
+                  }
+                  errors2++;
+                }
+              }
+              if (data5.residues !== void 0) {
+                let data7 = data5.residues;
+                if (typeof data7 !== "string") {
+                  const err8 = { instancePath: instancePath + "/highlight/" + i0 + "/residues", schemaPath: "#/properties/highlight/items/properties/residues/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema25.properties.highlight.items.properties.residues.type, parentSchema: schema25.properties.highlight.items.properties.residues, data: data7 };
+                  if (vErrors === null) {
+                    vErrors = [err8];
+                  } else {
+                    vErrors.push(err8);
+                  }
+                  errors2++;
+                }
+              }
+              if (data5.resn !== void 0) {
+                let data8 = data5.resn;
+                if (typeof data8 !== "string") {
+                  const err9 = { instancePath: instancePath + "/highlight/" + i0 + "/resn", schemaPath: "#/properties/highlight/items/properties/resn/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema25.properties.highlight.items.properties.resn.type, parentSchema: schema25.properties.highlight.items.properties.resn, data: data8 };
+                  if (vErrors === null) {
+                    vErrors = [err9];
+                  } else {
+                    vErrors.push(err9);
+                  }
+                  errors2++;
+                }
+              }
+              if (data5.style !== void 0) {
+                let data9 = data5.style;
+                if (!(data9 === "cartoon" || data9 === "stick" || data9 === "sphere" || data9 === "line" || data9 === "ballstick" || data9 === "surface")) {
+                  const err10 = { instancePath: instancePath + "/highlight/" + i0 + "/style", schemaPath: "#/properties/highlight/items/properties/style/enum", keyword: "enum", params: { allowedValues: schema25.properties.highlight.items.properties.style.enum }, message: "must be equal to one of the allowed values", schema: schema25.properties.highlight.items.properties.style.enum, parentSchema: schema25.properties.highlight.items.properties.style, data: data9 };
+                  if (vErrors === null) {
+                    vErrors = [err10];
+                  } else {
+                    vErrors.push(err10);
+                  }
+                  errors2++;
+                }
+              }
+              if (data5.color !== void 0) {
+                let data10 = data5.color;
+                if (typeof data10 !== "string") {
+                  const err11 = { instancePath: instancePath + "/highlight/" + i0 + "/color", schemaPath: "#/properties/highlight/items/properties/color/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema25.properties.highlight.items.properties.color.type, parentSchema: schema25.properties.highlight.items.properties.color, data: data10 };
+                  if (vErrors === null) {
+                    vErrors = [err11];
+                  } else {
+                    vErrors.push(err11);
+                  }
+                  errors2++;
+                }
+              }
+              if (data5.label !== void 0) {
+                let data11 = data5.label;
+                if (typeof data11 !== "string") {
+                  const err12 = { instancePath: instancePath + "/highlight/" + i0 + "/label", schemaPath: "#/properties/highlight/items/properties/label/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema25.properties.highlight.items.properties.label.type, parentSchema: schema25.properties.highlight.items.properties.label, data: data11 };
+                  if (vErrors === null) {
+                    vErrors = [err12];
+                  } else {
+                    vErrors.push(err12);
+                  }
+                  errors2++;
+                }
+              }
+            } else {
+              const err13 = { instancePath: instancePath + "/highlight/" + i0, schemaPath: "#/properties/highlight/items/type", keyword: "type", params: { type: "object" }, message: "must be object", schema: schema25.properties.highlight.items.type, parentSchema: schema25.properties.highlight.items, data: data5 };
+              if (vErrors === null) {
+                vErrors = [err13];
+              } else {
+                vErrors.push(err13);
+              }
+              errors2++;
+            }
+          }
+        } else {
+          const err14 = { instancePath: instancePath + "/highlight", schemaPath: "#/properties/highlight/type", keyword: "type", params: { type: "array" }, message: "must be array", schema: schema25.properties.highlight.type, parentSchema: schema25.properties.highlight, data: data4 };
+          if (vErrors === null) {
+            vErrors = [err14];
+          } else {
+            vErrors.push(err14);
+          }
+          errors2++;
+        }
+      }
+      let data12 = data.spin;
+      if (typeof data12 !== "boolean") {
+        const err15 = { instancePath: instancePath + "/spin", schemaPath: "#/properties/spin/type", keyword: "type", params: { type: "boolean" }, message: "must be boolean", schema: schema25.properties.spin.type, parentSchema: schema25.properties.spin, data: data12 };
+        if (vErrors === null) {
+          vErrors = [err15];
+        } else {
+          vErrors.push(err15);
+        }
+        errors2++;
+      }
+      let data13 = data.height;
+      if (!(typeof data13 == "number" && (!(data13 % 1) && !isNaN(data13)) && isFinite(data13))) {
+        const err16 = { instancePath: instancePath + "/height", schemaPath: "#/properties/height/type", keyword: "type", params: { type: "integer" }, message: "must be integer", schema: schema25.properties.height.type, parentSchema: schema25.properties.height, data: data13 };
+        if (vErrors === null) {
+          vErrors = [err16];
+        } else {
+          vErrors.push(err16);
+        }
+        errors2++;
+      }
+      if (typeof data13 == "number" && isFinite(data13)) {
+        if (data13 > 1200 || isNaN(data13)) {
+          const err17 = { instancePath: instancePath + "/height", schemaPath: "#/properties/height/maximum", keyword: "maximum", params: { comparison: "<=", limit: 1200 }, message: "must be <= 1200", schema: 1200, parentSchema: schema25.properties.height, data: data13 };
+          if (vErrors === null) {
+            vErrors = [err17];
+          } else {
+            vErrors.push(err17);
+          }
+          errors2++;
+        }
+        if (data13 < 200 || isNaN(data13)) {
+          const err18 = { instancePath: instancePath + "/height", schemaPath: "#/properties/height/minimum", keyword: "minimum", params: { comparison: ">=", limit: 200 }, message: "must be >= 200", schema: 200, parentSchema: schema25.properties.height, data: data13 };
+          if (vErrors === null) {
+            vErrors = [err18];
+          } else {
+            vErrors.push(err18);
+          }
+          errors2++;
+        }
+      }
+    } else {
+      const err19 = { instancePath, schemaPath: "#/type", keyword: "type", params: { type: "object" }, message: "must be object", schema: schema25.type, parentSchema: schema25, data };
+      if (vErrors === null) {
+        vErrors = [err19];
+      } else {
+        vErrors.push(err19);
+      }
+      errors2++;
+    }
+    validate24.errors = vErrors;
+    return errors2 === 0;
+  }
+  var sequence = validate25;
+  var schema26 = { "type": "object", "additionalProperties": false, "properties": { "title": { "type": "string" }, "data": { "type": "string", "description": "relative path to a FASTA file (.fa .fasta .fna .faa .aln)" }, "seq": { "type": "string", "description": "one sequence inline" }, "sequences": { "type": "array", "minItems": 1, "items": { "type": "object", "additionalProperties": false, "required": ["name", "seq"], "properties": { "name": { "type": "string" }, "seq": { "type": "string" } } } }, "type": { "enum": ["auto", "dna", "rna", "protein"], "default": "auto" }, "annotations": { "type": "array", "items": { "type": "object", "additionalProperties": false, "required": ["start", "end"], "properties": { "start": { "type": "integer", "minimum": 1 }, "end": { "type": "integer", "minimum": 1 }, "label": { "type": "string" }, "color": { "enum": ["accent", "blue", "green", "yellow", "red"] } } }, "description": "1-based inclusive ranges highlighted under the sequences" }, "width": { "type": "integer", "minimum": 10, "maximum": 200, "default": 60, "description": "residues per row" }, "start": { "type": "integer", "default": 1, "description": "number of the first residue" }, "consensus": { "type": "boolean", "description": "consensus and conservation rows (default: on for alignments)" } } };
+  function validate25(data, { instancePath = "", parentData, parentDataProperty, rootData = data } = {}) {
+    let vErrors = null;
+    let errors2 = 0;
+    if (data && typeof data == "object" && !Array.isArray(data)) {
+      if (data.type === void 0) {
+        data.type = "auto";
+      }
+      if (data.width === void 0) {
+        data.width = 60;
+      }
+      if (data.start === void 0) {
+        data.start = 1;
+      }
+      for (const key0 in data) {
+        if (!func2.call(schema26.properties, key0)) {
+          const err0 = { instancePath, schemaPath: "#/additionalProperties", keyword: "additionalProperties", params: { additionalProperty: key0 }, message: "must NOT have additional properties", schema: false, parentSchema: schema26, data };
+          if (vErrors === null) {
+            vErrors = [err0];
+          } else {
+            vErrors.push(err0);
+          }
+          errors2++;
+        }
+      }
+      if (data.title !== void 0) {
+        let data0 = data.title;
+        if (typeof data0 !== "string") {
+          const err1 = { instancePath: instancePath + "/title", schemaPath: "#/properties/title/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema26.properties.title.type, parentSchema: schema26.properties.title, data: data0 };
+          if (vErrors === null) {
+            vErrors = [err1];
+          } else {
+            vErrors.push(err1);
+          }
+          errors2++;
+        }
+      }
+      if (data.data !== void 0) {
+        let data1 = data.data;
+        if (typeof data1 !== "string") {
+          const err2 = { instancePath: instancePath + "/data", schemaPath: "#/properties/data/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema26.properties.data.type, parentSchema: schema26.properties.data, data: data1 };
+          if (vErrors === null) {
+            vErrors = [err2];
+          } else {
+            vErrors.push(err2);
+          }
+          errors2++;
+        }
+      }
+      if (data.seq !== void 0) {
+        let data2 = data.seq;
+        if (typeof data2 !== "string") {
+          const err3 = { instancePath: instancePath + "/seq", schemaPath: "#/properties/seq/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema26.properties.seq.type, parentSchema: schema26.properties.seq, data: data2 };
+          if (vErrors === null) {
+            vErrors = [err3];
+          } else {
+            vErrors.push(err3);
+          }
+          errors2++;
+        }
+      }
+      if (data.sequences !== void 0) {
+        let data3 = data.sequences;
+        if (Array.isArray(data3)) {
+          if (data3.length < 1) {
+            const err4 = { instancePath: instancePath + "/sequences", schemaPath: "#/properties/sequences/minItems", keyword: "minItems", params: { limit: 1 }, message: "must NOT have fewer than 1 items", schema: 1, parentSchema: schema26.properties.sequences, data: data3 };
+            if (vErrors === null) {
+              vErrors = [err4];
+            } else {
+              vErrors.push(err4);
+            }
+            errors2++;
+          }
+          const len0 = data3.length;
+          for (let i0 = 0; i0 < len0; i0++) {
+            let data4 = data3[i0];
+            if (data4 && typeof data4 == "object" && !Array.isArray(data4)) {
+              if (data4.name === void 0) {
+                const err5 = { instancePath: instancePath + "/sequences/" + i0, schemaPath: "#/properties/sequences/items/required", keyword: "required", params: { missingProperty: "name" }, message: "must have required property 'name'", schema: schema26.properties.sequences.items.required, parentSchema: schema26.properties.sequences.items, data: data4 };
+                if (vErrors === null) {
+                  vErrors = [err5];
+                } else {
+                  vErrors.push(err5);
+                }
+                errors2++;
+              }
+              if (data4.seq === void 0) {
+                const err6 = { instancePath: instancePath + "/sequences/" + i0, schemaPath: "#/properties/sequences/items/required", keyword: "required", params: { missingProperty: "seq" }, message: "must have required property 'seq'", schema: schema26.properties.sequences.items.required, parentSchema: schema26.properties.sequences.items, data: data4 };
+                if (vErrors === null) {
+                  vErrors = [err6];
+                } else {
+                  vErrors.push(err6);
+                }
+                errors2++;
+              }
+              for (const key1 in data4) {
+                if (!(key1 === "name" || key1 === "seq")) {
+                  const err7 = { instancePath: instancePath + "/sequences/" + i0, schemaPath: "#/properties/sequences/items/additionalProperties", keyword: "additionalProperties", params: { additionalProperty: key1 }, message: "must NOT have additional properties", schema: false, parentSchema: schema26.properties.sequences.items, data: data4 };
+                  if (vErrors === null) {
+                    vErrors = [err7];
+                  } else {
+                    vErrors.push(err7);
+                  }
+                  errors2++;
+                }
+              }
+              if (data4.name !== void 0) {
+                let data5 = data4.name;
+                if (typeof data5 !== "string") {
+                  const err8 = { instancePath: instancePath + "/sequences/" + i0 + "/name", schemaPath: "#/properties/sequences/items/properties/name/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema26.properties.sequences.items.properties.name.type, parentSchema: schema26.properties.sequences.items.properties.name, data: data5 };
+                  if (vErrors === null) {
+                    vErrors = [err8];
+                  } else {
+                    vErrors.push(err8);
+                  }
+                  errors2++;
+                }
+              }
+              if (data4.seq !== void 0) {
+                let data6 = data4.seq;
+                if (typeof data6 !== "string") {
+                  const err9 = { instancePath: instancePath + "/sequences/" + i0 + "/seq", schemaPath: "#/properties/sequences/items/properties/seq/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema26.properties.sequences.items.properties.seq.type, parentSchema: schema26.properties.sequences.items.properties.seq, data: data6 };
+                  if (vErrors === null) {
+                    vErrors = [err9];
+                  } else {
+                    vErrors.push(err9);
+                  }
+                  errors2++;
+                }
+              }
+            } else {
+              const err10 = { instancePath: instancePath + "/sequences/" + i0, schemaPath: "#/properties/sequences/items/type", keyword: "type", params: { type: "object" }, message: "must be object", schema: schema26.properties.sequences.items.type, parentSchema: schema26.properties.sequences.items, data: data4 };
+              if (vErrors === null) {
+                vErrors = [err10];
+              } else {
+                vErrors.push(err10);
+              }
+              errors2++;
+            }
+          }
+        } else {
+          const err11 = { instancePath: instancePath + "/sequences", schemaPath: "#/properties/sequences/type", keyword: "type", params: { type: "array" }, message: "must be array", schema: schema26.properties.sequences.type, parentSchema: schema26.properties.sequences, data: data3 };
+          if (vErrors === null) {
+            vErrors = [err11];
+          } else {
+            vErrors.push(err11);
+          }
+          errors2++;
+        }
+      }
+      let data7 = data.type;
+      if (!(data7 === "auto" || data7 === "dna" || data7 === "rna" || data7 === "protein")) {
+        const err12 = { instancePath: instancePath + "/type", schemaPath: "#/properties/type/enum", keyword: "enum", params: { allowedValues: schema26.properties.type.enum }, message: "must be equal to one of the allowed values", schema: schema26.properties.type.enum, parentSchema: schema26.properties.type, data: data7 };
+        if (vErrors === null) {
+          vErrors = [err12];
+        } else {
+          vErrors.push(err12);
+        }
+        errors2++;
+      }
+      if (data.annotations !== void 0) {
+        let data8 = data.annotations;
+        if (Array.isArray(data8)) {
+          const len1 = data8.length;
+          for (let i1 = 0; i1 < len1; i1++) {
+            let data9 = data8[i1];
+            if (data9 && typeof data9 == "object" && !Array.isArray(data9)) {
+              if (data9.start === void 0) {
+                const err13 = { instancePath: instancePath + "/annotations/" + i1, schemaPath: "#/properties/annotations/items/required", keyword: "required", params: { missingProperty: "start" }, message: "must have required property 'start'", schema: schema26.properties.annotations.items.required, parentSchema: schema26.properties.annotations.items, data: data9 };
+                if (vErrors === null) {
+                  vErrors = [err13];
+                } else {
+                  vErrors.push(err13);
+                }
+                errors2++;
+              }
+              if (data9.end === void 0) {
+                const err14 = { instancePath: instancePath + "/annotations/" + i1, schemaPath: "#/properties/annotations/items/required", keyword: "required", params: { missingProperty: "end" }, message: "must have required property 'end'", schema: schema26.properties.annotations.items.required, parentSchema: schema26.properties.annotations.items, data: data9 };
+                if (vErrors === null) {
+                  vErrors = [err14];
+                } else {
+                  vErrors.push(err14);
+                }
+                errors2++;
+              }
+              for (const key2 in data9) {
+                if (!(key2 === "start" || key2 === "end" || key2 === "label" || key2 === "color")) {
+                  const err15 = { instancePath: instancePath + "/annotations/" + i1, schemaPath: "#/properties/annotations/items/additionalProperties", keyword: "additionalProperties", params: { additionalProperty: key2 }, message: "must NOT have additional properties", schema: false, parentSchema: schema26.properties.annotations.items, data: data9 };
+                  if (vErrors === null) {
+                    vErrors = [err15];
+                  } else {
+                    vErrors.push(err15);
+                  }
+                  errors2++;
+                }
+              }
+              if (data9.start !== void 0) {
+                let data10 = data9.start;
+                if (!(typeof data10 == "number" && (!(data10 % 1) && !isNaN(data10)) && isFinite(data10))) {
+                  const err16 = { instancePath: instancePath + "/annotations/" + i1 + "/start", schemaPath: "#/properties/annotations/items/properties/start/type", keyword: "type", params: { type: "integer" }, message: "must be integer", schema: schema26.properties.annotations.items.properties.start.type, parentSchema: schema26.properties.annotations.items.properties.start, data: data10 };
+                  if (vErrors === null) {
+                    vErrors = [err16];
+                  } else {
+                    vErrors.push(err16);
+                  }
+                  errors2++;
+                }
+                if (typeof data10 == "number" && isFinite(data10)) {
+                  if (data10 < 1 || isNaN(data10)) {
+                    const err17 = { instancePath: instancePath + "/annotations/" + i1 + "/start", schemaPath: "#/properties/annotations/items/properties/start/minimum", keyword: "minimum", params: { comparison: ">=", limit: 1 }, message: "must be >= 1", schema: 1, parentSchema: schema26.properties.annotations.items.properties.start, data: data10 };
+                    if (vErrors === null) {
+                      vErrors = [err17];
+                    } else {
+                      vErrors.push(err17);
+                    }
+                    errors2++;
+                  }
+                }
+              }
+              if (data9.end !== void 0) {
+                let data11 = data9.end;
+                if (!(typeof data11 == "number" && (!(data11 % 1) && !isNaN(data11)) && isFinite(data11))) {
+                  const err18 = { instancePath: instancePath + "/annotations/" + i1 + "/end", schemaPath: "#/properties/annotations/items/properties/end/type", keyword: "type", params: { type: "integer" }, message: "must be integer", schema: schema26.properties.annotations.items.properties.end.type, parentSchema: schema26.properties.annotations.items.properties.end, data: data11 };
+                  if (vErrors === null) {
+                    vErrors = [err18];
+                  } else {
+                    vErrors.push(err18);
+                  }
+                  errors2++;
+                }
+                if (typeof data11 == "number" && isFinite(data11)) {
+                  if (data11 < 1 || isNaN(data11)) {
+                    const err19 = { instancePath: instancePath + "/annotations/" + i1 + "/end", schemaPath: "#/properties/annotations/items/properties/end/minimum", keyword: "minimum", params: { comparison: ">=", limit: 1 }, message: "must be >= 1", schema: 1, parentSchema: schema26.properties.annotations.items.properties.end, data: data11 };
+                    if (vErrors === null) {
+                      vErrors = [err19];
+                    } else {
+                      vErrors.push(err19);
+                    }
+                    errors2++;
+                  }
+                }
+              }
+              if (data9.label !== void 0) {
+                let data12 = data9.label;
+                if (typeof data12 !== "string") {
+                  const err20 = { instancePath: instancePath + "/annotations/" + i1 + "/label", schemaPath: "#/properties/annotations/items/properties/label/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema26.properties.annotations.items.properties.label.type, parentSchema: schema26.properties.annotations.items.properties.label, data: data12 };
+                  if (vErrors === null) {
+                    vErrors = [err20];
+                  } else {
+                    vErrors.push(err20);
+                  }
+                  errors2++;
+                }
+              }
+              if (data9.color !== void 0) {
+                let data13 = data9.color;
+                if (!(data13 === "accent" || data13 === "blue" || data13 === "green" || data13 === "yellow" || data13 === "red")) {
+                  const err21 = { instancePath: instancePath + "/annotations/" + i1 + "/color", schemaPath: "#/properties/annotations/items/properties/color/enum", keyword: "enum", params: { allowedValues: schema26.properties.annotations.items.properties.color.enum }, message: "must be equal to one of the allowed values", schema: schema26.properties.annotations.items.properties.color.enum, parentSchema: schema26.properties.annotations.items.properties.color, data: data13 };
+                  if (vErrors === null) {
+                    vErrors = [err21];
+                  } else {
+                    vErrors.push(err21);
+                  }
+                  errors2++;
+                }
+              }
+            } else {
+              const err22 = { instancePath: instancePath + "/annotations/" + i1, schemaPath: "#/properties/annotations/items/type", keyword: "type", params: { type: "object" }, message: "must be object", schema: schema26.properties.annotations.items.type, parentSchema: schema26.properties.annotations.items, data: data9 };
+              if (vErrors === null) {
+                vErrors = [err22];
+              } else {
+                vErrors.push(err22);
+              }
+              errors2++;
+            }
+          }
+        } else {
+          const err23 = { instancePath: instancePath + "/annotations", schemaPath: "#/properties/annotations/type", keyword: "type", params: { type: "array" }, message: "must be array", schema: schema26.properties.annotations.type, parentSchema: schema26.properties.annotations, data: data8 };
+          if (vErrors === null) {
+            vErrors = [err23];
+          } else {
+            vErrors.push(err23);
+          }
+          errors2++;
+        }
+      }
+      let data14 = data.width;
+      if (!(typeof data14 == "number" && (!(data14 % 1) && !isNaN(data14)) && isFinite(data14))) {
+        const err24 = { instancePath: instancePath + "/width", schemaPath: "#/properties/width/type", keyword: "type", params: { type: "integer" }, message: "must be integer", schema: schema26.properties.width.type, parentSchema: schema26.properties.width, data: data14 };
+        if (vErrors === null) {
+          vErrors = [err24];
+        } else {
+          vErrors.push(err24);
+        }
+        errors2++;
+      }
+      if (typeof data14 == "number" && isFinite(data14)) {
+        if (data14 > 200 || isNaN(data14)) {
+          const err25 = { instancePath: instancePath + "/width", schemaPath: "#/properties/width/maximum", keyword: "maximum", params: { comparison: "<=", limit: 200 }, message: "must be <= 200", schema: 200, parentSchema: schema26.properties.width, data: data14 };
+          if (vErrors === null) {
+            vErrors = [err25];
+          } else {
+            vErrors.push(err25);
+          }
+          errors2++;
+        }
+        if (data14 < 10 || isNaN(data14)) {
+          const err26 = { instancePath: instancePath + "/width", schemaPath: "#/properties/width/minimum", keyword: "minimum", params: { comparison: ">=", limit: 10 }, message: "must be >= 10", schema: 10, parentSchema: schema26.properties.width, data: data14 };
+          if (vErrors === null) {
+            vErrors = [err26];
+          } else {
+            vErrors.push(err26);
+          }
+          errors2++;
+        }
+      }
+      let data15 = data.start;
+      if (!(typeof data15 == "number" && (!(data15 % 1) && !isNaN(data15)) && isFinite(data15))) {
+        const err27 = { instancePath: instancePath + "/start", schemaPath: "#/properties/start/type", keyword: "type", params: { type: "integer" }, message: "must be integer", schema: schema26.properties.start.type, parentSchema: schema26.properties.start, data: data15 };
+        if (vErrors === null) {
+          vErrors = [err27];
+        } else {
+          vErrors.push(err27);
+        }
+        errors2++;
+      }
+      if (data.consensus !== void 0) {
+        let data16 = data.consensus;
+        if (typeof data16 !== "boolean") {
+          const err28 = { instancePath: instancePath + "/consensus", schemaPath: "#/properties/consensus/type", keyword: "type", params: { type: "boolean" }, message: "must be boolean", schema: schema26.properties.consensus.type, parentSchema: schema26.properties.consensus, data: data16 };
+          if (vErrors === null) {
+            vErrors = [err28];
+          } else {
+            vErrors.push(err28);
+          }
+          errors2++;
+        }
+      }
+    } else {
+      const err29 = { instancePath, schemaPath: "#/type", keyword: "type", params: { type: "object" }, message: "must be object", schema: schema26.type, parentSchema: schema26, data };
+      if (vErrors === null) {
+        vErrors = [err29];
+      } else {
+        vErrors.push(err29);
+      }
+      errors2++;
+    }
+    validate25.errors = vErrors;
+    return errors2 === 0;
+  }
+  var tree = validate26;
+  var schema27 = { "type": "object", "additionalProperties": false, "properties": { "title": { "type": "string" }, "data": { "type": "string", "description": "relative path to a Newick file (.nwk .newick .tre .tree)" }, "newick": { "type": "string", "description": "e.g. ((A:0.1,B:0.2):0.3,C:0.4);" }, "lengths": { "type": "boolean", "description": "scale branches by length (default: when lengths are given)" }, "support": { "type": "boolean", "default": true, "description": "show support values" }, "highlight": { "type": "array", "items": { "type": "string" }, "description": "leaf names to highlight" } } };
+  function validate26(data, { instancePath = "", parentData, parentDataProperty, rootData = data } = {}) {
+    let vErrors = null;
+    let errors2 = 0;
+    if (data && typeof data == "object" && !Array.isArray(data)) {
+      if (data.support === void 0) {
+        data.support = true;
+      }
+      for (const key0 in data) {
+        if (!(key0 === "title" || key0 === "data" || key0 === "newick" || key0 === "lengths" || key0 === "support" || key0 === "highlight")) {
+          const err0 = { instancePath, schemaPath: "#/additionalProperties", keyword: "additionalProperties", params: { additionalProperty: key0 }, message: "must NOT have additional properties", schema: false, parentSchema: schema27, data };
+          if (vErrors === null) {
+            vErrors = [err0];
+          } else {
+            vErrors.push(err0);
+          }
+          errors2++;
+        }
+      }
+      if (data.title !== void 0) {
+        let data0 = data.title;
+        if (typeof data0 !== "string") {
+          const err1 = { instancePath: instancePath + "/title", schemaPath: "#/properties/title/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema27.properties.title.type, parentSchema: schema27.properties.title, data: data0 };
+          if (vErrors === null) {
+            vErrors = [err1];
+          } else {
+            vErrors.push(err1);
+          }
+          errors2++;
+        }
+      }
+      if (data.data !== void 0) {
+        let data1 = data.data;
+        if (typeof data1 !== "string") {
+          const err2 = { instancePath: instancePath + "/data", schemaPath: "#/properties/data/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema27.properties.data.type, parentSchema: schema27.properties.data, data: data1 };
+          if (vErrors === null) {
+            vErrors = [err2];
+          } else {
+            vErrors.push(err2);
+          }
+          errors2++;
+        }
+      }
+      if (data.newick !== void 0) {
+        let data2 = data.newick;
+        if (typeof data2 !== "string") {
+          const err3 = { instancePath: instancePath + "/newick", schemaPath: "#/properties/newick/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema27.properties.newick.type, parentSchema: schema27.properties.newick, data: data2 };
+          if (vErrors === null) {
+            vErrors = [err3];
+          } else {
+            vErrors.push(err3);
+          }
+          errors2++;
+        }
+      }
+      if (data.lengths !== void 0) {
+        let data3 = data.lengths;
+        if (typeof data3 !== "boolean") {
+          const err4 = { instancePath: instancePath + "/lengths", schemaPath: "#/properties/lengths/type", keyword: "type", params: { type: "boolean" }, message: "must be boolean", schema: schema27.properties.lengths.type, parentSchema: schema27.properties.lengths, data: data3 };
+          if (vErrors === null) {
+            vErrors = [err4];
+          } else {
+            vErrors.push(err4);
+          }
+          errors2++;
+        }
+      }
+      let data4 = data.support;
+      if (typeof data4 !== "boolean") {
+        const err5 = { instancePath: instancePath + "/support", schemaPath: "#/properties/support/type", keyword: "type", params: { type: "boolean" }, message: "must be boolean", schema: schema27.properties.support.type, parentSchema: schema27.properties.support, data: data4 };
+        if (vErrors === null) {
+          vErrors = [err5];
+        } else {
+          vErrors.push(err5);
+        }
+        errors2++;
+      }
+      if (data.highlight !== void 0) {
+        let data5 = data.highlight;
+        if (Array.isArray(data5)) {
+          const len0 = data5.length;
+          for (let i0 = 0; i0 < len0; i0++) {
+            let data6 = data5[i0];
+            if (typeof data6 !== "string") {
+              const err6 = { instancePath: instancePath + "/highlight/" + i0, schemaPath: "#/properties/highlight/items/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema27.properties.highlight.items.type, parentSchema: schema27.properties.highlight.items, data: data6 };
+              if (vErrors === null) {
+                vErrors = [err6];
+              } else {
+                vErrors.push(err6);
+              }
+              errors2++;
+            }
+          }
+        } else {
+          const err7 = { instancePath: instancePath + "/highlight", schemaPath: "#/properties/highlight/type", keyword: "type", params: { type: "array" }, message: "must be array", schema: schema27.properties.highlight.type, parentSchema: schema27.properties.highlight, data: data5 };
+          if (vErrors === null) {
+            vErrors = [err7];
+          } else {
+            vErrors.push(err7);
+          }
+          errors2++;
+        }
+      }
+    } else {
+      const err8 = { instancePath, schemaPath: "#/type", keyword: "type", params: { type: "object" }, message: "must be object", schema: schema27.type, parentSchema: schema27, data };
+      if (vErrors === null) {
+        vErrors = [err8];
+      } else {
+        vErrors.push(err8);
+      }
+      errors2++;
+    }
+    validate26.errors = vErrors;
+    return errors2 === 0;
+  }
+  var tracks = validate27;
+  var schema28 = { "type": "object", "additionalProperties": false, "required": ["region", "tracks"], "properties": { "title": { "type": "string" }, "region": { "type": "string", "description": 'e.g. "chr7:117,480,000-117,670,000"' }, "tracks": { "type": "array", "minItems": 1, "maxItems": 20, "items": { "type": "object", "additionalProperties": false, "required": ["type"], "properties": { "type": { "enum": ["features", "signal", "variants"] }, "label": { "type": "string" }, "data": { "type": "string", "description": "features: .bed; signal: .bedgraph/.bg or .csv (position,value)" }, "features": { "type": "array", "items": { "type": "object", "additionalProperties": false, "required": ["start", "end"], "properties": { "start": { "type": "integer" }, "end": { "type": "integer" }, "name": { "type": "string" }, "strand": { "enum": ["+", "-"] }, "exons": { "type": "array", "items": { "type": "array", "items": { "type": "integer" }, "minItems": 2, "maxItems": 2 } } } } }, "values": { "type": "array", "items": { "type": "array", "items": { "type": "number" }, "minItems": 2, "maxItems": 2 }, "description": "signal: [[position, value], \u2026]" }, "variants": { "type": "array", "items": { "type": "object", "additionalProperties": false, "required": ["pos"], "properties": { "pos": { "type": "integer" }, "ref": { "type": "string" }, "alt": { "type": "string" }, "label": { "type": "string" }, "impact": { "enum": ["high", "moderate", "low"] } } } }, "color": { "enum": ["accent", "blue", "green", "yellow", "red"] }, "height": { "type": "integer", "minimum": 20, "maximum": 400 } } } } } };
+  function validate27(data, { instancePath = "", parentData, parentDataProperty, rootData = data } = {}) {
+    let vErrors = null;
+    let errors2 = 0;
+    if (data && typeof data == "object" && !Array.isArray(data)) {
+      if (data.region === void 0) {
+        const err0 = { instancePath, schemaPath: "#/required", keyword: "required", params: { missingProperty: "region" }, message: "must have required property 'region'", schema: schema28.required, parentSchema: schema28, data };
+        if (vErrors === null) {
+          vErrors = [err0];
+        } else {
+          vErrors.push(err0);
+        }
+        errors2++;
+      }
+      if (data.tracks === void 0) {
+        const err1 = { instancePath, schemaPath: "#/required", keyword: "required", params: { missingProperty: "tracks" }, message: "must have required property 'tracks'", schema: schema28.required, parentSchema: schema28, data };
+        if (vErrors === null) {
+          vErrors = [err1];
+        } else {
+          vErrors.push(err1);
+        }
+        errors2++;
+      }
+      for (const key0 in data) {
+        if (!(key0 === "title" || key0 === "region" || key0 === "tracks")) {
+          const err2 = { instancePath, schemaPath: "#/additionalProperties", keyword: "additionalProperties", params: { additionalProperty: key0 }, message: "must NOT have additional properties", schema: false, parentSchema: schema28, data };
+          if (vErrors === null) {
+            vErrors = [err2];
+          } else {
+            vErrors.push(err2);
+          }
+          errors2++;
+        }
+      }
+      if (data.title !== void 0) {
+        let data0 = data.title;
+        if (typeof data0 !== "string") {
+          const err3 = { instancePath: instancePath + "/title", schemaPath: "#/properties/title/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema28.properties.title.type, parentSchema: schema28.properties.title, data: data0 };
+          if (vErrors === null) {
+            vErrors = [err3];
+          } else {
+            vErrors.push(err3);
+          }
+          errors2++;
+        }
+      }
+      if (data.region !== void 0) {
+        let data1 = data.region;
+        if (typeof data1 !== "string") {
+          const err4 = { instancePath: instancePath + "/region", schemaPath: "#/properties/region/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema28.properties.region.type, parentSchema: schema28.properties.region, data: data1 };
+          if (vErrors === null) {
+            vErrors = [err4];
+          } else {
+            vErrors.push(err4);
+          }
+          errors2++;
+        }
+      }
+      if (data.tracks !== void 0) {
+        let data2 = data.tracks;
+        if (Array.isArray(data2)) {
+          if (data2.length > 20) {
+            const err5 = { instancePath: instancePath + "/tracks", schemaPath: "#/properties/tracks/maxItems", keyword: "maxItems", params: { limit: 20 }, message: "must NOT have more than 20 items", schema: 20, parentSchema: schema28.properties.tracks, data: data2 };
+            if (vErrors === null) {
+              vErrors = [err5];
+            } else {
+              vErrors.push(err5);
+            }
+            errors2++;
+          }
+          if (data2.length < 1) {
+            const err6 = { instancePath: instancePath + "/tracks", schemaPath: "#/properties/tracks/minItems", keyword: "minItems", params: { limit: 1 }, message: "must NOT have fewer than 1 items", schema: 1, parentSchema: schema28.properties.tracks, data: data2 };
+            if (vErrors === null) {
+              vErrors = [err6];
+            } else {
+              vErrors.push(err6);
+            }
+            errors2++;
+          }
+          const len0 = data2.length;
+          for (let i0 = 0; i0 < len0; i0++) {
+            let data3 = data2[i0];
+            if (data3 && typeof data3 == "object" && !Array.isArray(data3)) {
+              if (data3.type === void 0) {
+                const err7 = { instancePath: instancePath + "/tracks/" + i0, schemaPath: "#/properties/tracks/items/required", keyword: "required", params: { missingProperty: "type" }, message: "must have required property 'type'", schema: schema28.properties.tracks.items.required, parentSchema: schema28.properties.tracks.items, data: data3 };
+                if (vErrors === null) {
+                  vErrors = [err7];
+                } else {
+                  vErrors.push(err7);
+                }
+                errors2++;
+              }
+              for (const key1 in data3) {
+                if (!(key1 === "type" || key1 === "label" || key1 === "data" || key1 === "features" || key1 === "values" || key1 === "variants" || key1 === "color" || key1 === "height")) {
+                  const err8 = { instancePath: instancePath + "/tracks/" + i0, schemaPath: "#/properties/tracks/items/additionalProperties", keyword: "additionalProperties", params: { additionalProperty: key1 }, message: "must NOT have additional properties", schema: false, parentSchema: schema28.properties.tracks.items, data: data3 };
+                  if (vErrors === null) {
+                    vErrors = [err8];
+                  } else {
+                    vErrors.push(err8);
+                  }
+                  errors2++;
+                }
+              }
+              if (data3.type !== void 0) {
+                let data4 = data3.type;
+                if (!(data4 === "features" || data4 === "signal" || data4 === "variants")) {
+                  const err9 = { instancePath: instancePath + "/tracks/" + i0 + "/type", schemaPath: "#/properties/tracks/items/properties/type/enum", keyword: "enum", params: { allowedValues: schema28.properties.tracks.items.properties.type.enum }, message: "must be equal to one of the allowed values", schema: schema28.properties.tracks.items.properties.type.enum, parentSchema: schema28.properties.tracks.items.properties.type, data: data4 };
+                  if (vErrors === null) {
+                    vErrors = [err9];
+                  } else {
+                    vErrors.push(err9);
+                  }
+                  errors2++;
+                }
+              }
+              if (data3.label !== void 0) {
+                let data5 = data3.label;
+                if (typeof data5 !== "string") {
+                  const err10 = { instancePath: instancePath + "/tracks/" + i0 + "/label", schemaPath: "#/properties/tracks/items/properties/label/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema28.properties.tracks.items.properties.label.type, parentSchema: schema28.properties.tracks.items.properties.label, data: data5 };
+                  if (vErrors === null) {
+                    vErrors = [err10];
+                  } else {
+                    vErrors.push(err10);
+                  }
+                  errors2++;
+                }
+              }
+              if (data3.data !== void 0) {
+                let data6 = data3.data;
+                if (typeof data6 !== "string") {
+                  const err11 = { instancePath: instancePath + "/tracks/" + i0 + "/data", schemaPath: "#/properties/tracks/items/properties/data/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema28.properties.tracks.items.properties.data.type, parentSchema: schema28.properties.tracks.items.properties.data, data: data6 };
+                  if (vErrors === null) {
+                    vErrors = [err11];
+                  } else {
+                    vErrors.push(err11);
+                  }
+                  errors2++;
+                }
+              }
+              if (data3.features !== void 0) {
+                let data7 = data3.features;
+                if (Array.isArray(data7)) {
+                  const len1 = data7.length;
+                  for (let i1 = 0; i1 < len1; i1++) {
+                    let data8 = data7[i1];
+                    if (data8 && typeof data8 == "object" && !Array.isArray(data8)) {
+                      if (data8.start === void 0) {
+                        const err12 = { instancePath: instancePath + "/tracks/" + i0 + "/features/" + i1, schemaPath: "#/properties/tracks/items/properties/features/items/required", keyword: "required", params: { missingProperty: "start" }, message: "must have required property 'start'", schema: schema28.properties.tracks.items.properties.features.items.required, parentSchema: schema28.properties.tracks.items.properties.features.items, data: data8 };
+                        if (vErrors === null) {
+                          vErrors = [err12];
+                        } else {
+                          vErrors.push(err12);
+                        }
+                        errors2++;
+                      }
+                      if (data8.end === void 0) {
+                        const err13 = { instancePath: instancePath + "/tracks/" + i0 + "/features/" + i1, schemaPath: "#/properties/tracks/items/properties/features/items/required", keyword: "required", params: { missingProperty: "end" }, message: "must have required property 'end'", schema: schema28.properties.tracks.items.properties.features.items.required, parentSchema: schema28.properties.tracks.items.properties.features.items, data: data8 };
+                        if (vErrors === null) {
+                          vErrors = [err13];
+                        } else {
+                          vErrors.push(err13);
+                        }
+                        errors2++;
+                      }
+                      for (const key2 in data8) {
+                        if (!(key2 === "start" || key2 === "end" || key2 === "name" || key2 === "strand" || key2 === "exons")) {
+                          const err14 = { instancePath: instancePath + "/tracks/" + i0 + "/features/" + i1, schemaPath: "#/properties/tracks/items/properties/features/items/additionalProperties", keyword: "additionalProperties", params: { additionalProperty: key2 }, message: "must NOT have additional properties", schema: false, parentSchema: schema28.properties.tracks.items.properties.features.items, data: data8 };
+                          if (vErrors === null) {
+                            vErrors = [err14];
+                          } else {
+                            vErrors.push(err14);
+                          }
+                          errors2++;
+                        }
+                      }
+                      if (data8.start !== void 0) {
+                        let data9 = data8.start;
+                        if (!(typeof data9 == "number" && (!(data9 % 1) && !isNaN(data9)) && isFinite(data9))) {
+                          const err15 = { instancePath: instancePath + "/tracks/" + i0 + "/features/" + i1 + "/start", schemaPath: "#/properties/tracks/items/properties/features/items/properties/start/type", keyword: "type", params: { type: "integer" }, message: "must be integer", schema: schema28.properties.tracks.items.properties.features.items.properties.start.type, parentSchema: schema28.properties.tracks.items.properties.features.items.properties.start, data: data9 };
+                          if (vErrors === null) {
+                            vErrors = [err15];
+                          } else {
+                            vErrors.push(err15);
+                          }
+                          errors2++;
+                        }
+                      }
+                      if (data8.end !== void 0) {
+                        let data10 = data8.end;
+                        if (!(typeof data10 == "number" && (!(data10 % 1) && !isNaN(data10)) && isFinite(data10))) {
+                          const err16 = { instancePath: instancePath + "/tracks/" + i0 + "/features/" + i1 + "/end", schemaPath: "#/properties/tracks/items/properties/features/items/properties/end/type", keyword: "type", params: { type: "integer" }, message: "must be integer", schema: schema28.properties.tracks.items.properties.features.items.properties.end.type, parentSchema: schema28.properties.tracks.items.properties.features.items.properties.end, data: data10 };
+                          if (vErrors === null) {
+                            vErrors = [err16];
+                          } else {
+                            vErrors.push(err16);
+                          }
+                          errors2++;
+                        }
+                      }
+                      if (data8.name !== void 0) {
+                        let data11 = data8.name;
+                        if (typeof data11 !== "string") {
+                          const err17 = { instancePath: instancePath + "/tracks/" + i0 + "/features/" + i1 + "/name", schemaPath: "#/properties/tracks/items/properties/features/items/properties/name/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema28.properties.tracks.items.properties.features.items.properties.name.type, parentSchema: schema28.properties.tracks.items.properties.features.items.properties.name, data: data11 };
+                          if (vErrors === null) {
+                            vErrors = [err17];
+                          } else {
+                            vErrors.push(err17);
+                          }
+                          errors2++;
+                        }
+                      }
+                      if (data8.strand !== void 0) {
+                        let data12 = data8.strand;
+                        if (!(data12 === "+" || data12 === "-")) {
+                          const err18 = { instancePath: instancePath + "/tracks/" + i0 + "/features/" + i1 + "/strand", schemaPath: "#/properties/tracks/items/properties/features/items/properties/strand/enum", keyword: "enum", params: { allowedValues: schema28.properties.tracks.items.properties.features.items.properties.strand.enum }, message: "must be equal to one of the allowed values", schema: schema28.properties.tracks.items.properties.features.items.properties.strand.enum, parentSchema: schema28.properties.tracks.items.properties.features.items.properties.strand, data: data12 };
+                          if (vErrors === null) {
+                            vErrors = [err18];
+                          } else {
+                            vErrors.push(err18);
+                          }
+                          errors2++;
+                        }
+                      }
+                      if (data8.exons !== void 0) {
+                        let data13 = data8.exons;
+                        if (Array.isArray(data13)) {
+                          const len2 = data13.length;
+                          for (let i2 = 0; i2 < len2; i2++) {
+                            let data14 = data13[i2];
+                            if (Array.isArray(data14)) {
+                              if (data14.length > 2) {
+                                const err19 = { instancePath: instancePath + "/tracks/" + i0 + "/features/" + i1 + "/exons/" + i2, schemaPath: "#/properties/tracks/items/properties/features/items/properties/exons/items/maxItems", keyword: "maxItems", params: { limit: 2 }, message: "must NOT have more than 2 items", schema: 2, parentSchema: schema28.properties.tracks.items.properties.features.items.properties.exons.items, data: data14 };
+                                if (vErrors === null) {
+                                  vErrors = [err19];
+                                } else {
+                                  vErrors.push(err19);
+                                }
+                                errors2++;
+                              }
+                              if (data14.length < 2) {
+                                const err20 = { instancePath: instancePath + "/tracks/" + i0 + "/features/" + i1 + "/exons/" + i2, schemaPath: "#/properties/tracks/items/properties/features/items/properties/exons/items/minItems", keyword: "minItems", params: { limit: 2 }, message: "must NOT have fewer than 2 items", schema: 2, parentSchema: schema28.properties.tracks.items.properties.features.items.properties.exons.items, data: data14 };
+                                if (vErrors === null) {
+                                  vErrors = [err20];
+                                } else {
+                                  vErrors.push(err20);
+                                }
+                                errors2++;
+                              }
+                              const len3 = data14.length;
+                              for (let i3 = 0; i3 < len3; i3++) {
+                                let data15 = data14[i3];
+                                if (!(typeof data15 == "number" && (!(data15 % 1) && !isNaN(data15)) && isFinite(data15))) {
+                                  const err21 = { instancePath: instancePath + "/tracks/" + i0 + "/features/" + i1 + "/exons/" + i2 + "/" + i3, schemaPath: "#/properties/tracks/items/properties/features/items/properties/exons/items/items/type", keyword: "type", params: { type: "integer" }, message: "must be integer", schema: schema28.properties.tracks.items.properties.features.items.properties.exons.items.items.type, parentSchema: schema28.properties.tracks.items.properties.features.items.properties.exons.items.items, data: data15 };
+                                  if (vErrors === null) {
+                                    vErrors = [err21];
+                                  } else {
+                                    vErrors.push(err21);
+                                  }
+                                  errors2++;
+                                }
+                              }
+                            } else {
+                              const err22 = { instancePath: instancePath + "/tracks/" + i0 + "/features/" + i1 + "/exons/" + i2, schemaPath: "#/properties/tracks/items/properties/features/items/properties/exons/items/type", keyword: "type", params: { type: "array" }, message: "must be array", schema: schema28.properties.tracks.items.properties.features.items.properties.exons.items.type, parentSchema: schema28.properties.tracks.items.properties.features.items.properties.exons.items, data: data14 };
+                              if (vErrors === null) {
+                                vErrors = [err22];
+                              } else {
+                                vErrors.push(err22);
+                              }
+                              errors2++;
+                            }
+                          }
+                        } else {
+                          const err23 = { instancePath: instancePath + "/tracks/" + i0 + "/features/" + i1 + "/exons", schemaPath: "#/properties/tracks/items/properties/features/items/properties/exons/type", keyword: "type", params: { type: "array" }, message: "must be array", schema: schema28.properties.tracks.items.properties.features.items.properties.exons.type, parentSchema: schema28.properties.tracks.items.properties.features.items.properties.exons, data: data13 };
+                          if (vErrors === null) {
+                            vErrors = [err23];
+                          } else {
+                            vErrors.push(err23);
+                          }
+                          errors2++;
+                        }
+                      }
+                    } else {
+                      const err24 = { instancePath: instancePath + "/tracks/" + i0 + "/features/" + i1, schemaPath: "#/properties/tracks/items/properties/features/items/type", keyword: "type", params: { type: "object" }, message: "must be object", schema: schema28.properties.tracks.items.properties.features.items.type, parentSchema: schema28.properties.tracks.items.properties.features.items, data: data8 };
+                      if (vErrors === null) {
+                        vErrors = [err24];
+                      } else {
+                        vErrors.push(err24);
+                      }
+                      errors2++;
+                    }
+                  }
+                } else {
+                  const err25 = { instancePath: instancePath + "/tracks/" + i0 + "/features", schemaPath: "#/properties/tracks/items/properties/features/type", keyword: "type", params: { type: "array" }, message: "must be array", schema: schema28.properties.tracks.items.properties.features.type, parentSchema: schema28.properties.tracks.items.properties.features, data: data7 };
+                  if (vErrors === null) {
+                    vErrors = [err25];
+                  } else {
+                    vErrors.push(err25);
+                  }
+                  errors2++;
+                }
+              }
+              if (data3.values !== void 0) {
+                let data16 = data3.values;
+                if (Array.isArray(data16)) {
+                  const len4 = data16.length;
+                  for (let i4 = 0; i4 < len4; i4++) {
+                    let data17 = data16[i4];
+                    if (Array.isArray(data17)) {
+                      if (data17.length > 2) {
+                        const err26 = { instancePath: instancePath + "/tracks/" + i0 + "/values/" + i4, schemaPath: "#/properties/tracks/items/properties/values/items/maxItems", keyword: "maxItems", params: { limit: 2 }, message: "must NOT have more than 2 items", schema: 2, parentSchema: schema28.properties.tracks.items.properties.values.items, data: data17 };
+                        if (vErrors === null) {
+                          vErrors = [err26];
+                        } else {
+                          vErrors.push(err26);
+                        }
+                        errors2++;
+                      }
+                      if (data17.length < 2) {
+                        const err27 = { instancePath: instancePath + "/tracks/" + i0 + "/values/" + i4, schemaPath: "#/properties/tracks/items/properties/values/items/minItems", keyword: "minItems", params: { limit: 2 }, message: "must NOT have fewer than 2 items", schema: 2, parentSchema: schema28.properties.tracks.items.properties.values.items, data: data17 };
+                        if (vErrors === null) {
+                          vErrors = [err27];
+                        } else {
+                          vErrors.push(err27);
+                        }
+                        errors2++;
+                      }
+                      const len5 = data17.length;
+                      for (let i5 = 0; i5 < len5; i5++) {
+                        let data18 = data17[i5];
+                        if (!(typeof data18 == "number" && isFinite(data18))) {
+                          const err28 = { instancePath: instancePath + "/tracks/" + i0 + "/values/" + i4 + "/" + i5, schemaPath: "#/properties/tracks/items/properties/values/items/items/type", keyword: "type", params: { type: "number" }, message: "must be number", schema: schema28.properties.tracks.items.properties.values.items.items.type, parentSchema: schema28.properties.tracks.items.properties.values.items.items, data: data18 };
+                          if (vErrors === null) {
+                            vErrors = [err28];
+                          } else {
+                            vErrors.push(err28);
+                          }
+                          errors2++;
+                        }
+                      }
+                    } else {
+                      const err29 = { instancePath: instancePath + "/tracks/" + i0 + "/values/" + i4, schemaPath: "#/properties/tracks/items/properties/values/items/type", keyword: "type", params: { type: "array" }, message: "must be array", schema: schema28.properties.tracks.items.properties.values.items.type, parentSchema: schema28.properties.tracks.items.properties.values.items, data: data17 };
+                      if (vErrors === null) {
+                        vErrors = [err29];
+                      } else {
+                        vErrors.push(err29);
+                      }
+                      errors2++;
+                    }
+                  }
+                } else {
+                  const err30 = { instancePath: instancePath + "/tracks/" + i0 + "/values", schemaPath: "#/properties/tracks/items/properties/values/type", keyword: "type", params: { type: "array" }, message: "must be array", schema: schema28.properties.tracks.items.properties.values.type, parentSchema: schema28.properties.tracks.items.properties.values, data: data16 };
+                  if (vErrors === null) {
+                    vErrors = [err30];
+                  } else {
+                    vErrors.push(err30);
+                  }
+                  errors2++;
+                }
+              }
+              if (data3.variants !== void 0) {
+                let data19 = data3.variants;
+                if (Array.isArray(data19)) {
+                  const len6 = data19.length;
+                  for (let i6 = 0; i6 < len6; i6++) {
+                    let data20 = data19[i6];
+                    if (data20 && typeof data20 == "object" && !Array.isArray(data20)) {
+                      if (data20.pos === void 0) {
+                        const err31 = { instancePath: instancePath + "/tracks/" + i0 + "/variants/" + i6, schemaPath: "#/properties/tracks/items/properties/variants/items/required", keyword: "required", params: { missingProperty: "pos" }, message: "must have required property 'pos'", schema: schema28.properties.tracks.items.properties.variants.items.required, parentSchema: schema28.properties.tracks.items.properties.variants.items, data: data20 };
+                        if (vErrors === null) {
+                          vErrors = [err31];
+                        } else {
+                          vErrors.push(err31);
+                        }
+                        errors2++;
+                      }
+                      for (const key3 in data20) {
+                        if (!(key3 === "pos" || key3 === "ref" || key3 === "alt" || key3 === "label" || key3 === "impact")) {
+                          const err32 = { instancePath: instancePath + "/tracks/" + i0 + "/variants/" + i6, schemaPath: "#/properties/tracks/items/properties/variants/items/additionalProperties", keyword: "additionalProperties", params: { additionalProperty: key3 }, message: "must NOT have additional properties", schema: false, parentSchema: schema28.properties.tracks.items.properties.variants.items, data: data20 };
+                          if (vErrors === null) {
+                            vErrors = [err32];
+                          } else {
+                            vErrors.push(err32);
+                          }
+                          errors2++;
+                        }
+                      }
+                      if (data20.pos !== void 0) {
+                        let data21 = data20.pos;
+                        if (!(typeof data21 == "number" && (!(data21 % 1) && !isNaN(data21)) && isFinite(data21))) {
+                          const err33 = { instancePath: instancePath + "/tracks/" + i0 + "/variants/" + i6 + "/pos", schemaPath: "#/properties/tracks/items/properties/variants/items/properties/pos/type", keyword: "type", params: { type: "integer" }, message: "must be integer", schema: schema28.properties.tracks.items.properties.variants.items.properties.pos.type, parentSchema: schema28.properties.tracks.items.properties.variants.items.properties.pos, data: data21 };
+                          if (vErrors === null) {
+                            vErrors = [err33];
+                          } else {
+                            vErrors.push(err33);
+                          }
+                          errors2++;
+                        }
+                      }
+                      if (data20.ref !== void 0) {
+                        let data22 = data20.ref;
+                        if (typeof data22 !== "string") {
+                          const err34 = { instancePath: instancePath + "/tracks/" + i0 + "/variants/" + i6 + "/ref", schemaPath: "#/properties/tracks/items/properties/variants/items/properties/ref/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema28.properties.tracks.items.properties.variants.items.properties.ref.type, parentSchema: schema28.properties.tracks.items.properties.variants.items.properties.ref, data: data22 };
+                          if (vErrors === null) {
+                            vErrors = [err34];
+                          } else {
+                            vErrors.push(err34);
+                          }
+                          errors2++;
+                        }
+                      }
+                      if (data20.alt !== void 0) {
+                        let data23 = data20.alt;
+                        if (typeof data23 !== "string") {
+                          const err35 = { instancePath: instancePath + "/tracks/" + i0 + "/variants/" + i6 + "/alt", schemaPath: "#/properties/tracks/items/properties/variants/items/properties/alt/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema28.properties.tracks.items.properties.variants.items.properties.alt.type, parentSchema: schema28.properties.tracks.items.properties.variants.items.properties.alt, data: data23 };
+                          if (vErrors === null) {
+                            vErrors = [err35];
+                          } else {
+                            vErrors.push(err35);
+                          }
+                          errors2++;
+                        }
+                      }
+                      if (data20.label !== void 0) {
+                        let data24 = data20.label;
+                        if (typeof data24 !== "string") {
+                          const err36 = { instancePath: instancePath + "/tracks/" + i0 + "/variants/" + i6 + "/label", schemaPath: "#/properties/tracks/items/properties/variants/items/properties/label/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema28.properties.tracks.items.properties.variants.items.properties.label.type, parentSchema: schema28.properties.tracks.items.properties.variants.items.properties.label, data: data24 };
+                          if (vErrors === null) {
+                            vErrors = [err36];
+                          } else {
+                            vErrors.push(err36);
+                          }
+                          errors2++;
+                        }
+                      }
+                      if (data20.impact !== void 0) {
+                        let data25 = data20.impact;
+                        if (!(data25 === "high" || data25 === "moderate" || data25 === "low")) {
+                          const err37 = { instancePath: instancePath + "/tracks/" + i0 + "/variants/" + i6 + "/impact", schemaPath: "#/properties/tracks/items/properties/variants/items/properties/impact/enum", keyword: "enum", params: { allowedValues: schema28.properties.tracks.items.properties.variants.items.properties.impact.enum }, message: "must be equal to one of the allowed values", schema: schema28.properties.tracks.items.properties.variants.items.properties.impact.enum, parentSchema: schema28.properties.tracks.items.properties.variants.items.properties.impact, data: data25 };
+                          if (vErrors === null) {
+                            vErrors = [err37];
+                          } else {
+                            vErrors.push(err37);
+                          }
+                          errors2++;
+                        }
+                      }
+                    } else {
+                      const err38 = { instancePath: instancePath + "/tracks/" + i0 + "/variants/" + i6, schemaPath: "#/properties/tracks/items/properties/variants/items/type", keyword: "type", params: { type: "object" }, message: "must be object", schema: schema28.properties.tracks.items.properties.variants.items.type, parentSchema: schema28.properties.tracks.items.properties.variants.items, data: data20 };
+                      if (vErrors === null) {
+                        vErrors = [err38];
+                      } else {
+                        vErrors.push(err38);
+                      }
+                      errors2++;
+                    }
+                  }
+                } else {
+                  const err39 = { instancePath: instancePath + "/tracks/" + i0 + "/variants", schemaPath: "#/properties/tracks/items/properties/variants/type", keyword: "type", params: { type: "array" }, message: "must be array", schema: schema28.properties.tracks.items.properties.variants.type, parentSchema: schema28.properties.tracks.items.properties.variants, data: data19 };
+                  if (vErrors === null) {
+                    vErrors = [err39];
+                  } else {
+                    vErrors.push(err39);
+                  }
+                  errors2++;
+                }
+              }
+              if (data3.color !== void 0) {
+                let data26 = data3.color;
+                if (!(data26 === "accent" || data26 === "blue" || data26 === "green" || data26 === "yellow" || data26 === "red")) {
+                  const err40 = { instancePath: instancePath + "/tracks/" + i0 + "/color", schemaPath: "#/properties/tracks/items/properties/color/enum", keyword: "enum", params: { allowedValues: schema28.properties.tracks.items.properties.color.enum }, message: "must be equal to one of the allowed values", schema: schema28.properties.tracks.items.properties.color.enum, parentSchema: schema28.properties.tracks.items.properties.color, data: data26 };
+                  if (vErrors === null) {
+                    vErrors = [err40];
+                  } else {
+                    vErrors.push(err40);
+                  }
+                  errors2++;
+                }
+              }
+              if (data3.height !== void 0) {
+                let data27 = data3.height;
+                if (!(typeof data27 == "number" && (!(data27 % 1) && !isNaN(data27)) && isFinite(data27))) {
+                  const err41 = { instancePath: instancePath + "/tracks/" + i0 + "/height", schemaPath: "#/properties/tracks/items/properties/height/type", keyword: "type", params: { type: "integer" }, message: "must be integer", schema: schema28.properties.tracks.items.properties.height.type, parentSchema: schema28.properties.tracks.items.properties.height, data: data27 };
+                  if (vErrors === null) {
+                    vErrors = [err41];
+                  } else {
+                    vErrors.push(err41);
+                  }
+                  errors2++;
+                }
+                if (typeof data27 == "number" && isFinite(data27)) {
+                  if (data27 > 400 || isNaN(data27)) {
+                    const err42 = { instancePath: instancePath + "/tracks/" + i0 + "/height", schemaPath: "#/properties/tracks/items/properties/height/maximum", keyword: "maximum", params: { comparison: "<=", limit: 400 }, message: "must be <= 400", schema: 400, parentSchema: schema28.properties.tracks.items.properties.height, data: data27 };
+                    if (vErrors === null) {
+                      vErrors = [err42];
+                    } else {
+                      vErrors.push(err42);
+                    }
+                    errors2++;
+                  }
+                  if (data27 < 20 || isNaN(data27)) {
+                    const err43 = { instancePath: instancePath + "/tracks/" + i0 + "/height", schemaPath: "#/properties/tracks/items/properties/height/minimum", keyword: "minimum", params: { comparison: ">=", limit: 20 }, message: "must be >= 20", schema: 20, parentSchema: schema28.properties.tracks.items.properties.height, data: data27 };
+                    if (vErrors === null) {
+                      vErrors = [err43];
+                    } else {
+                      vErrors.push(err43);
+                    }
+                    errors2++;
+                  }
+                }
+              }
+            } else {
+              const err44 = { instancePath: instancePath + "/tracks/" + i0, schemaPath: "#/properties/tracks/items/type", keyword: "type", params: { type: "object" }, message: "must be object", schema: schema28.properties.tracks.items.type, parentSchema: schema28.properties.tracks.items, data: data3 };
+              if (vErrors === null) {
+                vErrors = [err44];
+              } else {
+                vErrors.push(err44);
+              }
+              errors2++;
+            }
+          }
+        } else {
+          const err45 = { instancePath: instancePath + "/tracks", schemaPath: "#/properties/tracks/type", keyword: "type", params: { type: "array" }, message: "must be array", schema: schema28.properties.tracks.type, parentSchema: schema28.properties.tracks, data: data2 };
+          if (vErrors === null) {
+            vErrors = [err45];
+          } else {
+            vErrors.push(err45);
+          }
+          errors2++;
+        }
+      }
+    } else {
+      const err46 = { instancePath, schemaPath: "#/type", keyword: "type", params: { type: "object" }, message: "must be object", schema: schema28.type, parentSchema: schema28, data };
+      if (vErrors === null) {
+        vErrors = [err46];
+      } else {
+        vErrors.push(err46);
+      }
+      errors2++;
+    }
+    validate27.errors = vErrors;
+    return errors2 === 0;
+  }
+  var frontMatter = validate28;
+  var schema29 = { "type": "object", "additionalProperties": false, "properties": { "title": { "type": "string" } } };
+  function validate28(data, { instancePath = "", parentData, parentDataProperty, rootData = data } = {}) {
+    let vErrors = null;
+    let errors2 = 0;
+    if (data && typeof data == "object" && !Array.isArray(data)) {
+      for (const key0 in data) {
+        if (!(key0 === "title")) {
+          const err0 = { instancePath, schemaPath: "#/additionalProperties", keyword: "additionalProperties", params: { additionalProperty: key0 }, message: "must NOT have additional properties", schema: false, parentSchema: schema29, data };
+          if (vErrors === null) {
+            vErrors = [err0];
+          } else {
+            vErrors.push(err0);
+          }
+          errors2++;
+        }
+      }
+      if (data.title !== void 0) {
+        let data0 = data.title;
+        if (typeof data0 !== "string") {
+          const err1 = { instancePath: instancePath + "/title", schemaPath: "#/properties/title/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema29.properties.title.type, parentSchema: schema29.properties.title, data: data0 };
+          if (vErrors === null) {
+            vErrors = [err1];
+          } else {
+            vErrors.push(err1);
+          }
+          errors2++;
+        }
+      }
+    } else {
+      const err2 = { instancePath, schemaPath: "#/type", keyword: "type", params: { type: "object" }, message: "must be object", schema: schema29.type, parentSchema: schema29, data };
       if (vErrors === null) {
         vErrors = [err2];
       } else {
@@ -30370,7 +33992,7 @@ ${end.comment}` : end.comment;
       }
       errors2++;
     }
-    validate22.errors = vErrors;
+    validate28.errors = vErrors;
     return errors2 === 0;
   }
 

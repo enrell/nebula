@@ -83,6 +83,8 @@ function html(p, ctx, block) {
 const lazy = (load, name) => async (p, ctx, block) => (await load())[name](p, ctx, block);
 const charts = () => import('./lazy/charts.js');
 const mathChunk = () => import('./lazy/math.js');
+const chem = () => import('./lazy/chem.js');
+const bio = () => import('./lazy/bio.js');
 
 export const renderers = {
   callout, stats, table, checklist, code, image, html,
@@ -91,4 +93,10 @@ export const renderers = {
   plot: lazy(charts, 'plot'),
   matrix: lazy(charts, 'matrix'),
   math: lazy(mathChunk, 'math'),
+  molecule: lazy(chem, 'molecule'),
+  reaction: lazy(chem, 'reaction'),
+  structure: lazy(chem, 'structure'),
+  sequence: lazy(bio, 'sequence'),
+  tree: lazy(bio, 'tree'),
+  tracks: lazy(bio, 'tracks'),
 };

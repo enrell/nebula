@@ -138,3 +138,49 @@ figcaption { color: var(--muted); padding-top: 6px; font-size: 0.92em; }
 .chart-card, .html-card { overflow: hidden; }
 .unavailable { padding: 18px 12px; color: var(--muted); }
 iframe.sandbox { display: block; width: 100%; border: 0; background: var(--bg); }
+
+/* chemistry */
+.mol-grid { display: grid; gap: 8px; padding: 10px; justify-items: center; }
+.mol { margin: 0; text-align: center; }
+.mol svg { display: block; margin: 0 auto; }
+.mol figcaption { color: var(--muted); font-size: 0.9em; }
+.mol-smiles { font-size: 0.8em; word-break: break-all; }
+.reaction { padding: 10px; overflow-x: auto; }
+.reaction-svg { display: block; margin: 0 auto; max-width: 100%; height: auto; }
+.mol3d { position: relative; width: 100%; }
+
+/* sequences */
+.seq-scroll { overflow-x: auto; padding: 8px 12px 4px; }
+.seq-block { margin-bottom: 12px; }
+.seq-row { white-space: pre; line-height: 1.35; display: flex; align-items: flex-end; }
+.seq-name { color: var(--muted); padding-right: 1.2ch; flex: none; }
+.seq-pos { color: var(--muted); padding-left: 1.2ch; }
+.seq-ruler { color: var(--muted); font-size: 0.85em; }
+.seq-consensus { color: var(--fg); font-weight: 700; }
+.res-green { background: color-mix(in srgb, var(--green) 32%, transparent); }
+.res-blue { background: color-mix(in srgb, var(--blue) 32%, transparent); }
+.res-yellow { background: color-mix(in srgb, var(--yellow) 30%, transparent); }
+.res-red { background: color-mix(in srgb, var(--red) 34%, transparent); }
+.res-accent { background: color-mix(in srgb, var(--accent) 34%, transparent); }
+.seq-bars { display: inline-flex; height: 14px; align-items: flex-end; }
+.seq-bar { width: 1ch; background: var(--muted); opacity: 0.6; }
+.annot { border-radius: 2px; }
+.annot.tone-accent { background: var(--accent); } .annot.tone-blue { background: var(--blue); } .annot.tone-green { background: var(--green); }
+.annot.tone-yellow { background: var(--yellow); } .annot.tone-red { background: var(--red); }
+.annot-label { font-size: 0.85em; white-space: pre; }
+.annot-label.tone-accent { color: var(--accent); } .annot-label.tone-blue { color: var(--blue); } .annot-label.tone-green { color: var(--green); }
+.annot-label.tone-yellow { color: var(--yellow); } .annot-label.tone-red { color: var(--red); }
+
+/* trees and tracks */
+.tree-box, .tracks-box { overflow-x: auto; padding: 4px 0; }
+.tree-svg, .tracks-svg { display: block; font-family: var(--font); font-size: 12px; }
+.tree-branch { stroke: var(--fg); stroke-width: 1.3; fill: none; opacity: 0.85; }
+.tree-leaf { fill: var(--fg); } .tree-leaf.hl { fill: var(--accent); font-weight: 700; }
+.tree-dot { fill: var(--muted); } .tree-dot.hl { fill: var(--accent); }
+.tree-support { fill: var(--muted); font-size: 10px; }
+.tr-axis { stroke: var(--muted); }
+.tr-tick { fill: var(--muted); font-size: 10px; }
+.tr-name { fill: var(--fg); font-size: 11px; }
+.tr-label { fill: var(--muted); font-weight: 700; }
+.tr-sep { stroke: var(--border); }
+.tr-chevron { fill: none; stroke-width: 1; }

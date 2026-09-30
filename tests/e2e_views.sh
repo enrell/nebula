@@ -99,7 +99,7 @@ for _ in $(seq 30); do [ "$(ctl view.get view="$V" | json 'len(d["errors"])')" =
 echo "live reload: ok"
 
 # component catalogue
-ctl view.components | json '",".join(c["name"] for c in d)' | grep -q "table.*chart.*html" || fail "components"
+ctl view.components | json '{"table", "chart", "html", "math", "structure"} <= {c["name"] for c in d}' | grep -qx True || fail "components"
 ctl view.components name=nebula:table | json 'd["example"]' | grep -q '^```nebula:table' || fail "describe"
 
 # persistence: docked views come back after the GUI restarts; modal ones (and their stored content) do not

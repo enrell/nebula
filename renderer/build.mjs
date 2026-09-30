@@ -28,6 +28,19 @@ const deepImports = {
     build.onResolve({ filter: /^(echarts|zrender)\/lib\// }, (args) => ({ path: resolve('node_modules', `${args.path.replace(/\.js$/, '')}.js`) }));
   },
 };
+// 3Dmol evaluates string callbacks (a py3Dmol convenience nebula never uses); the page CSP forbids eval
+const noEval3dmol = {
+  name: '3dmol-no-eval',
+  setup(build) {
+    build.onLoad({ filter: /3dmol[\\/]build[\\/]3Dmol\.es6\.js$/ }, async (args) => {
+      const code = await readFile(args.path, 'utf8');
+      const call = 'callback = eval("(" + callback + ")");';
+      if (!code.includes(call)) throw new Error('3Dmol changed: update the 3dmol-no-eval plugin in build.mjs');
+      return { contents: code.replace(call, 'throw new Error("string callbacks are not supported");'), loader: 'js' };
+    });
+  },
+};
+
 // claygl compiles size expressions with `new Function`; the page CSP has no 'unsafe-eval', so use an evaluator
 const noEval = {
   name: 'claygl-no-eval',
@@ -49,7 +62,7 @@ const noEval = {
 rmSync('dist/chunks', { recursive: true, force: true });
 rmSync('dist/assets', { recursive: true, force: true });
 await esbuild.build({ ...common, minify: false, minifySyntax: true, minifyWhitespace: true, entryPoints: { page: 'src/page/index.js' }, outdir: 'dist',
-  format: 'esm', splitting: true, chunkNames: 'chunks/[name]-[hash]', assetNames: 'assets/[name]-[hash]', target: 'chrome108', plugins: [deepImports, noEval] });
+  format: 'esm', splitting: true, chunkNames: 'chunks/[name]-[hash]', assetNames: 'assets/[name]-[hash]', target: 'chrome108', plugins: [deepImports, noEval, noEval3dmol] });
 for (const f of ['page.js', ...readdirSync('dist/chunks').map((c) => `chunks/${c}`)])
   if ((await readFile(`dist/${f}`, 'utf8')).match(/new Function\(|\beval\(/)) throw new Error(`dist/${f} contains eval / new Function, which the page CSP blocks`);
 await esbuild.build({ ...common, entryPoints: ['src/page/page.css'], outfile: 'dist/page.css', target: 'chrome108' });
