@@ -46,6 +46,7 @@ function levelsFor(p, st) {
 }
 
 function isoView(box, grid, levels) {
+  box.classList.add('live');
   const viewer = $3Dmol.createViewer(box, { backgroundColor: css('panel'), antialias: true });
   if (grid.text) viewer.addModel(grid.text, 'cube').setStyle({}, { stick: { radius: 0.15 }, sphere: { scale: 0.3 } });
   for (const l of levels) {
@@ -68,6 +69,7 @@ function isoView(box, grid, levels) {
   viewer.render();
   const ro = new ResizeObserver(() => { viewer.resize(); viewer.render(); });
   ro.observe(box);
+  box.nebulaSnapshot = () => viewer.pngURI();
   return () => { ro.disconnect(); viewer.clear(); };
 }
 

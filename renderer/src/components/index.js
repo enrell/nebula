@@ -17,7 +17,9 @@ import math from './math.js';
 import matrix from './matrix.js';
 import molecule from './molecule.js';
 import plot from './plot.js';
+import provenance from './provenance.js';
 import reaction from './reaction.js';
+import references from './references.js';
 import sequence from './sequence.js';
 import stats from './stats.js';
 import structure from './structure.js';
@@ -32,5 +34,6 @@ export const components = [
   molecule, reaction, structure, sequence, tree, tracks,                       // chemistry and biology
   field, animation, volume,                                                    // physics
   graph, diagram, map,                                                         // networks, diagrams and maps
+  references, provenance,                                                      // research record
 ];
 export const byName = Object.fromEntries(components.map((c) => [c.name, c]));

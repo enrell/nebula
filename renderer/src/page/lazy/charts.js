@@ -40,6 +40,7 @@ function mount(el, option) {
   ro.observe(el);
   el.classList.add('live');
   el.nebulaDispose = () => { ro.disconnect(); chart.dispose(); };
+  el.nebulaSnapshot = () => chart.getDataURL({ type: 'png', pixelRatio: 2, backgroundColor: css('panel') });
   return chart;
 }
 

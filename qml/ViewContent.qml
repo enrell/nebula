@@ -14,6 +14,22 @@ Item {
 
     WebChannel { id: channel }
 
+    // export and snapshot requests (ViewPane): the page writes HTML itself; printing and grabbing happen here
+    property int pdfRequest: 0
+    Connections {
+        target: root.pane
+        // the page first swaps live canvases for print stills, then asks for the print
+        function onPrintRequested(request, path) {
+            if (root.pdfRequest) { root.pane.exportFailed(request, "another PDF export of this view is still running"); return }
+            root.pdfRequest = request
+            web.printToPdf(path)
+        }
+        function onGrabRequested(request) {
+            if (!web.grabToImage((result) => root.pane.snapshotTaken(request, result.image)))
+                root.pane.snapshotTaken(request, null)
+        }
+    }
+
     WebEngineView {
         id: web
         anchors.fill: parent
@@ -38,6 +54,11 @@ Item {
         onJavaScriptConsoleMessage: (level, message, line, source) => {
             // errors of agent code in html sandboxes are the agent's: they reach it as render issues, not this log
             if (level === WebEngineView.ErrorMessageLevel && !source.startsWith(root.pane.sandboxBase)) console.warn(`view ${root.pane ? root.pane.id : "?"}: ${message} (${source}:${line})`)
+        }
+        onPdfPrintingFinished: (filePath, success) => {
+            const request = root.pdfRequest
+            root.pdfRequest = 0
+            if (request) root.pane.pdfFinished(request, success)
         }
         onLoadingChanged: (info) => { if (info.status === WebEngineView.LoadFailedStatus) console.warn(`view page failed to load: ${info.errorString}`) }
 

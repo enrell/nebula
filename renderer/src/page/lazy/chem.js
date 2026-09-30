@@ -94,6 +94,7 @@ export function structure(p, ctx) {
     ro.observe(box);
     box.classList.add('live');
     box.nebulaDispose = () => { ro.disconnect(); viewer.clear(); };
+    box.nebulaSnapshot = () => viewer.pngURI();
   });
   return card('chart-card', p.title, box, h('footer.card-foot', info));
 }

@@ -1,6 +1,7 @@
 // Runs the shipped checker (dist/core.js, exactly what nebula loads) over test/cases and unit-level edge cases.
 // The same cases run in nebula's own JS engine through tests/test_views.cpp.
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { dirname, join, normalize, relative, isAbsolute, resolve } from 'node:path';
 import { test } from 'node:test';
@@ -24,6 +25,8 @@ const host = {
   readText: (p) => { const r = locate(p); return JSON.stringify(r.error ? { ok: false, error: r.error } : { ok: true, text: readFileSync(r.full, 'utf8') }); },
   stat: (p) => { const r = locate(p); return JSON.stringify(r.error ? { ok: false, error: r.error } : { ok: true, size: r.size }); },
   readBase64: (p) => { const r = locate(p); return JSON.stringify(r.error ? { ok: false, error: r.error } : { ok: true, base64: readFileSync(r.full).toString('base64') }); },
+  hash: (p) => { const r = locate(p); return JSON.stringify(r.error ? { ok: false, error: r.error } : { ok: true, size: r.size, sha256: createHash('sha256').update(readFileSync(r.full)).digest('hex') }); },
+  git: () => JSON.stringify({ commit: '0123456789abcdef0123456789abcdef01234567', branch: 'main' }),
 };
 const check = (src) => JSON.parse(core.checkJson(src, host));
 
@@ -120,4 +123,17 @@ test('formula precedence and associativity', async () => {
     ['1 + 2*3^2', {}, 19], ['-sin(x) - b y', { x: 1.5, y: 0.5, b: 0.25 }, -Math.sin(1.5) - 0.125],
   ];
   for (const [src, vars, want] of cases) assert.ok(Math.abs(ev(src, vars) - want) < 1e-12, `${src} = ${ev(src, vars)}, expected ${want}`);
+});
+
+test('citations are numbered by first use and provenance lists hashed inputs', () => {
+  const r = check(readFileSync(join(here, 'cases/research.md'), 'utf8'));
+  assert.deepEqual(r.bibliography.map((e) => [e.n, e.key]), [[1, 'watson1953'], [2, 'schrodinger1926'], [3, 'ligo2016']]);
+  assert.equal(r.bibliography[1].authors, 'Schrödinger E');
+  assert.equal(r.bibliography[0].pages, '737–738');
+  assert.equal(r.bibliography[2].arxiv, '1602.03837');
+  const prov = r.blocks.find((b) => b.component === 'provenance' && b.ok).props;
+  assert.deepEqual(prov.inputs.map((f) => f.path), ['refs.bib', 'src/sample.py']);
+  assert.match(prov.inputs[1].sha256, /^[0-9a-f]{64}$/);
+  assert.equal(prov.git.branch, 'main');
+  assert.deepEqual(r.inputs, ['refs.bib', 'src/sample.py']);
 });

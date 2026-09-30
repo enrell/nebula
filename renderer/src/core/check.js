@@ -1,4 +1,4 @@
-// check(source, host) -> { title, blocks, diagnostics, refs }
+// check(source, host) -> { title, blocks, diagnostics, refs, inputs, bibliography }
 // Parses a view document, validates every component against its schema, runs the component's semantic checks
 // and loads referenced files through `host`. Nothing here touches a DOM: the same code runs in nebula (QJSEngine)
 // and in node (tests). The renderer only ever draws the returned, already validated blocks.
@@ -9,6 +9,8 @@ import * as validators from './validators.generated.js';
 import { splitDocument } from './document.js';
 import { offsetOf, pointerSegments } from './locate.js';
 import { isRemote } from './paths.js';
+import { citePlugin } from './mdcite.js';
+import { formatEntry, parseBibtex } from './formats/bibtex.js';
 import { mathPlugin } from './mdmath.js';
 import { closest } from './suggest.js';
 import { checkTex } from './tex.js';
@@ -17,7 +19,7 @@ export const LIMITS = { sourceBytes: 1024 * 1024, blocks: 200 };
 
 let md;
 function init() {
-  md ??= new MarkdownIt({ html: false }).use(mathPlugin);
+  md ??= new MarkdownIt({ html: false }).use(mathPlugin).use(citePlugin);
 }
 
 function describeType(v) {
@@ -60,8 +62,12 @@ function valueAt(data, pointer) {
 export function check(source, host) {
   init();
   const diagnostics = [];
-  const refs = new Set();
-  const out = { title: undefined, blocks: [], diagnostics, refs: [] };
+  // per-check state: files the page may load (refs), every file the check read (inputs, watched for live reload
+  // and listed by provenance), and the bibliography with citation numbers in order of first use
+  const st = { refs: new Set(), inputs: new Set(), bib: null, bibLine: 1, cites: new Map() };
+  const track = (fn) => (p) => { const r = fn(p); if (r.ok) st.inputs.add(p); return r; };
+  host = { ...host, readText: track(host.readText), stat: track(host.stat), readBase64: track(host.readBase64) };
+  const out = { title: undefined, blocks: [], diagnostics, refs: [], inputs: [], bibliography: [] };
   if (typeof source !== 'string') source = String(source ?? '');
   if (source.length > LIMITS.sourceBytes) {
     diagnostics.push({ severity: 'error', line: 1, message: `document is too large (${source.length} bytes, max ${LIMITS.sourceBytes})`, hint: 'reference big data from a file (e.g. table data:) instead of inlining it' });
@@ -75,8 +81,10 @@ export function check(source, host) {
     const parsed = parseYaml(front.body, front.line, '(front matter)', diagnostics);
     if (parsed) {
       const data = parsed.value ?? {};
-      if (validators.frontMatter(data)) out.title = data.title;
-      else for (const e of validators.frontMatter.errors) pushSchemaError(e, data, parsed, diagnostics, { component: '(front matter)' });
+      if (validators.frontMatter(data)) {
+        out.title = data.title;
+        if (data.bibliography !== undefined) loadBibliography([].concat(data.bibliography), parsed.lineOf(offsetOf(parsed.doc, ['bibliography'])), host, st, diagnostics);
+      } else for (const e of validators.frontMatter.errors) pushSchemaError(e, data, parsed, diagnostics, { component: '(front matter)' });
     }
   }
 
@@ -91,10 +99,10 @@ export function check(source, host) {
     const block = { index, type: b.type, line: b.line, endLine: b.endLine };
     if (b.type === 'markdown') {
       block.text = b.text;
-      checkMarkdown(b, host, refs, diagnostics, index);
+      checkMarkdown(b, host, st, diagnostics, index);
     } else {
       block.component = b.component;
-      checkComponent(b, block, host, refs, diagnostics, index, ids);
+      checkComponent(b, block, host, st, diagnostics, index, ids);
     }
     const errors = diagnostics.slice(before).filter((d) => d.severity === 'error');
     if (errors.length) {
@@ -107,7 +115,9 @@ export function check(source, host) {
   // equation numbers follow document order
   let n = 0;
   for (const b of out.blocks) if (b.ok && b.component === 'math' && b.props.number) b.props.n = ++n;
-  out.refs = [...refs];
+  finishResearch(out, host, st, diagnostics);
+  out.refs = [...st.refs];
+  out.inputs = [...st.inputs].sort();
   diagnostics.sort((a, b) => a.line - b.line);
   return out;
 }
@@ -134,7 +144,7 @@ function pushSchemaError(err, data, parsed, diagnostics, where) {
   if (!diagnostics.some((x) => x.line === d.line && x.path === d.path && x.message === d.message)) diagnostics.push(d);
 }
 
-function checkComponent(b, block, host, refs, diagnostics, index, ids) {
+function checkComponent(b, block, host, st, diagnostics, index, ids) {
   const tag = `nebula:${b.component}`;
   const def = byName[b.component];
   if (b.unclosed) {
@@ -187,15 +197,15 @@ function checkComponent(b, block, host, refs, diagnostics, index, ids) {
     warn(path, message, hint) { diagnostics.push({ severity: 'warning', line: at(path), block: index, component: tag, path: path || '/', message, hint }); },
     readText: (p) => host.readText(p),
     // Markdown in a component field: checks its math (and images) like a Markdown block
-    markdown: (path, text) => checkMarkdown({ text, line: at(path) }, host, refs, diagnostics, index, tag),
+    markdown: (path, text) => checkMarkdown({ text, line: at(path) }, host, st, diagnostics, index, tag),
     stat: (p) => host.stat(p),
     readBase64: (p) => host.readBase64(p),
-    ref: (p) => refs.add(p),
+    ref: (p) => st.refs.add(p),
   };
   block.props = def.resolve(data, ctx);
 }
 
-function checkMarkdown(b, host, refs, diagnostics, index, component) {
+function checkMarkdown(b, host, st, diagnostics, index, component) {
   const visit = (tokens, line) => {
     for (const t of tokens) {
       const l = t.map ? b.line + t.map[0] : line;
@@ -208,12 +218,13 @@ function checkMarkdown(b, host, refs, diagnostics, index, component) {
         const src = t.attrGet('src');
         if (isRemote(src)) diagnostics.push({ severity: 'warning', line: l, block: index, message: `remote image ${src} is not loaded (views have no network access)`, hint: 'download it into the project and use a relative path' });
         else {
-          const st = host.stat(decodeURI(src));
+          const file = host.stat(decodeURI(src));
           // an image inside prose is not worth dropping the whole block: the page shows a placeholder instead
-          if (!st.ok) diagnostics.push({ severity: 'warning', line: l, block: index, message: `image ${src}: ${st.error}` });
-          else refs.add(decodeURI(src));
+          if (!file.ok) diagnostics.push({ severity: 'warning', line: l, block: index, message: `image ${src}: ${file.error}` });
+          else st.refs.add(decodeURI(src));
         }
       }
+      if (t.type === 'citation') cite(t, l, st, diagnostics, index, component);
       if (t.children) visit(t.children, l);
     }
   };
@@ -228,4 +239,48 @@ export function describeComponent(name) {
   const c = byName[name];
   if (!c) return undefined;
   return { name: c.name, summary: c.summary, schema: c.schema, shorthand: c.shorthand, example: `\`\`\`nebula:${c.name}\n${c.example}\n\`\`\`` };
+}
+
+// ---- research: citations, references, provenance
+
+function loadBibliography(paths, line, host, st, diagnostics) {
+  st.bib = new Map();
+  st.bibLine = line;
+  for (const path of paths) {
+    const f = host.readText(path);
+    if (!f.ok) { diagnostics.push({ severity: 'error', line, component: '(front matter)', message: `bibliography: ${f.error}` }); continue; }
+    const r = parseBibtex(f.text);
+    for (const p of r.problems) diagnostics.push({ severity: 'warning', line, component: '(front matter)', message: `${path} line ${p.line}: ${p.message}` });
+    for (const [k, e] of r.entries) if (!st.bib.has(k)) st.bib.set(k, e);
+  }
+}
+
+function cite(token, line, st, diagnostics, index, component) {
+  for (const { key } of token.meta.items) {
+    if (!st.bib) {
+      diagnostics.push({ severity: 'error', line, block: index, component, message: `${token.content} cites "${key}", but the document has no bibliography`,
+        hint: 'add "bibliography: refs.bib" (a BibTeX file next to the document) to the front matter' });
+      return;
+    }
+    if (!st.bib.has(key)) {
+      const guess = closest(key, [...st.bib.keys()]);
+      diagnostics.push({ severity: 'error', line, block: index, component, message: `unknown citation key "${key}"`,
+        hint: guess ? `did you mean "${guess}"?` : `the bibliography has ${st.bib.size} entr${st.bib.size === 1 ? 'y' : 'ies'}` });
+      continue;
+    }
+    if (!st.cites.has(key)) st.cites.set(key, st.cites.size + 1);
+  }
+}
+
+function finishResearch(out, host, st, diagnostics) {
+  out.bibliography = [...st.cites].map(([key, n]) => ({ n, ...formatEntry(st.bib.get(key)) }));
+  const references = out.blocks.filter((b) => b.ok && b.component === 'references');
+  if (references.length && !st.cites.size) diagnostics.push({ severity: 'warning', line: references[0].line, message: 'nebula:references lists what the document cites, and nothing is cited', hint: 'cite with [@key]' });
+  if (references.length > 1) diagnostics.push({ severity: 'warning', line: references[1].line, message: 'the references are listed more than once' });
+  const provenance = out.blocks.filter((b) => b.ok && b.component === 'provenance');
+  if (!provenance.length) return;
+  // every file the document read, with its content hash: what these results were computed from
+  const inputs = [...st.inputs].sort().map((path) => ({ path, ...(host.hash ? host.hash(path) : {}) }));
+  const git = host.git ? host.git() : {};
+  for (const b of provenance) Object.assign(b.props, { inputs, git: git.commit ? git : undefined, checked: new Date().toISOString() });
 }

@@ -29691,6 +29691,34 @@ ${end.comment}` : end.comment;
     }
   };
 
+  // src/components/provenance.js
+  var provenance_default = {
+    name: "provenance",
+    summary: "Where the results come from: nebula lists every file the document read (SHA-256, size, modified), the git commit and the check time; you add the command, script, environment, seed and notes.",
+    schema: {
+      type: "object",
+      additionalProperties: false,
+      properties: {
+        title: { type: "string", default: "Provenance" },
+        command: { type: "string", description: 'the command that produced the results, e.g. "python analyse.py --seed 7"' },
+        script: { type: "string", description: "relative path of the script or notebook (hashed like the inputs)" },
+        environment: { type: "object", additionalProperties: { type: ["string", "number"] }, description: 'versions, e.g. {python: "3.12.4", numpy: "2.1.0"}' },
+        seed: { type: ["integer", "string"] },
+        notes: { type: "string", description: "Markdown" }
+      }
+    },
+    example: 'command: python analyse.py --seed 7\nscript: src/sample.py\nenvironment: {python: "3.12.4", numpy: "2.1.0"}\nseed: 7',
+    resolve(props, ctx) {
+      if (props.script !== void 0) {
+        const st = ctx.stat(props.script);
+        if (!st.ok) return ctx.error("/script", st.error);
+        if (["png", "jpg", "npy"].includes(extname(props.script))) ctx.warn("/script", `${props.script} does not look like a script`);
+      }
+      if (props.notes) ctx.markdown("/notes", props.notes);
+      return props;
+    }
+  };
+
   // src/components/reaction.js
   var reaction_default = {
     name: "reaction",
@@ -29718,6 +29746,15 @@ ${end.comment}` : end.comment;
       if (props.caption) ctx.markdown("/caption", props.caption);
       return __spreadProps(__spreadValues({}, props), { smiles: props.smiles.trim() });
     }
+  };
+
+  // src/components/references.js
+  var references_default = {
+    name: "references",
+    summary: "The numbered list of works cited with [@key] (BibTeX file in the front matter: bibliography: refs.bib). Optional: without it the list is added at the end.",
+    shorthand: { scalar: "title" },
+    schema: { type: "object", additionalProperties: false, properties: { title: { type: "string", default: "References" } } },
+    example: "title: References"
   };
 
   // src/core/formats/fasta.js
@@ -30435,8 +30472,11 @@ ${end.comment}` : end.comment;
     // physics
     graph_default,
     diagram_default,
-    map_default
+    map_default,
     // networks, diagrams and maps
+    references_default,
+    provenance_default
+    // research record
   ];
   var byName = Object.fromEntries(components.map((c) => [c.name, c]));
 
@@ -30460,7 +30500,9 @@ ${end.comment}` : end.comment;
     matrix: () => matrix,
     molecule: () => molecule,
     plot: () => plot,
+    provenance: () => provenance,
     reaction: () => reaction,
+    references: () => references,
     sequence: () => sequence,
     stats: () => stats,
     structure: () => structure,
@@ -36863,12 +36905,15 @@ ${end.comment}` : end.comment;
     validate33.errors = vErrors;
     return errors2 === 0;
   }
-  var frontMatter = validate34;
-  var schema35 = { "type": "object", "additionalProperties": false, "properties": { "title": { "type": "string" } } };
+  var references = validate34;
+  var schema35 = { "type": "object", "additionalProperties": false, "properties": { "title": { "type": "string", "default": "References" } } };
   function validate34(data, { instancePath = "", parentData, parentDataProperty, rootData = data } = {}) {
     let vErrors = null;
     let errors2 = 0;
     if (data && typeof data == "object" && !Array.isArray(data)) {
+      if (data.title === void 0) {
+        data.title = "References";
+      }
       for (const key0 in data) {
         if (!(key0 === "title")) {
           const err0 = { instancePath, schemaPath: "#/additionalProperties", keyword: "additionalProperties", params: { additionalProperty: key0 }, message: "must NOT have additional properties", schema: false, parentSchema: schema35, data };
@@ -36880,17 +36925,15 @@ ${end.comment}` : end.comment;
           errors2++;
         }
       }
-      if (data.title !== void 0) {
-        let data0 = data.title;
-        if (typeof data0 !== "string") {
-          const err1 = { instancePath: instancePath + "/title", schemaPath: "#/properties/title/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema35.properties.title.type, parentSchema: schema35.properties.title, data: data0 };
-          if (vErrors === null) {
-            vErrors = [err1];
-          } else {
-            vErrors.push(err1);
-          }
-          errors2++;
+      let data0 = data.title;
+      if (typeof data0 !== "string") {
+        const err1 = { instancePath: instancePath + "/title", schemaPath: "#/properties/title/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema35.properties.title.type, parentSchema: schema35.properties.title, data: data0 };
+        if (vErrors === null) {
+          vErrors = [err1];
+        } else {
+          vErrors.push(err1);
         }
+        errors2++;
       }
     } else {
       const err2 = { instancePath, schemaPath: "#/type", keyword: "type", params: { type: "object" }, message: "must be object", schema: schema35.type, parentSchema: schema35, data };
@@ -36902,6 +36945,189 @@ ${end.comment}` : end.comment;
       errors2++;
     }
     validate34.errors = vErrors;
+    return errors2 === 0;
+  }
+  var provenance = validate35;
+  var schema36 = { "type": "object", "additionalProperties": false, "properties": { "title": { "type": "string", "default": "Provenance" }, "command": { "type": "string", "description": 'the command that produced the results, e.g. "python analyse.py --seed 7"' }, "script": { "type": "string", "description": "relative path of the script or notebook (hashed like the inputs)" }, "environment": { "type": "object", "additionalProperties": { "type": ["string", "number"] }, "description": 'versions, e.g. {python: "3.12.4", numpy: "2.1.0"}' }, "seed": { "type": ["integer", "string"] }, "notes": { "type": "string", "description": "Markdown" } } };
+  function validate35(data, { instancePath = "", parentData, parentDataProperty, rootData = data } = {}) {
+    let vErrors = null;
+    let errors2 = 0;
+    if (data && typeof data == "object" && !Array.isArray(data)) {
+      if (data.title === void 0) {
+        data.title = "Provenance";
+      }
+      for (const key0 in data) {
+        if (!(key0 === "title" || key0 === "command" || key0 === "script" || key0 === "environment" || key0 === "seed" || key0 === "notes")) {
+          const err0 = { instancePath, schemaPath: "#/additionalProperties", keyword: "additionalProperties", params: { additionalProperty: key0 }, message: "must NOT have additional properties", schema: false, parentSchema: schema36, data };
+          if (vErrors === null) {
+            vErrors = [err0];
+          } else {
+            vErrors.push(err0);
+          }
+          errors2++;
+        }
+      }
+      let data0 = data.title;
+      if (typeof data0 !== "string") {
+        const err1 = { instancePath: instancePath + "/title", schemaPath: "#/properties/title/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema36.properties.title.type, parentSchema: schema36.properties.title, data: data0 };
+        if (vErrors === null) {
+          vErrors = [err1];
+        } else {
+          vErrors.push(err1);
+        }
+        errors2++;
+      }
+      if (data.command !== void 0) {
+        let data1 = data.command;
+        if (typeof data1 !== "string") {
+          const err2 = { instancePath: instancePath + "/command", schemaPath: "#/properties/command/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema36.properties.command.type, parentSchema: schema36.properties.command, data: data1 };
+          if (vErrors === null) {
+            vErrors = [err2];
+          } else {
+            vErrors.push(err2);
+          }
+          errors2++;
+        }
+      }
+      if (data.script !== void 0) {
+        let data2 = data.script;
+        if (typeof data2 !== "string") {
+          const err3 = { instancePath: instancePath + "/script", schemaPath: "#/properties/script/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema36.properties.script.type, parentSchema: schema36.properties.script, data: data2 };
+          if (vErrors === null) {
+            vErrors = [err3];
+          } else {
+            vErrors.push(err3);
+          }
+          errors2++;
+        }
+      }
+      if (data.environment !== void 0) {
+        let data3 = data.environment;
+        if (data3 && typeof data3 == "object" && !Array.isArray(data3)) {
+          for (const key1 in data3) {
+            let data4 = data3[key1];
+            if (typeof data4 !== "string" && !(typeof data4 == "number" && isFinite(data4))) {
+              const err4 = { instancePath: instancePath + "/environment/" + key1.replace(/~/g, "~0").replace(/\//g, "~1"), schemaPath: "#/properties/environment/additionalProperties/type", keyword: "type", params: { type: schema36.properties.environment.additionalProperties.type }, message: "must be string,number", schema: schema36.properties.environment.additionalProperties.type, parentSchema: schema36.properties.environment.additionalProperties, data: data4 };
+              if (vErrors === null) {
+                vErrors = [err4];
+              } else {
+                vErrors.push(err4);
+              }
+              errors2++;
+            }
+          }
+        } else {
+          const err5 = { instancePath: instancePath + "/environment", schemaPath: "#/properties/environment/type", keyword: "type", params: { type: "object" }, message: "must be object", schema: schema36.properties.environment.type, parentSchema: schema36.properties.environment, data: data3 };
+          if (vErrors === null) {
+            vErrors = [err5];
+          } else {
+            vErrors.push(err5);
+          }
+          errors2++;
+        }
+      }
+      if (data.seed !== void 0) {
+        let data5 = data.seed;
+        if (!(typeof data5 == "number" && (!(data5 % 1) && !isNaN(data5)) && isFinite(data5)) && typeof data5 !== "string") {
+          const err6 = { instancePath: instancePath + "/seed", schemaPath: "#/properties/seed/type", keyword: "type", params: { type: schema36.properties.seed.type }, message: "must be integer,string", schema: schema36.properties.seed.type, parentSchema: schema36.properties.seed, data: data5 };
+          if (vErrors === null) {
+            vErrors = [err6];
+          } else {
+            vErrors.push(err6);
+          }
+          errors2++;
+        }
+      }
+      if (data.notes !== void 0) {
+        let data6 = data.notes;
+        if (typeof data6 !== "string") {
+          const err7 = { instancePath: instancePath + "/notes", schemaPath: "#/properties/notes/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema36.properties.notes.type, parentSchema: schema36.properties.notes, data: data6 };
+          if (vErrors === null) {
+            vErrors = [err7];
+          } else {
+            vErrors.push(err7);
+          }
+          errors2++;
+        }
+      }
+    } else {
+      const err8 = { instancePath, schemaPath: "#/type", keyword: "type", params: { type: "object" }, message: "must be object", schema: schema36.type, parentSchema: schema36, data };
+      if (vErrors === null) {
+        vErrors = [err8];
+      } else {
+        vErrors.push(err8);
+      }
+      errors2++;
+    }
+    validate35.errors = vErrors;
+    return errors2 === 0;
+  }
+  var frontMatter = validate36;
+  var schema37 = { "type": "object", "additionalProperties": false, "properties": { "title": { "type": "string" }, "bibliography": { "type": ["string", "array"], "items": { "type": "string" }, "description": "relative path(s) of BibTeX files; cite with [@key]" } } };
+  function validate36(data, { instancePath = "", parentData, parentDataProperty, rootData = data } = {}) {
+    let vErrors = null;
+    let errors2 = 0;
+    if (data && typeof data == "object" && !Array.isArray(data)) {
+      for (const key0 in data) {
+        if (!(key0 === "title" || key0 === "bibliography")) {
+          const err0 = { instancePath, schemaPath: "#/additionalProperties", keyword: "additionalProperties", params: { additionalProperty: key0 }, message: "must NOT have additional properties", schema: false, parentSchema: schema37, data };
+          if (vErrors === null) {
+            vErrors = [err0];
+          } else {
+            vErrors.push(err0);
+          }
+          errors2++;
+        }
+      }
+      if (data.title !== void 0) {
+        let data0 = data.title;
+        if (typeof data0 !== "string") {
+          const err1 = { instancePath: instancePath + "/title", schemaPath: "#/properties/title/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema37.properties.title.type, parentSchema: schema37.properties.title, data: data0 };
+          if (vErrors === null) {
+            vErrors = [err1];
+          } else {
+            vErrors.push(err1);
+          }
+          errors2++;
+        }
+      }
+      if (data.bibliography !== void 0) {
+        let data1 = data.bibliography;
+        if (typeof data1 !== "string" && !Array.isArray(data1)) {
+          const err2 = { instancePath: instancePath + "/bibliography", schemaPath: "#/properties/bibliography/type", keyword: "type", params: { type: schema37.properties.bibliography.type }, message: "must be string,array", schema: schema37.properties.bibliography.type, parentSchema: schema37.properties.bibliography, data: data1 };
+          if (vErrors === null) {
+            vErrors = [err2];
+          } else {
+            vErrors.push(err2);
+          }
+          errors2++;
+        }
+        if (Array.isArray(data1)) {
+          const len0 = data1.length;
+          for (let i0 = 0; i0 < len0; i0++) {
+            let data2 = data1[i0];
+            if (typeof data2 !== "string") {
+              const err3 = { instancePath: instancePath + "/bibliography/" + i0, schemaPath: "#/properties/bibliography/items/type", keyword: "type", params: { type: "string" }, message: "must be string", schema: schema37.properties.bibliography.items.type, parentSchema: schema37.properties.bibliography.items, data: data2 };
+              if (vErrors === null) {
+                vErrors = [err3];
+              } else {
+                vErrors.push(err3);
+              }
+              errors2++;
+            }
+          }
+        }
+      }
+    } else {
+      const err4 = { instancePath, schemaPath: "#/type", keyword: "type", params: { type: "object" }, message: "must be object", schema: schema37.type, parentSchema: schema37, data };
+      if (vErrors === null) {
+        vErrors = [err4];
+      } else {
+        vErrors.push(err4);
+      }
+      errors2++;
+    }
+    validate36.errors = vErrors;
     return errors2 === 0;
   }
 
@@ -36996,6 +37222,219 @@ ${end.comment}` : end.comment;
     return offset;
   }
 
+  // src/core/mdcite.js
+  var KEY = /^@([A-Za-z0-9_][\w:.#$%&+?<>~/-]*)/;
+  function parseItems(body) {
+    const items = [];
+    for (const part of body.split(";")) {
+      const at = part.indexOf("@");
+      if (at < 0) return null;
+      const prefix = part.slice(0, at).trim();
+      const m = KEY.exec(part.slice(at));
+      if (!m) return null;
+      const key = m[1].replace(/[.:]+$/, "");
+      const rest = part.slice(at + 1 + key.length).trim();
+      if (rest && !rest.startsWith(",")) return null;
+      items.push({ key, prefix: prefix || void 0, locator: rest.replace(/^,\s*/, "") || void 0 });
+    }
+    return items.length ? items : null;
+  }
+  function citation(state, silent) {
+    const s = state.src, start = state.pos;
+    if (s[start] !== "[" || !s.slice(start + 1, start + 80).includes("@")) return false;
+    const end = s.indexOf("]", start);
+    if (end < 0 || s[end + 1] === "(" || s[end + 1] === "[") return false;
+    const items = parseItems(s.slice(start + 1, end));
+    if (!items) return false;
+    if (!silent) {
+      const t = state.push("citation", "cite", 0);
+      t.meta = { items };
+      t.content = s.slice(start, end + 1);
+    }
+    state.pos = end + 1;
+    return true;
+  }
+  function citePlugin(md2) {
+    md2.inline.ruler.before("link", "citation", citation);
+  }
+
+  // src/core/formats/bibtex.js
+  var ACCENTS = { "`": "\u0300", "'": "\u0301", "^": "\u0302", "~": "\u0303", "=": "\u0304", ".": "\u0307", '"': "\u0308", u: "\u0306", v: "\u030C", H: "\u030B", c: "\u0327", k: "\u0328", r: "\u030A" };
+  var SYMBOLS = { ss: "\xDF", ae: "\xE6", AE: "\xC6", oe: "\u0153", OE: "\u0152", o: "\xF8", O: "\xD8", aa: "\xE5", AA: "\xC5", l: "\u0142", L: "\u0141", i: "\u0131", j: "\u0237", "&": "&", "%": "%", $: "$", _: "_", "#": "#" };
+  var MONTHS = { jan: "January", feb: "February", mar: "March", apr: "April", may: "May", jun: "June", jul: "July", aug: "August", sep: "September", oct: "October", nov: "November", dec: "December" };
+  function latexToText(s) {
+    return String(s).replace(/\\(textit|textbf|textsc|textrm|texttt|emph|mathrm|text|url|href|rm|it|bf|sc|tt|em)(?![A-Za-z])\s*/g, "").replace(/\\([`'^~=."uvHckr])\s*\{?\\?([A-Za-z])\}?/g, (_, a, ch) => (ch + ACCENTS[a]).normalize("NFC")).replace(/\\(ss|ae|AE|oe|OE|aa|AA|[oOlLij])(?![A-Za-z])\s?/g, (_, n) => SYMBOLS[n]).replace(/\\([&%$_#])/g, (_, c) => c).replace(/--/g, "\u2013").replace(/~/g, "\xA0").replace(/[{}]/g, "").replace(/\s+/g, " ").trim();
+  }
+  function parseBibtex(text3) {
+    var _a2, _b, _c, _d;
+    const entries = /* @__PURE__ */ new Map(), problems = [], macros2 = __spreadValues({}, MONTHS);
+    const src = text3.replace(/\r/g, "");
+    const lineAt = (i2) => src.slice(0, i2).split("\n").length;
+    let i = 0;
+    const ws = () => {
+      while (i < src.length && /\s/.test(src[i])) i++;
+    };
+    const fail = (message, at = i) => {
+      throw Object.assign(new Error(message), { line: lineAt(at) });
+    };
+    function braced() {
+      let depth = 0;
+      const start = i;
+      for (; i < src.length; i++) {
+        if (src[i] === "\\") {
+          i++;
+          continue;
+        }
+        if (src[i] === "{") depth++;
+        else if (src[i] === "}" && --depth === 0) {
+          i++;
+          return src.slice(start + 1, i - 1);
+        }
+      }
+      return fail("unbalanced braces", start);
+    }
+    function value() {
+      var _a3, _b2;
+      const parts = [];
+      for (; ; ) {
+        ws();
+        if (src[i] === "{") parts.push(braced());
+        else if (src[i] === '"') {
+          const start = i++;
+          let depth = 0;
+          for (; i < src.length; i++) {
+            if (src[i] === "\\") {
+              i++;
+              continue;
+            }
+            if (src[i] === "{") depth++;
+            else if (src[i] === "}") depth--;
+            else if (src[i] === '"' && depth === 0) break;
+          }
+          if (i >= src.length) fail('unterminated "string"', start);
+          parts.push(src.slice(start + 1, i++));
+        } else {
+          const m = /^[A-Za-z0-9_:.+\-/]+/.exec(src.slice(i));
+          if (!m) fail(`expected a value, found "${(_a3 = src[i]) != null ? _a3 : "end of file"}"`);
+          i += m[0].length;
+          parts.push(/^\d+$/.test(m[0]) ? m[0] : (_b2 = macros2[m[0].toLowerCase()]) != null ? _b2 : fail(`unknown macro "${m[0]}" (quote it or define it with @string)`, i - m[0].length));
+        }
+        ws();
+        if (src[i] === "#") {
+          i++;
+          continue;
+        }
+        return parts.join("");
+      }
+    }
+    while (i < src.length) {
+      const at = src.indexOf("@", i);
+      if (at < 0) break;
+      i = at + 1;
+      const start = at;
+      try {
+        const type = (_a2 = /^[A-Za-z]+/.exec(src.slice(i))) == null ? void 0 : _a2[0];
+        if (!type) fail("expected an entry type after @");
+        i += type.length;
+        ws();
+        const open2 = src[i];
+        if (open2 !== "{" && open2 !== "(") fail(`expected "{" after @${type}`);
+        const close2 = open2 === "{" ? "}" : ")";
+        const kind = type.toLowerCase();
+        if (kind === "comment" || kind === "preamble") {
+          if (open2 === "{") braced();
+          else i = src.indexOf(")", i) + 1;
+          continue;
+        }
+        i++;
+        ws();
+        if (kind === "string") {
+          const name = (_b = /^[A-Za-z][\w-]*/.exec(src.slice(i))) == null ? void 0 : _b[0];
+          if (!name) fail("expected a macro name in @string");
+          i += name.length;
+          ws();
+          if (src[i] !== "=") fail('expected "=" in @string');
+          i++;
+          macros2[name.toLowerCase()] = value();
+          ws();
+          if (src[i] !== close2) fail(`expected "${close2}" to end @string`);
+          i++;
+          continue;
+        }
+        const key = (_c = /^[^\s,{}()"#%'=]+/.exec(src.slice(i))) == null ? void 0 : _c[0];
+        if (!key) fail(`@${type} has no citation key`);
+        i += key.length;
+        ws();
+        const fields = {};
+        while (src[i] === ",") {
+          i++;
+          ws();
+          if (src[i] === close2) break;
+          const name = (_d = /^[A-Za-z][\w-]*/.exec(src.slice(i))) == null ? void 0 : _d[0];
+          if (!name) fail(`expected a field name in ${key}`);
+          i += name.length;
+          ws();
+          if (src[i] !== "=") fail(`expected "=" after ${name} in ${key}`);
+          i++;
+          fields[name.toLowerCase()] = value();
+          ws();
+        }
+        if (src[i] !== close2) fail(`expected "," or "${close2}" in ${key}`);
+        i++;
+        if (entries.has(key)) problems.push({ line: lineAt(start), message: `duplicate key "${key}" (also on line ${entries.get(key).line})` });
+        else entries.set(key, { type: kind, key, fields, line: lineAt(start) });
+      } catch (e) {
+        if (e.line === void 0) throw e;
+        problems.push({ line: e.line, message: e.message });
+        const next = src.indexOf("\n@", i);
+        i = next < 0 ? src.length : next + 1;
+      }
+    }
+    return { entries, problems };
+  }
+  function authors(s) {
+    if (!s) return [];
+    return s.split(/\s+and\s+/).map((raw) => {
+      const a = raw.trim();
+      if (/^\{.*\}$/.test(a)) return latexToText(a);
+      let last, first;
+      if (a.includes(",")) [last, first] = a.split(",").map((x) => x.trim());
+      else {
+        const w = a.split(/\s+/);
+        last = w.pop();
+        first = w.join(" ");
+      }
+      const initials = (first != null ? first : "").split(/[\s.-]+/).filter(Boolean).map((w) => {
+        var _a2, _b;
+        return (_b = (_a2 = latexToText(w)[0]) == null ? void 0 : _a2.toUpperCase()) != null ? _b : "";
+      }).join("");
+      return `${latexToText(last)}${initials ? ` ${initials}` : ""}`;
+    });
+  }
+  function formatEntry(e) {
+    var _a2, _b, _c, _d, _e, _f, _g, _h;
+    const f = e.fields;
+    const list2 = authors((_a2 = f.author) != null ? _a2 : f.editor);
+    const names = list2.length > 6 ? `${list2.slice(0, 6).join(", ")}, et al.` : list2.join(", ");
+    const container = (_f = (_e = (_d = (_c = (_b = f.journal) != null ? _b : f.booktitle) != null ? _c : f.publisher) != null ? _d : f.school) != null ? _e : f.institution) != null ? _f : f.howpublished;
+    const doi = f.doi ? latexToText(f.doi).replace(/^https?:\/\/(dx\.)?doi\.org\//i, "") : void 0;
+    return {
+      key: e.key,
+      type: e.type,
+      authors: names || void 0,
+      editors: !f.author && f.editor ? true : void 0,
+      year: f.year ? latexToText(f.year) : void 0,
+      title: f.title ? latexToText(f.title) : void 0,
+      container: container ? latexToText(container) : void 0,
+      volume: f.volume ? latexToText(f.volume) : void 0,
+      number: f.number ? latexToText(f.number) : void 0,
+      pages: f.pages ? latexToText(f.pages).replace(/-+/g, "\u2013") : void 0,
+      doi,
+      url: !doi && f.url && /^https?:\/\//.test(f.url.trim()) ? f.url.trim() : void 0,
+      arxiv: ((_h = (_g = f.archiveprefix) != null ? _g : f.eprinttype) == null ? void 0 : _h.toLowerCase()) === "arxiv" && f.eprint ? latexToText(f.eprint) : void 0
+    };
+  }
+
   // src/core/mdmath.js
   function inline2(state, silent) {
     var _a2;
@@ -37065,7 +37504,7 @@ ${end.comment}` : end.comment;
   var LIMITS = { sourceBytes: 1024 * 1024, blocks: 200 };
   var md;
   function init() {
-    md != null ? md : md = new lib_default({ html: false }).use(mathPlugin);
+    md != null ? md : md = new lib_default({ html: false }).use(mathPlugin).use(citePlugin);
   }
   function describeType(v) {
     if (v === null) return "null";
@@ -37108,8 +37547,14 @@ ${end.comment}` : end.comment;
     var _a2, _b;
     init();
     const diagnostics = [];
-    const refs = /* @__PURE__ */ new Set();
-    const out = { title: void 0, blocks: [], diagnostics, refs: [] };
+    const st = { refs: /* @__PURE__ */ new Set(), inputs: /* @__PURE__ */ new Set(), bib: null, bibLine: 1, cites: /* @__PURE__ */ new Map() };
+    const track = (fn) => (p) => {
+      const r = fn(p);
+      if (r.ok) st.inputs.add(p);
+      return r;
+    };
+    host = __spreadProps(__spreadValues({}, host), { readText: track(host.readText), stat: track(host.stat), readBase64: track(host.readBase64) });
+    const out = { title: void 0, blocks: [], diagnostics, refs: [], inputs: [], bibliography: [] };
     if (typeof source !== "string") source = String(source != null ? source : "");
     if (source.length > LIMITS.sourceBytes) {
       diagnostics.push({ severity: "error", line: 1, message: `document is too large (${source.length} bytes, max ${LIMITS.sourceBytes})`, hint: "reference big data from a file (e.g. table data:) instead of inlining it" });
@@ -37121,8 +37566,10 @@ ${end.comment}` : end.comment;
       const parsed = parseYaml(front.body, front.line, "(front matter)", diagnostics);
       if (parsed) {
         const data = (_b = parsed.value) != null ? _b : {};
-        if (frontMatter(data)) out.title = data.title;
-        else for (const e of frontMatter.errors) pushSchemaError(e, data, parsed, diagnostics, { component: "(front matter)" });
+        if (frontMatter(data)) {
+          out.title = data.title;
+          if (data.bibliography !== void 0) loadBibliography([].concat(data.bibliography), parsed.lineOf(offsetOf(parsed.doc, ["bibliography"])), host, st, diagnostics);
+        } else for (const e of frontMatter.errors) pushSchemaError(e, data, parsed, diagnostics, { component: "(front matter)" });
       }
     }
     if (blocks.length > LIMITS.blocks) {
@@ -37135,10 +37582,10 @@ ${end.comment}` : end.comment;
       const block3 = { index, type: b.type, line: b.line, endLine: b.endLine };
       if (b.type === "markdown") {
         block3.text = b.text;
-        checkMarkdown(b, host, refs, diagnostics, index);
+        checkMarkdown(b, host, st, diagnostics, index);
       } else {
         block3.component = b.component;
-        checkComponent(b, block3, host, refs, diagnostics, index, ids);
+        checkComponent(b, block3, host, st, diagnostics, index, ids);
       }
       const errors2 = diagnostics.slice(before).filter((d) => d.severity === "error");
       if (errors2.length) {
@@ -37150,7 +37597,9 @@ ${end.comment}` : end.comment;
     });
     let n = 0;
     for (const b of out.blocks) if (b.ok && b.component === "math" && b.props.number) b.props.n = ++n;
-    out.refs = [...refs];
+    finishResearch(out, host, st, diagnostics);
+    out.refs = [...st.refs];
+    out.inputs = [...st.inputs].sort();
     diagnostics.sort((a, b) => a.line - b.line);
     return out;
   }
@@ -37180,7 +37629,7 @@ ${end.comment}` : end.comment;
     const d = { severity: "error", line: parsed.lineOf(offsetOf(parsed.doc, segments, e.key)), component: where.component, path: path2 || "/", message: e.message, hint: e.hint, block: where.block };
     if (!diagnostics.some((x) => x.line === d.line && x.path === d.path && x.message === d.message)) diagnostics.push(d);
   }
-  function checkComponent(b, block3, host, refs, diagnostics, index, ids) {
+  function checkComponent(b, block3, host, st, diagnostics, index, ids) {
     var _a2, _b, _c;
     const tag = `nebula:${b.component}`;
     const def = byName[b.component];
@@ -37259,14 +37708,14 @@ ${def.example}` });
       },
       readText: (p) => host.readText(p),
       // Markdown in a component field: checks its math (and images) like a Markdown block
-      markdown: (path2, text3) => checkMarkdown({ text: text3, line: at(path2) }, host, refs, diagnostics, index, tag),
+      markdown: (path2, text3) => checkMarkdown({ text: text3, line: at(path2) }, host, st, diagnostics, index, tag),
       stat: (p) => host.stat(p),
       readBase64: (p) => host.readBase64(p),
-      ref: (p) => refs.add(p)
+      ref: (p) => st.refs.add(p)
     };
     block3.props = def.resolve(data, ctx);
   }
-  function checkMarkdown(b, host, refs, diagnostics, index, component) {
+  function checkMarkdown(b, host, st, diagnostics, index, component) {
     const visit3 = (tokens, line) => {
       for (const t of tokens) {
         const l = t.map ? b.line + t.map[0] : line;
@@ -37285,11 +37734,12 @@ ${def.example}` });
           const src = t.attrGet("src");
           if (isRemote(src)) diagnostics.push({ severity: "warning", line: l, block: index, message: `remote image ${src} is not loaded (views have no network access)`, hint: "download it into the project and use a relative path" });
           else {
-            const st = host.stat(decodeURI(src));
-            if (!st.ok) diagnostics.push({ severity: "warning", line: l, block: index, message: `image ${src}: ${st.error}` });
-            else refs.add(decodeURI(src));
+            const file = host.stat(decodeURI(src));
+            if (!file.ok) diagnostics.push({ severity: "warning", line: l, block: index, message: `image ${src}: ${file.error}` });
+            else st.refs.add(decodeURI(src));
           }
         }
+        if (t.type === "citation") cite(t, l, st, diagnostics, index, component);
         if (t.children) visit3(t.children, l);
       }
     };
@@ -37305,10 +37755,65 @@ ${def.example}` });
 ${c.example}
 \`\`\`` };
   }
+  function loadBibliography(paths, line, host, st, diagnostics) {
+    st.bib = /* @__PURE__ */ new Map();
+    st.bibLine = line;
+    for (const path2 of paths) {
+      const f = host.readText(path2);
+      if (!f.ok) {
+        diagnostics.push({ severity: "error", line, component: "(front matter)", message: `bibliography: ${f.error}` });
+        continue;
+      }
+      const r = parseBibtex(f.text);
+      for (const p of r.problems) diagnostics.push({ severity: "warning", line, component: "(front matter)", message: `${path2} line ${p.line}: ${p.message}` });
+      for (const [k, e] of r.entries) if (!st.bib.has(k)) st.bib.set(k, e);
+    }
+  }
+  function cite(token, line, st, diagnostics, index, component) {
+    for (const { key } of token.meta.items) {
+      if (!st.bib) {
+        diagnostics.push({
+          severity: "error",
+          line,
+          block: index,
+          component,
+          message: `${token.content} cites "${key}", but the document has no bibliography`,
+          hint: 'add "bibliography: refs.bib" (a BibTeX file next to the document) to the front matter'
+        });
+        return;
+      }
+      if (!st.bib.has(key)) {
+        const guess = closest(key, [...st.bib.keys()]);
+        diagnostics.push({
+          severity: "error",
+          line,
+          block: index,
+          component,
+          message: `unknown citation key "${key}"`,
+          hint: guess ? `did you mean "${guess}"?` : `the bibliography has ${st.bib.size} entr${st.bib.size === 1 ? "y" : "ies"}`
+        });
+        continue;
+      }
+      if (!st.cites.has(key)) st.cites.set(key, st.cites.size + 1);
+    }
+  }
+  function finishResearch(out, host, st, diagnostics) {
+    out.bibliography = [...st.cites].map(([key, n]) => __spreadValues({ n }, formatEntry(st.bib.get(key))));
+    const references2 = out.blocks.filter((b) => b.ok && b.component === "references");
+    if (references2.length && !st.cites.size) diagnostics.push({ severity: "warning", line: references2[0].line, message: "nebula:references lists what the document cites, and nothing is cited", hint: "cite with [@key]" });
+    if (references2.length > 1) diagnostics.push({ severity: "warning", line: references2[1].line, message: "the references are listed more than once" });
+    const provenance2 = out.blocks.filter((b) => b.ok && b.component === "provenance");
+    if (!provenance2.length) return;
+    const inputs = [...st.inputs].sort().map((path2) => __spreadValues({ path: path2 }, host.hash ? host.hash(path2) : {}));
+    const git = host.git ? host.git() : {};
+    for (const b of provenance2) Object.assign(b.props, { inputs, git: git.commit ? git : void 0, checked: (/* @__PURE__ */ new Date()).toISOString() });
+  }
 
   // src/core/index.js
   function checkJson(source, host) {
     const h = { readText: (p) => JSON.parse(host.readText(p)), stat: (p) => JSON.parse(host.stat(p)), readBase64: (p) => JSON.parse(host.readBase64(p)) };
+    if (host.hash) h.hash = (p) => JSON.parse(host.hash(p));
+    if (host.git) h.git = () => JSON.parse(host.git());
     return JSON.stringify(check(source, h));
   }
   var componentsJson = () => JSON.stringify(listComponents());

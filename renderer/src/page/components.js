@@ -3,6 +3,7 @@
 import { card, h } from './dom.js';
 import { highlight } from './highlight.js';
 import { image } from './image.js';
+import { provenance, references } from './research.js';
 import { sandboxFrame } from './sandbox.js';
 
 const tones = { good: 'good', bad: 'bad', neutral: 'neutral' };
@@ -102,6 +103,8 @@ export const renderers = {
   graph: lazy(charts, 'graph'),
   diagram: lazy(diagrams, 'diagram'),
   map: lazy(maps, 'map'),
+  references,
+  provenance,
   volume: lazy(volumes, 'volume'),
   tracks: lazy(bio, 'tracks'),
 };

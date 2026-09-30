@@ -23,4 +23,10 @@ QString readBase64Json(const QString &baseDir, const QString &relative);   // bi
 
 constexpr qint64 kMaxBinaryBytes = 16 * 1024 * 1024;
 
+// Provenance: {"ok":true,"sha256":...,"size":N,"modified":ISO-8601} for a file the document read (streamed, any size).
+QString hashJson(const QString &baseDir, const QString &relative);
+// The git commit checked out where the document lives, read from .git without running git:
+// {"commit":..., "branch":...} (branch absent when detached), or {} outside a repository.
+QString gitJson(const QString &baseDir);
+
 } // namespace ViewFiles

@@ -13,6 +13,8 @@ public:
     Q_INVOKABLE QString readText(const QString &path) const { return ViewFiles::readTextJson(baseDir, path); }
     Q_INVOKABLE QString stat(const QString &path) const { return ViewFiles::statJson(baseDir, path); }
     Q_INVOKABLE QString readBase64(const QString &path) const { return ViewFiles::readBase64Json(baseDir, path); }
+    Q_INVOKABLE QString hash(const QString &path) const { return ViewFiles::hashJson(baseDir, path); }
+    Q_INVOKABLE QString git() const { return ViewFiles::gitJson(baseDir); }
 };
 
 // V4 lints the bundled library code as it compiles it (lazily, so also during checks): "used before its

@@ -2,6 +2,8 @@
 // It never parses the source itself; problems found while drawing are reported back as render issues.
 import { renderers } from './components.js';
 import { h } from './dom.js';
+import { endPrint, exportHtml, preparePrint, prepareSnapshot } from './export.js';
+import { referenceList } from './research.js';
 import { createMarkdown } from './markdown.js';
 
 let bridge;
@@ -9,10 +11,13 @@ let fileBase = '';
 let sandboxBase = '';
 let renderSeq = 0;   // sandbox URLs change on every render, so a redraw (new document or theme) reloads them
 let files = new Set();   // files the checker verified; anything else would be refused by nebula anyway
+let citations = new Map();   // citation key -> number (the checker numbers them)
 const issues = [];
 const ctx = {
   afterMount() { throw new Error('afterMount is per block'); },
   hasFile: (path) => files.has(path),
+  citation: (key) => citations.get(key),
+  bibliography: [],
   sandboxUrl: (index) => `${sandboxBase}${index}.html?r=${renderSeq}`,
   fileUrl: (path) => fileBase + path.split('/').map(encodeURIComponent).join('/'),
   markdown(text) { const el = h('div.md'); el.innerHTML = md.render(text); return el; },
@@ -51,6 +56,8 @@ function render(doc) {
   const seq = ++renderSeq;
   issues.length = 0;
   files = new Set(doc?.refs ?? []);
+  ctx.bibliography = doc?.bibliography ?? [];
+  citations = new Map(ctx.bibliography.map((e) => [e.key, e.n]));
   const root = document.getElementById('doc');
   // charts, 3D viewers and animations hold observers, timers and GL contexts: release them before redrawing
   root.querySelectorAll('.live').forEach((el) => el.nebulaDispose?.());
@@ -58,6 +65,8 @@ function render(doc) {
   // the title belongs to the chrome around the page (pane title bar or modal header), not to the page itself
   const slots = blocks.map((b) => h('div.slot', { 'data-block': b.index }));
   root.replaceChildren(...slots);
+  // cited works are listed where nebula:references stands, or else at the end
+  if (ctx.bibliography.length && !blocks.some((b) => b.ok && b.component === 'references')) root.append(referenceList(ctx.bibliography));
   const jobs = blocks.map(async (block, i) => {
     const mounted = [];
     const bctx = { ...ctx, afterMount: (fn) => mounted.push(fn) };
@@ -113,5 +122,15 @@ window.addEventListener('DOMContentLoaded', () => {
     // charts and sandboxes read the theme when they are drawn: redraw everything on a theme change
     bridge.themeChanged.connect(() => { applyTheme(bridge.theme); render(lastDoc); });
     bridge.documentChanged.connect(() => render(bridge.document));
+    // nebula asks for a standalone HTML copy (PDF is printed by the web view itself) or for a block to be in view
+    const failed = (request) => (e) => bridge.exportFailed(request, String(e?.message ?? e));
+    bridge.exportRequested.connect((request, format) => {
+      if (format === 'html') exportHtml(lastDoc?.title).then((html) => bridge.exportHtml(request, html), failed(request));
+      else preparePrint().then(() => bridge.readyToPrint(request), failed(request));
+    });
+    bridge.printFinished.connect(endPrint);
+    bridge.snapshotRequested.connect((request, block) => {
+      prepareSnapshot(block).then(() => bridge.readyForSnapshot(request), (e) => bridge.exportFailed(request, String(e?.message ?? e)));
+    });
   });
 });

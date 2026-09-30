@@ -6,6 +6,8 @@
 #include <QCoreApplication>
 #include <QDir>
 #include <QFile>
+#include <QFileInfo>
+#include <QJsonObject>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QTemporaryDir>
@@ -63,6 +65,36 @@ static void sandbox() {
     CHECK(ViewFiles::resolve(base, "sub").error.contains("not a file"), "directory");
     CHECK(ViewFiles::resolve(base, "nope.txt").error.contains("file not found"), "missing file");
     CHECK(ViewFiles::readTextJson(base, "sub/a.txt").contains("\"text\":\"hello\""), "read text");
+    CHECK(ViewFiles::hashJson(base, "sub/a.txt").contains("2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824"), "sha256 of a file");
+    CHECK(ViewFiles::hashJson(base, "leak.txt").contains("\"ok\":false"), "no hash outside the sandbox");
+}
+
+// Provenance reads the commit from .git without running git: loose refs, packed refs, detached HEAD, worktrees.
+static void git() {
+    QTemporaryDir tmp;
+    const QString repo = tmp.path() + "/repo", sha = "0123456789abcdef0123456789abcdef01234567", sha2 = "89abcdef0123456789abcdef0123456789abcdef";
+    const auto write = [](const QString &path, const QByteArray &data) { QDir().mkpath(QFileInfo(path).path()); QFile f(path); f.open(QIODevice::WriteOnly); f.write(data); };
+    QDir().mkpath(repo + "/docs/deep");
+    CHECK(ViewFiles::gitJson(repo + "/docs") == "{}", "no repository");
+    write(repo + "/.git/HEAD", "ref: refs/heads/main\n");
+    CHECK(ViewFiles::gitJson(repo + "/docs") == "{}", "unborn branch");
+    write(repo + "/.git/refs/heads/main", sha.toLatin1() + "\n");
+    const QJsonObject loose = QJsonDocument::fromJson(ViewFiles::gitJson(repo + "/docs/deep").toUtf8()).object();
+    CHECK(loose["commit"].toString() == sha && loose["branch"].toString() == "main", "loose ref: %s", qPrintable(ViewFiles::gitJson(repo + "/docs/deep")));
+    QFile::remove(repo + "/.git/refs/heads/main");
+    write(repo + "/.git/packed-refs", "# pack-refs with: peeled fully-peeled sorted\n" + sha2.toLatin1() + " refs/heads/main\n");
+    CHECK(ViewFiles::gitJson(repo).contains(sha2), "packed ref");
+    write(repo + "/.git/HEAD", sha.toLatin1() + "\n");
+    const QJsonObject detached = QJsonDocument::fromJson(ViewFiles::gitJson(repo).toUtf8()).object();
+    CHECK(detached["commit"].toString() == sha && !detached.contains("branch"), "detached HEAD");
+    // a linked worktree: .git is a file pointing at .git/worktrees/<name>, refs live in the common dir
+    const QString wt = tmp.path() + "/wt";
+    write(wt + "/.git", "gitdir: " + (repo + "/.git/worktrees/wt").toUtf8() + "\n");
+    write(repo + "/.git/worktrees/wt/HEAD", "ref: refs/heads/feature\n");
+    write(repo + "/.git/worktrees/wt/commondir", "../..\n");
+    write(repo + "/.git/refs/heads/feature", sha2.toLatin1() + "\n");
+    const QJsonObject w = QJsonDocument::fromJson(ViewFiles::gitJson(wt).toUtf8()).object();
+    CHECK(w["commit"].toString() == sha2 && w["branch"].toString() == "feature", "worktree: %s", qPrintable(ViewFiles::gitJson(wt)));
 }
 
 int main(int argc, char **argv) {
@@ -75,6 +107,7 @@ int main(int argc, char **argv) {
     CHECK(ViewEngine::instance().describe("table")["example"].toString().startsWith("```nebula:table"), "describe table");
     CHECK(ViewEngine::instance().describe("nope").isEmpty(), "describe unknown");
     sandbox();
+    git();
     if (failures) { std::fprintf(stderr, "%d failure(s)\n", failures); return 1; }
     std::printf("views: %d cases ok\n", int(cases.size()));
     return 0;

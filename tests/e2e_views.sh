@@ -98,6 +98,56 @@ for _ in $(seq 30); do [ "$(ctl view.get view="$V" | json 'len(d["errors"])')" =
 [ "$(ctl view.get view="$V" | json 'd["errors"][0]["line"]')" = 2 ] || fail "watched file not re-checked: $(ctl view.get view="$V")"
 echo "live reload: ok"
 
+# research record: a data file the page never loads (a bibliography) is watched too; export and snapshot
+cat > paper.md <<'MD'
+---
+title: Paper
+bibliography: refs.bib
+---
+DNA [@watson1953].
+
+```nebula:chart
+type: bar
+rows: [{k: a, v: 1}, {k: b, v: 3}]
+x: k
+y: v
+```
+
+```nebula:provenance
+command: make figures
+```
+MD
+R=$(ctl view.show file=paper.md)
+P=$(echo "$R" | json 'd["view"]')
+[ "$(echo "$R" | json 'd["ok"]')" = True ] || fail "paper.md: $R"
+sed -i 's/watson1953,/watson1953x,/' refs.bib
+for _ in $(seq 30); do [ "$(ctl view.get view="$P" | json 'len(d["errors"])')" = 1 ] && break; sleep 0.1; done
+ctl view.get view="$P" | json 'd["errors"][0]["message"]' | grep -q 'unknown citation key "watson1953"' || fail "bibliography not watched: $(ctl view.get view="$P")"
+sed -i 's/watson1953x,/watson1953,/' refs.bib
+for _ in $(seq 30); do [ "$(ctl view.get view="$P" | json 'd["ok"]')" = True ] && break; sleep 0.1; done
+ctl view.export view="$P" path=paper.html >/dev/null || fail "html export"
+grep -q '<meta name="generator" content="nebula">' paper.html || fail "exported html"
+grep -q 'id="ref-1"' paper.html && grep -q 'data:image/png;base64' paper.html || fail "exported html lacks references or the frozen chart"
+grep -q 'nebula-view:' paper.html && fail "exported html still points into nebula"
+ctl view.export view="$P" format=pdf path=paper.pdf >/dev/null || fail "pdf export"
+head -c 5 paper.pdf | grep -q '%PDF-' || fail "not a pdf"
+ctl view.snapshot view="$P" path=shot.png >/dev/null || fail "snapshot"
+python3 -c "import sys; d=open('shot.png','rb').read(24); sys.exit(0 if d[:8]==b'\x89PNG\r\n\x1a\n' and int.from_bytes(d[16:20],'big')>100 else 1)" || fail "snapshot is not a PNG"
+OUT=$(ctl view.snapshot view="$P" block=9 2>&1) && fail "snapshot of a missing block succeeded"
+echo "$OUT" | grep -q "no block 9" || fail "snapshot of a missing block: $OUT"
+# agents get the snapshot as an MCP image
+OUT=$(printf '%s\n' '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}' \
+  "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"tools/call\",\"params\":{\"name\":\"view_snapshot\",\"arguments\":{\"view\":$P,\"block\":1}}}" | "$BIN" mcp)
+echo "$OUT" | python3 -c '
+import base64, json, sys
+r = [json.loads(l) for l in sys.stdin if l.strip()][-1]["result"]
+img = r["content"][0]
+assert not r.get("isError") and img["type"] == "image" and img["mimeType"] == "image/png", r
+assert base64.b64decode(img["data"])[:8] == b"\x89PNG\r\n\x1a\n"
+assert "block 1" in r["content"][1]["text"]' || fail "view_snapshot over MCP: ${OUT:0:300}"
+ctl view.close view="$P" >/dev/null
+echo "research record, export and snapshot: ok"
+
 # component catalogue
 ctl view.components | json '{"table", "chart", "html", "math", "structure"} <= {c["name"] for c in d}' | grep -qx True || fail "components"
 ctl view.components name=nebula:table | json 'd["example"]' | grep -q '^```nebula:table' || fail "describe"

@@ -1,5 +1,7 @@
 #pragma once
 #include <QFileSystemWatcher>
+#include <QHash>
+#include <QImage>
 #include <QJsonArray>
 #include <QJsonObject>
 #include <QObject>
@@ -67,17 +69,35 @@ public:
 
     Q_INVOKABLE void pageDetached();              // called by QML when its view item goes away
 
+    // Export and snapshot: asynchronous, answered by `taskFinished(request, result)`. The page writes HTML, QML prints
+    // PDF and grabs images; ViewPane owns the files. result: {ok, path?, error?} or, for a snapshot, {ok, image}.
+    int startExport(const QString &format, const QString &path);   // format: html | pdf; path absolute
+    int startSnapshot(int block);                                   // block index, or -1 for what is on screen
+    QImage takeSnapshot(int request) { return m_snapshots.take(request); }
+    Q_INVOKABLE void pdfFinished(int request, bool ok);             // QML: WebEngineView.printToPdf finished
+    Q_INVOKABLE void snapshotTaken(int request, const QVariant &image);   // QML: grabToImage result
+
 public slots:
     // page -> nebula (QWebChannel)
     void rendered(const QString &reportJson);
     void reportIssue(const QString &message);
     void openLink(const QString &url);
+    void exportHtml(int request, const QString &html);
+    void exportFailed(int request, const QString &error);
+    void readyForSnapshot(int request);
+    void readyToPrint(int request);
 
 signals:
     void changed();
     void documentChanged();
     void themeChanged();
     void renderFinished(int generation);
+    void exportRequested(int request, const QString &format, const QString &path);   // page (html) and QML (pdf)
+    void snapshotRequested(int request, int block);                                  // page: scroll into view
+    void grabRequested(int request);                                                 // QML: grab the web view
+    void printRequested(int request, const QString &path);                           // QML: print to PDF (page is ready)
+    void printFinished();                                                            // page: drop the print stills
+    void taskFinished(int request, const QJsonObject &result);
 
 private:
     void reload();
@@ -90,10 +110,14 @@ private:
     QJsonArray m_diagnostics;
     QString m_fatal;
     QSet<QString> m_refs;
+    QStringList m_inputs;
     QStringList m_renderIssues;
     int m_generation = 0, m_renderedGeneration = -1;
     int m_anchor = -1;
     bool m_pageAttached = false;
     QFileSystemWatcher m_watcher;
     QTimer m_reloadTimer;
+    int m_nextRequest = 1;
+    QHash<int, QString> m_exportPaths;
+    QHash<int, QImage> m_snapshots;
 };

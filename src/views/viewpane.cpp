@@ -66,12 +66,14 @@ void ViewPane::reload() {
     m_diagnostics = r["diagnostics"].toArray();
     m_refs.clear();
     for (const QJsonValue &v : r["refs"].toArray()) m_refs.insert(v.toString());
+    m_inputs.clear();
+    for (const QJsonValue &v : r["inputs"].toArray()) m_inputs << v.toString();
     QJsonArray blocks = r["blocks"].toArray();
     if (!m_fatal.isEmpty())
         blocks = {QJsonObject{{"index", 0}, {"type", "markdown"}, {"line", 1}, {"ok", false},
                               {"errors", QJsonArray{QJsonObject{{"line", 1}, {"message", m_fatal}}}}}};
     // the page heading comes from the document's front matter only; Source::title names the pane
-    m_doc = {{"title", r["title"]}, {"blocks", blocks}, {"refs", r["refs"]}};
+    m_doc = {{"title", r["title"]}, {"blocks", blocks}, {"refs", r["refs"]}, {"bibliography", r["bibliography"]}};
     m_renderIssues.clear();
     ++m_generation;
     rewatch();
@@ -82,8 +84,9 @@ void ViewPane::reload() {
 void ViewPane::rewatch() {
     if (!m_watcher.files().isEmpty()) m_watcher.removePaths(m_watcher.files());
     if (m_src.file.isEmpty()) return;
+    // everything the checker read (data files, bibliographies, scripts), not only what the page loads
     QStringList paths{m_src.file};
-    for (const QString &rel : std::as_const(m_refs)) {
+    for (const QString &rel : std::as_const(m_inputs)) {
         const ViewFiles::Resolved r = ViewFiles::resolve(m_src.baseDir, rel);
         if (r.error.isEmpty()) paths << r.path;
     }
@@ -205,3 +208,51 @@ void ViewPane::openLink(const QString &url) {
 }
 
 void ViewPane::pageDetached() { m_pageAttached = false; }
+
+int ViewPane::startExport(const QString &format, const QString &path) {
+    const int request = m_nextRequest++;
+    m_exportPaths.insert(request, path);
+    emit exportRequested(request, format, path);
+    return request;
+}
+
+void ViewPane::exportHtml(int request, const QString &html) {
+    const QString path = m_exportPaths.take(request);
+    if (path.isEmpty()) return;
+    QSaveFile f(path);
+    const bool ok = f.open(QIODevice::WriteOnly) && f.write(html.toUtf8()) >= 0 && f.commit();
+    emit taskFinished(request, ok ? QJsonObject{{"ok", true}, {"path", path}, {"bytes", QFileInfo(path).size()}}
+                                  : QJsonObject{{"ok", false}, {"error", QString("cannot write %1").arg(path)}});
+}
+
+void ViewPane::readyToPrint(int request) {
+    if (m_exportPaths.contains(request)) emit printRequested(request, m_exportPaths.value(request));
+}
+
+void ViewPane::pdfFinished(int request, bool ok) {
+    emit printFinished();
+    const QString path = m_exportPaths.take(request);
+    if (path.isEmpty()) return;
+    emit taskFinished(request, ok ? QJsonObject{{"ok", true}, {"path", path}, {"bytes", QFileInfo(path).size()}}
+                                  : QJsonObject{{"ok", false}, {"error", QString("printing to %1 failed").arg(path)}});
+}
+
+void ViewPane::exportFailed(int request, const QString &error) {
+    if (m_exportPaths.remove(request)) emit printFinished();   // drop print stills if a PDF export was on its way
+    emit taskFinished(request, {{"ok", false}, {"error", error}});
+}
+
+int ViewPane::startSnapshot(int block) {
+    const int request = m_nextRequest++;
+    emit snapshotRequested(request, block);
+    return request;
+}
+
+void ViewPane::readyForSnapshot(int request) { emit grabRequested(request); }
+
+void ViewPane::snapshotTaken(int request, const QVariant &image) {
+    const QImage img = image.value<QImage>();
+    if (img.isNull()) { emit taskFinished(request, {{"ok", false}, {"error", "the view could not be captured"}}); return; }
+    m_snapshots.insert(request, img);
+    emit taskFinished(request, {{"ok", true}});
+}
