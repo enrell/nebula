@@ -26,11 +26,12 @@ $SUDO apt-get install -y -qq --no-install-recommends build-essential cmake ninja
   libwayland-dev libwayland-egl1 libdbus-1-3 libglib2.0-0 \
   libxcb-cursor0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-randr0 libxcb-render-util0 libxcb-shape0 \
   libxcb-xkb1 libxcb-xinerama0 libxcb-xinput0 \
-  libnss3 libxcomposite1 libxdamage1 libxrandr2 libxtst6 libxkbfile1 libxshmfence1 libdrm2 libgbm1 libasound2 >/dev/null
+  libnss3 libxcomposite1 libxdamage1 libxrandr2 libxtst6 libxkbfile1 libxshmfence1 libdrm2 libgbm1 \
+  $(apt-cache show libasound2t64 >/dev/null 2>&1 && echo libasound2t64 || echo libasound2) >/dev/null
 
 # Qt (official binaries)
 python3 -m pip install -q aqtinstall
-python3 -m aqt install-qt "$QT_HOST" desktop "$QT_VER" "$QT_ARCH" -m qtwebengine qtwebchannel qtpositioning -O "$WORK/qt" >/dev/null
+python3 -m aqt install-qt "$QT_HOST" desktop "$QT_VER" "$QT_ARCH" -m qtwebengine qtwebchannel qtpositioning qtserialport -O "$WORK/qt" >/dev/null
 QTDIR=$WORK/qt/$QT_VER/$QT_SUB
 
 # libvterm: distro versions are too old (0.1.x lacks the string/conceal API), link it statically
