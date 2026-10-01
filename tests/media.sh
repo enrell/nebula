@@ -4,6 +4,9 @@
 # in a throw-away HOME with scripted stand-in agents (tests/media_standin.py: no accounts, no personal data).
 # GIFs are real screen recordings (ffmpeg x11grab) driven by real mouse and keyboard input (xdotool).
 #   tests/media.sh [path/to/nebula]         needs: Xvfb, Mesa (libgl1-mesa-dri), ffmpeg, xdotool, python3
+# operator.gif shows REAL Claude Code as the operator (sonnet: it must get the tool calls right) and as the agents it launches (haiku) when `claude` is installed and
+# logged in (MEDIA_AGENTS=real, the default then); MEDIA_AGENTS=standin uses tests/media_standin.py (no account needed).
+# The login is copied into the throw-away HOME for the run and removed with it. MEDIA_ONLY=operator records just that scene.
 # Writes docs/media/: hero.gif, operator.gif, views-live.gif, persist.gif (README), and views-modal.png,
 # views-docked.png, views-errors.png, views-chembio.png, views-physics.png, views-research.png (docs/views.md).
 set -euo pipefail
@@ -12,9 +15,12 @@ HERE=$(cd "$(dirname "$0")" && pwd)
 OUT=$(realpath -m "$HERE/../docs/media")
 for t in Xvfb ffmpeg xdotool python3; do command -v $t >/dev/null || { echo "media: $t is required" >&2; exit 2; }; done
 mkdir -p "$OUT"
+REAL_HOME=$HOME BASE_PATH=$PATH
 export HOME=$(mktemp -d)
 WORK=$HOME/work FRAMES=$HOME/frames
 mkdir -p "$WORK" "$FRAMES" "$HOME/.config/nebula" "$HOME/agentbin"
+# no user@host on screen: the distro's bashrc puts it in the prompt and the terminal title
+printf '%s\n' "PS1='\$ '" 'PROMPT_COMMAND='"'"'printf "\033]0;%s\007" "${PWD/#$HOME/\~}"'"'" > "$HOME/.bashrc"
 DISP=:$((90 + RANDOM % 9))
 Xvfb "$DISP" -screen 0 1600x2200x24 >/dev/null 2>&1 & XVFB=$!
 export DISPLAY=$DISP QT_QPA_PLATFORM=xcb LIBGL_ALWAYS_SOFTWARE=1 QT_FORCE_STDERR_LOGGING=1 NEBULA_SECRETS=file
@@ -26,7 +32,9 @@ GUI=
 ctl() { "$BIN" ctl "$@"; }
 kill_host() { for pid in $(pgrep -f "$BIN --host" 2>/dev/null); do tr '\0' '\n' < "/proc/$pid/environ" 2>/dev/null | grep -qx "NEBULA_SOCKET=$NEBULA_SOCKET" && kill "$pid" 2>/dev/null || true; done; }
 stop() { ctl action.run action=kill-session >/dev/null 2>&1 || true; kill $GUI 2>/dev/null || true; wait $GUI 2>/dev/null || true; kill_host; rm -f "$NEBULA_SOCKET" "$NEBULA_SOCKET.host"; }
-trap 'stop; kill $XVFB 2>/dev/null; rm -rf "$HOME"' EXIT
+trap 'set +e; kill $REC 2>/dev/null; stop; kill $XVFB 2>/dev/null; [ -z "${MEDIA_KEEP:-}" ] || cp "$HOME"/*.mkv "$HOME/gui.log" "$MEDIA_KEEP"/ 2>/dev/null || true; rm -rf "$HOME"' EXIT   # MEDIA_KEEP=dir keeps the raw recordings
+REC=
+kill_host; rm -f "$NEBULA_SOCKET" "$NEBULA_SOCKET.host"   # a host left over from an interrupted run would serve this socket
 start() {
   "$BIN" >"$HOME/gui.log" 2>&1 & GUI=$!
   for _ in $(seq 80); do ctl ping >/dev/null 2>&1 && break; sleep 0.1; done
@@ -122,6 +130,7 @@ ln -s "$BIN" "$HOME/agentbin/nebula"
 export PATH="$HOME/agentbin:$PATH"
 echo '{"onboarded":true}' > "$HOME/.config/nebula/settings.json"
 
+if [ "${MEDIA_ONLY:-}" != operator ]; then
 # --- hero.gif: the agent works, then its view opens as a modal and the loss surface turns
 start
 # pay the web engine's first start before recording (a real session has usually shown a view already)
@@ -339,32 +348,157 @@ drag 1010 640 760 700 45; sleep 1.2
 finish views-live
 stop
 
+fi   # MEDIA_ONLY
+SCENE_PATH=$PATH
 # --- operator.gif: ask the operator in plain words; it launches two agents in their own worktrees, one of them
 # stops at a permission prompt, Ctrl+Shift+A jumps to it, and both finish
+CRED=${CLAUDE_CREDENTIALS:-$REAL_HOME/.claude/.credentials.json}
+if [ -z "${MEDIA_AGENTS:-}" ]; then
+  if command -v claude >/dev/null && { [ -f "$CRED" ] || [ -n "${ANTHROPIC_API_KEY:-}" ]; }; then MEDIA_AGENTS=real; else MEDIA_AGENTS=standin; fi
+fi
+echo "media: operator scene with $MEDIA_AGENTS agents"
+
+# poll the real state instead of sleeping: waitfor 'python expression over the agent list a' SECONDS (fails on timeout);
+# WAIT_ON=pane.list polls all panes instead
+waitfor() {
+  local end=$((SECONDS + $2))
+  while [ $SECONDS -lt $end ]; do
+    ctl "${WAIT_ON:-agent.list}" | python3 -c 'import json,sys;a=json.load(sys.stdin);sys.exit(0 if ('"$1"') else 1)' 2>/dev/null && return 0
+    sleep 0.5
+  done
+  echo "media: timed out waiting for: $1" >&2; ctl pane.list >&2; return 1
+}
+# milestones, in seconds since the recording started, to speed up the dull waits afterwards
+mark() { MARKS+=("$(python3 -c "import time;print(round(time.time() - $REC_T0, 2))")"); }
+record_t() { REC_T0=$(python3 -c 'import time;print(time.time())'); MARKS=(); record "$@"; }
+# finish_cut NAME SPEED...: like finish, but plays the stretch before each mark (and the tail) at the given speed
+finish_cut() {
+  local name=$1; shift
+  local n=$# i=0 a=0 fc="" cat="" sp
+  kill -INT $REC; wait $REC 2>/dev/null || true
+  for sp in "$@"; do
+    local b=${MARKS[$i]:-99999}
+    fc+="[0:v]trim=start=$a:end=$b,setpts=(PTS-STARTPTS)/$sp[v$i];"; cat+="[v$i]"; a=$b; i=$((i + 1))
+  done
+  ffmpeg -loglevel error -y -i "$HOME/$name.mkv" -filter_complex "${fc}${cat}concat=n=$n:v=1[c];[c]fps=14,scale=1000:-1:flags=lanczos,split[a][b];[a]palettegen=max_colors=200:stats_mode=diff[p];[b][p]paletteuse=dither=bayer:bayer_scale=5:diff_mode=rectangle" "$OUT/$name.gif"
+}
+
 rm -rf "$NEBULA_STATE_DIR"
-mkdir -p "$HOME/standin"
-for a in claude codex; do printf '#!/bin/sh\nexec python3 "%s/media_standin.py" %s "$@"\n' "$HERE" "$a" > "$HOME/standin/$a"; chmod +x "$HOME/standin/$a"; done
-ln -sf "$BIN" "$HOME/standin/nebula"
-export PATH="$HOME/standin:$PATH"
-echo '{"onboarded":true,"operatorAgent":"native:claude"}' > "$HOME/.config/nebula/settings.json"
-cd "$WORK"
+DEMO=$HOME/demo
+mkdir -p "$DEMO/tests"
+cd "$DEMO"
+# a small project with a genuinely flaky test: a 50 ms token and a 45 ms sleep pass or fail with the machine's load
+cat > session.py <<'PY'
+import time
+
+
+class Session:
+    def __init__(self, ttl):
+        self.expires_at = time.time() + ttl
+
+    def is_valid(self):
+        return time.time() < self.expires_at
+PY
+cat > tests/test_session.py <<'PY'
+import time
+import unittest
+
+from session import Session
+
+
+class SessionTest(unittest.TestCase):
+    def test_valid_before_expiry(self):
+        s = Session(ttl=0.05)
+        time.sleep(0.045)
+        self.assertTrue(s.is_valid())
+
+    def test_invalid_after_expiry(self):
+        s = Session(ttl=0.05)
+        time.sleep(0.06)
+        self.assertFalse(s.is_valid())
+PY
+printf '# demo\n\nA tiny session library.\n' > README.md
+git init -q -b main . && git add -A && git -c user.email=demo@example.com -c user.name=demo commit -qm "session library"
+
+if [ "$MEDIA_AGENTS" = real ]; then
+  mkdir -p "$HOME/.claude" "$HOME/realbin"
+  [ -f "$CRED" ] && install -m 600 "$CRED" "$HOME/.claude/.credentials.json"
+  ln -sf "$(PATH=$BASE_PATH command -v claude)" "$HOME/realbin/claude"; ln -sf "$BIN" "$HOME/realbin/nebula"
+  for v in $(env | grep -o '^CLAUDE[A-Z_]*'); do unset "$v"; done   # when run from inside a Claude Code session
+  export PATH="$HOME/realbin:$BASE_PATH" CLAUDE_CODE_HIDE_ACCOUNT_INFO=1 DISABLE_AUTOUPDATER=1 DISABLE_TELEMETRY=1
+  # Claude Code asks to trust every new folder, parents do not count: trust the worktrees the prompt names, and accept
+  # the dialog if the operator picks other names anyway
+  python3 - "$HOME" "$DEMO" <<'PY'
+import json, sys
+home, demo = sys.argv[1:]
+dirs = [demo, demo + "-fix-flaky", demo + "-docs-expiry"]
+json.dump({"hasCompletedOnboarding": True, "theme": "dark", "projects": {d: {"hasTrustDialogAccepted": True} for d in dirs}},
+          open(home + "/.claude.json", "w"))
+PY
+  # haiku: fast and cheap. Everything is allowed except committing: that is the one prompt the demo stops at
+  cat > "$HOME/.claude/settings.json" <<'JSON'
+{"model":"haiku","permissions":{"allow":["Bash","Read","Edit","Write","Glob","Grep"],"ask":["Bash(git commit:*)"]}}
+JSON
+  echo '{"onboarded":true,"operatorAgent":"native:claude","operatorModel":"sonnet"}' > "$HOME/.config/nebula/settings.json"
+  PROMPT="Launch two claude agents side by side in worktrees: fix-flaky fixes the flaky test and commits, docs-expiry documents Session expiry in the README. Then close this shell."
+else
+  mkdir -p "$HOME/standin"
+  for a in claude codex; do printf '#!/bin/sh\nexec python3 "%s/media_standin.py" %s "$@"\n' "$HERE" "$a" > "$HOME/standin/$a"; chmod +x "$HOME/standin/$a"; done
+  ln -sf "$BIN" "$HOME/standin/nebula"
+  export PATH="$HOME/standin:$PATH"
+  echo '{"onboarded":true,"operatorAgent":"native:claude"}' > "$HOME/.config/nebula/settings.json"
+  PROMPT="Launch claude and codex on the flaky auth test, each in its own worktree"
+fi
+
+[ -n "${MEDIA_KEEP:-}" ] && export NEBULA_ACP_TRACE=1   # the operator's wire log, in gui.log
 start
+if [ "$MEDIA_AGENTS" = real ]; then
+  ctl integration.install agent=claude kind=hooks >/dev/null
+  ( while sleep 1; do
+      for id in $(ctl agent.list 2>/dev/null | python3 -c 'import json,sys;[print(p["id"]) for p in json.load(sys.stdin)]' 2>/dev/null); do
+        ctl pane.read pane="$id" lines=30 2>/dev/null | grep -q "Yes, I trust this folder" && { echo "media: accepting the trust dialog in pane $id" >&2; ctl pane.send_keys pane="$id" keys=Down >/dev/null; ctl pane.send_keys pane="$id" keys=Enter >/dev/null; }
+      done
+    done ) & TRUST=$!
+fi
 P=$(paneid)
-ctl pane.send_text pane="$P" text="cd ~/work; PS1='\$ '; clear; git log --oneline -1" enter=true >/dev/null
+ctl pane.send_text pane="$P" text="cd $DEMO; PS1='\$ '; clear; git log --oneline -1" enter=true >/dev/null
 sleep 0.5
-record operator
+record_t operator
 click 800 400
 xdotool key ctrl+shift+i; sleep 1.2
-xdotool type --delay 45 "Launch claude and codex on the flaky auth test, each in its own worktree"
-sleep 0.4; xdotool key Return
-sleep 7.5
-xdotool key Escape; sleep 3.5
-xdotool key ctrl+shift+a; sleep 1.5
-xdotool type --delay 120 "y"; xdotool key Return
-sleep 5
-finish operator
+xdotool type --delay 28 "$PROMPT"
+sleep 0.4; xdotool key Return; mark                                           # 1: prompt sent
+if [ "$MEDIA_AGENTS" = real ]; then
+  SPEEDS=(1)                                                                  # typing, at 1x
+  waitfor 'len(a)>=2' 120; mark; SPEEDS+=(3)                                  # the operator launches both agents
+  WAIT_ON=pane.list waitfor 'len(a)==2' 30 || true; sleep 2; mark; SPEEDS+=(1)   # ... closes the shell and says so
+  xdotool key Escape
+  waitfor 'any(x["state"]=="blocked" for x in a)' 240; sleep 1; mark; SPEEDS+=(5)   # they work until one asks
+  # jump to whichever agent is blocked and approve it, as long as one is (each may ask more than once)
+  for _ in 1 2 3 4 5; do
+    xdotool key ctrl+shift+a; sleep 1.6
+    xdotool key Return; sleep 1.5; mark; SPEEDS+=(1)
+    sleep 2
+    waitfor 'any(x["state"]=="blocked" for x in a) or all(x["state"] in ("done","idle") for x in a)' 240
+    ctl agent.list | python3 -c 'import json,sys;sys.exit(0 if any(x["state"]=="blocked" for x in json.load(sys.stdin)) else 1)' || break
+    sleep 1; mark; SPEEDS+=(5)
+  done
+  sleep 2.5; SPEEDS+=(3)                                                      # both finished, a short hold
+  kill $TRUST 2>/dev/null
+  finish_cut operator "${SPEEDS[@]}"
+else
+  sleep 7.5
+  xdotool key Escape; sleep 3.5
+  xdotool key ctrl+shift+a; sleep 1.5
+  xdotool type --delay 120 "y"; xdotool key Return
+  sleep 5
+  finish operator
+fi
 stop
 
+export PATH=$SCENE_PATH
+cd "$WORK"
+if [ "${MEDIA_ONLY:-}" != operator ]; then
 # --- persist.gif: nebula is killed while agents work; the next launch finds everything still running
 rm -rf "$NEBULA_STATE_DIR"
 start
@@ -380,5 +514,7 @@ start
 sleep 5
 finish persist 1000 "$(caption 'kill -9 nebula' 2.7 4.9)"
 stop
+
+fi   # MEDIA_ONLY
 
 echo "media written to $OUT: $(cd "$OUT" && ls | tr '\n' ' ')"

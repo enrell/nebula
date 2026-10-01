@@ -8,6 +8,7 @@ Item {
     property string text                 // what the button shows
     property string placeholder: "Select"
     property string prefix               // small muted label before the text
+    property bool flat: false            // text-like: no frame until hovered (for headers)
     property Item scope
     property string currentValue
     property bool open: false
@@ -16,8 +17,8 @@ Item {
     property real px: 0
     property real py: 0
 
-    implicitWidth: label.implicitWidth + 44
-    implicitHeight: 30
+    implicitWidth: label.implicitWidth + (flat ? 30 : 44) + (prefix !== "" ? prefixText.implicitWidth + 6 : 0)
+    implicitHeight: flat ? fs + 8 : 30
     enabled: items.length > 0
     opacity: enabled ? 1 : 0.5
 
@@ -29,15 +30,16 @@ Item {
 
     Rectangle {
         anchors.fill: parent
-        radius: 6
+        radius: root.flat ? 4 : 6
         color: ma.containsMouse || root.open ? theme.panel : "transparent"
-        border.width: 1
+        border.width: root.flat && !root.open ? 0 : 1
         border.color: root.open ? theme.accent : theme.border
         Row {
             anchors.verticalCenter: parent.verticalCenter
-            x: 10
+            x: root.flat ? 7 : 10
             spacing: 6
             Text {
+                id: prefixText
                 visible: root.prefix !== ""
                 anchors.verticalCenter: parent.verticalCenter
                 text: root.prefix; color: theme.muted
@@ -46,15 +48,15 @@ Item {
             Text {
                 id: label
                 anchors.verticalCenter: parent.verticalCenter
-                width: Math.min(implicitWidth, root.width - 44 - (root.prefix !== "" ? 40 : 0))
+                width: Math.min(implicitWidth, root.width - (root.flat ? 30 : 44) - (root.prefix !== "" ? prefixText.implicitWidth + 6 : 0))
                 elide: Text.ElideRight
                 text: root.text !== "" ? root.text : root.placeholder
-                color: root.text !== "" ? theme.fg : theme.muted
-                font.family: theme.fontFamily; font.pixelSize: root.fs - 1
+                color: root.text !== "" && !root.flat ? theme.fg : root.flat && (ma.containsMouse || root.open) ? theme.fg : theme.muted
+                font.family: theme.fontFamily; font.pixelSize: root.flat ? root.fs - 2 : root.fs - 1
             }
         }
         Text {
-            anchors { right: parent.right; rightMargin: 10; verticalCenter: parent.verticalCenter }
+            anchors { right: parent.right; rightMargin: root.flat ? 7 : 10; verticalCenter: parent.verticalCenter }
             text: root.open ? "▴" : "▾"; color: theme.muted; font.pixelSize: root.fs - 2
         }
         MouseArea {
@@ -77,7 +79,7 @@ Item {
             x: root.px; y: root.py
             width: Math.max(root.width, 280)
             height: Math.min(list.contentHeight + 8, 300)
-            radius: 8
+            radius: 6
             color: theme.bg
             border.width: 1
             border.color: theme.border

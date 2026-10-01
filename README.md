@@ -21,7 +21,7 @@
 
 ## Ask once, and nebula runs the agents
 
-<p align="center"><img src="docs/media/operator.gif" alt="the operator is asked to launch claude and codex on a flaky test; both start in their own worktrees, codex stops at a permission prompt, Ctrl+Shift+A jumps to it, and both finish" width="900"></p>
+<p align="center"><img src="docs/media/operator.gif" alt="the operator (real Claude Code) is asked to launch two claude agents side by side in worktrees; one fixes a flaky test and stops at a permission prompt to commit, Ctrl+Shift+A jumps to it, and both finish" width="900"></p>
 
 Run any CLI agent in spaces, tabs and splits. nebula knows which agent is **working**, **blocked** on a prompt or **done**, and `Ctrl+Shift+A` takes you to the one that needs you. Tell the built-in **operator** what you want in plain words: it launches agents, each in its own git worktree, prompts them and answers their permission prompts. It works with your Claude Code or ChatGPT subscription, so no API key is needed.
 

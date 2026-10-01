@@ -99,6 +99,11 @@ QVariantMap Launcher::launch(const QVariantMap &o) {
     if (o["worktree"].toBool()) {
         QString root;
         if (!git(cwd, {"rev-parse", "--show-toplevel"}, &root)) return err("not inside a git repository: " + cwd);
+        // launched from inside a worktree (e.g. the pane of an agent started this way): branch off the main checkout,
+        // so parallel agents get sibling worktrees instead of repo-a-b chains built on each other's branches
+        QString common;
+        if (git(cwd, {"rev-parse", "--path-format=absolute", "--git-common-dir"}, &common) && QFileInfo(common).fileName() == ".git")
+            root = QFileInfo(common).absolutePath();
         QString branch = o["branch"].toString().trimmed();
         if (branch.isEmpty()) branch = agent + "-" + QString::number(QDateTime::currentSecsSinceEpoch() % 100000);
         branch.replace(QRegularExpression("[^A-Za-z0-9._/-]"), "-");
