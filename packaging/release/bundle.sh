@@ -21,13 +21,15 @@ mkdir -p "$OUT"
 
 export DEBIAN_FRONTEND=noninteractive
 $SUDO apt-get update -qq
+# package names differ between jammy and noble (64-bit time_t rename): pick the first that exists
+pick() { for p in "$@"; do apt-cache show "$p" >/dev/null 2>&1 && { echo "$p"; return; }; done; }
 $SUDO apt-get install -y -qq --no-install-recommends build-essential cmake ninja-build pkg-config git curl file ca-certificates \
   libtool-bin python3-pip libgl-dev libegl-dev libxkbcommon-dev libxkbcommon-x11-0 libfontconfig1-dev libfreetype6 \
   libwayland-dev libwayland-egl1 libdbus-1-3 libglib2.0-0 \
   libxcb-cursor0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-randr0 libxcb-render-util0 libxcb-shape0 \
   libxcb-xkb1 libxcb-xinerama0 libxcb-xinput0 \
   libnss3 libxcomposite1 libxdamage1 libxrandr2 libxtst6 libxkbfile1 libxshmfence1 libdrm2 libgbm1 \
-  $(apt-cache show libasound2t64 >/dev/null 2>&1 && echo libasound2t64 || echo libasound2) >/dev/null
+  $(pick libasound2t64 libasound2) $(pick libevent-2.1-7t64 libevent-2.1-7) $(pick libminizip1t64 libminizip1) libopus0 >/dev/null
 
 # Qt (official binaries)
 python3 -m pip install -q aqtinstall
