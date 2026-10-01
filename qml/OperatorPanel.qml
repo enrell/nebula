@@ -71,15 +71,12 @@ FocusScope {
     Rectangle { anchors.fill: parent; color: Qt.rgba(0, 0, 0, 0.72) }
     MouseArea { anchors.fill: parent; onClicked: app.hideOverlay() }
 
-    // sized to the conversation, like a command palette: starts compact under the top edge and grows downwards
+    // a stable chat window: centered, the same size whatever the conversation holds
     Rectangle {
         id: box
-        readonly property real body: root.log.length === 0 ? empty.implicitHeight + 36 : msgs.contentHeight + msgs.topMargin + msgs.bottomMargin
-        anchors.horizontalCenter: parent.horizontalCenter
-        y: Math.max(16, Math.min(root.height * 0.1, root.height - height - 16))
-        width: Math.min(root.width - 32, 900)
-        height: Math.min(root.height - 32, Math.max(300, header.height + body + composer.height))
-        Behavior on height { NumberAnimation { duration: 120; easing.type: Easing.OutCubic } }
+        anchors.centerIn: parent
+        width: Math.min(root.width - 48, 860)
+        height: Math.min(root.height - 48, 700)
         radius: 6
         color: theme.bg
         border.width: 1
@@ -190,38 +187,58 @@ FocusScope {
                     y: msg.newTurn ? 8 : 0
                     width: parent.width
 
-                    // you: a prompt line
-                    Row {
+                    // you: a bubble on the right
+                    Item {
                         visible: msg.kind === "user"
-                        x: root.pad; spacing: 10
-                        Text { text: "›"; color: theme.accent; font.bold: true; font.family: theme.fontFamily; font.pixelSize: root.fs }
-                        TextEdit {
-                            width: msgs.width - root.pad * 2 - 20
-                            readOnly: true; selectByMouse: true; wrapMode: TextEdit.Wrap
-                            text: msg.kind === "user" ? msg.modelData.text : ""
-                            color: theme.fg; font.bold: true
-                            selectionColor: theme.accent; selectedTextColor: theme.bg
-                            font.family: theme.fontFamily; font.pixelSize: root.fs
+                        width: parent.width; height: visible ? ub.height : 0
+                        Rectangle {
+                            id: ub
+                            anchors { right: parent.right; rightMargin: root.pad }
+                            width: Math.min(msgs.width * 0.75, uText.implicitWidth + 24)
+                            height: uText.implicitHeight + 16
+                            radius: 6
+                            color: Qt.rgba(theme.accent.r, theme.accent.g, theme.accent.b, 0.16)
+                            border.width: 1; border.color: Qt.rgba(theme.accent.r, theme.accent.g, theme.accent.b, 0.45)
+                            TextEdit {
+                                id: uText
+                                x: 12; y: 8; width: Math.min(implicitWidth, msgs.width * 0.75 - 24)
+                                readOnly: true; selectByMouse: true; wrapMode: TextEdit.Wrap
+                                text: msg.kind === "user" ? msg.modelData.text : ""
+                                color: theme.fg; selectionColor: theme.accent; selectedTextColor: theme.bg
+                                font.family: theme.fontFamily; font.pixelSize: root.fs
+                            }
                         }
                     }
 
-                    // the operator: plain text under your prompt
-                    TextEdit {
+                    // the operator: a bubble on the left
+                    Item {
                         visible: msg.kind === "assistant"
-                        x: root.pad + 20; width: msgs.width - root.pad * 2 - 20
-                        readOnly: true; selectByMouse: true; wrapMode: TextEdit.Wrap
-                        textFormat: TextEdit.MarkdownText
-                        text: msg.kind === "assistant" ? msg.modelData.text : ""
-                        color: theme.fg; opacity: 0.92
-                        selectionColor: theme.accent; selectedTextColor: theme.bg
-                        font.family: theme.fontFamily; font.pixelSize: root.fs
-                        onLinkActivated: (l) => Qt.openUrlExternally(l)
+                        width: parent.width; height: visible ? ab.height : 0
+                        Rectangle {
+                            id: ab
+                            x: root.pad
+                            width: Math.min(msgs.width * 0.82, aText.implicitWidth + 24)
+                            height: aText.implicitHeight + 16
+                            radius: 6
+                            color: theme.panel
+                            border.width: 1; border.color: theme.border
+                            TextEdit {
+                                id: aText
+                                x: 12; y: 8; width: Math.min(implicitWidth, msgs.width * 0.82 - 24)
+                                readOnly: true; selectByMouse: true; wrapMode: TextEdit.Wrap
+                                textFormat: TextEdit.MarkdownText
+                                text: msg.kind === "assistant" ? msg.modelData.text : ""
+                                color: theme.fg; selectionColor: theme.accent; selectedTextColor: theme.bg
+                                font.family: theme.fontFamily; font.pixelSize: root.fs
+                                onLinkActivated: (l) => Qt.openUrlExternally(l)
+                            }
+                        }
                     }
 
                     // thinking: one dim line
                     Text {
                         visible: msg.kind === "thought"
-                        x: root.pad + 20; width: msgs.width - root.pad * 2 - 20
+                        x: root.pad + 4; width: msgs.width - root.pad * 2 - 4
                         text: msg.kind === "thought" ? "∴ " + msg.modelData.text.replace(/\*+/g, "").replace(/\s+/g, " ") : ""
                         maximumLineCount: 1; elide: Text.ElideRight
                         color: theme.muted; font.italic: true
@@ -235,7 +252,7 @@ FocusScope {
                         readonly property bool running: st === "" || st === "in_progress" || st === "pending"
                         readonly property color tone: st === "completed" ? theme.green : (st === "failed" || st === "stopped") ? theme.red : theme.yellow
                         visible: msg.kind === "tool"
-                        x: root.pad + 20; spacing: 8
+                        x: root.pad + 4; spacing: 8
                         Text {
                             text: tool.running && root.busy ? root.frames[root.spin] : tool.st === "completed" ? "✓" : tool.st === "failed" ? "✗" : tool.st === "stopped" ? "■" : "·"
                             color: tool.tone; font.family: theme.fontFamily; font.pixelSize: root.fs - 1
@@ -272,7 +289,7 @@ FocusScope {
                     // an error: red rule, message, keyboard-style actions
                     Item {
                         visible: msg.kind === "error"
-                        x: root.pad + 20; width: msgs.width - root.pad * 2 - 20
+                        x: root.pad + 4; width: msgs.width - root.pad * 2 - 4
                         height: visible ? eCol.implicitHeight : 0
                         Rectangle { width: 2; height: parent.height; color: theme.red }
                         Column {
@@ -307,7 +324,7 @@ FocusScope {
                 // working
                 Text {
                     visible: root.busy && !root.asking
-                    x: root.pad + 20; y: 8
+                    x: root.pad + 4; y: 8
                     text: root.frames[root.spin] + " " + (operatorAgent.status || "working").toLowerCase()
                     color: theme.muted; font.family: theme.fontFamily; font.pixelSize: root.fs - 2
                 }
@@ -315,7 +332,7 @@ FocusScope {
                 Item {
                     id: ask
                     visible: root.asking
-                    x: root.pad + 20; y: 8; width: parent.width - root.pad * 2 - 20
+                    x: root.pad + 4; y: 8; width: parent.width - root.pad * 2 - 4
                     height: aCol.implicitHeight
                     Rectangle { width: 2; height: parent.height; color: theme.yellow }
                     Column {
@@ -336,37 +353,45 @@ FocusScope {
             }
         }
 
-        // ── empty: a quiet prompt and a few things to try ──
+        // ── empty: a centered welcome with a few things to try ──
         Column {
             id: empty
             visible: root.log.length === 0
-            anchors { left: parent.left; leftMargin: root.pad; right: parent.right; rightMargin: root.pad; top: header.bottom; topMargin: 18 }
-            spacing: 6
+            anchors { horizontalCenter: msgs.horizontalCenter; verticalCenter: msgs.verticalCenter }
+            width: Math.min(msgs.width - root.pad * 2, 560)
+            spacing: 10
+            Icon { anchors.horizontalCenter: parent.horizontalCenter; name: "operator"; size: 22; color: theme.accent }
             Text {
-                width: parent.width; wrapMode: Text.WordWrap
+                width: parent.width; horizontalAlignment: Text.AlignHCenter
+                text: "What should I do?"; color: theme.fg; font.bold: true
+                font.family: theme.fontFamily; font.pixelSize: root.fs + 3
+            }
+            Text {
+                width: parent.width; horizontalAlignment: Text.AlignHCenter; wrapMode: Text.WordWrap
                 text: !operatorAgent.available
                     ? "No compatible agent is installed. Install Codex, Claude Code or opencode, or set a command in Settings › Agents & AI."
-                    : "The operator runs nebula for you: it launches and prompts your agents, reads their panes, answers their prompts and arranges the workspace."
+                    : "I run nebula for you: I launch and prompt your agents, read their panes, answer their prompts and arrange the workspace."
                 color: theme.muted; font.family: theme.fontFamily; font.pixelSize: root.fs - 1
-                bottomPadding: 8
+                bottomPadding: 6
             }
             Repeater {
                 model: operatorAgent.available ? root.suggestions : []
                 delegate: Rectangle {
                     required property string modelData
-                    required property int index
-                    width: parent.width; height: root.fs + 12; radius: 4
+                    width: parent.width; height: root.fs + 16; radius: 6
                     color: sHover.hovered ? theme.panel : "transparent"
-                    Row {
-                        x: 8; anchors.verticalCenter: parent.verticalCenter; spacing: 10
-                        Text { text: "›"; color: sHover.hovered ? theme.accent : theme.border; font.bold: true; font.family: theme.fontFamily; font.pixelSize: root.fs }
-                        Text { text: modelData; color: sHover.hovered ? theme.fg : theme.muted; font.family: theme.fontFamily; font.pixelSize: root.fs - 1 }
+                    border.width: 1; border.color: sHover.hovered ? theme.accent : theme.border
+                    Text {
+                        x: 12; anchors.verticalCenter: parent.verticalCenter; width: parent.width - 24; elide: Text.ElideRight
+                        text: modelData; color: sHover.hovered ? theme.fg : theme.muted
+                        font.family: theme.fontFamily; font.pixelSize: root.fs - 1
                     }
                     HoverHandler { id: sHover; cursorShape: Qt.PointingHandCursor }
                     TapHandler { onTapped: root.submit(modelData) }
                 }
             }
             HeaderButton {
+                anchors.horizontalCenter: parent.horizontalCenter
                 visible: !operatorAgent.available
                 label: "open settings"; tone: theme.accent
                 onClicked: { app.hideOverlay(); app.setSettingsVisible(true) }
@@ -397,20 +422,19 @@ FocusScope {
                 HeaderButton { anchors.verticalCenter: parent.verticalCenter; label: "drop"; onClicked: root.contextSent = true }
             }
 
-            Item {
+            // a chat input box: framed, accent border while typing
+            Rectangle {
                 id: inputRow
-                x: root.pad; y: ctx.height + (ctx.visible ? 12 : 12)
+                x: root.pad; y: ctx.height + 12
                 width: parent.width - root.pad * 2
-                height: Math.max(root.fs + 8, Math.min(160, edit.contentHeight + 4))
-                Text {
-                    id: promptMark
-                    y: 2
-                    text: "›"; color: edit.activeFocus ? theme.accent : theme.muted; font.bold: true
-                    font.family: theme.fontFamily; font.pixelSize: root.fs
-                }
+                height: Math.max(root.fs + 22, Math.min(160, edit.contentHeight + 22))
+                radius: 6
+                color: theme.panel
+                border.width: 1
+                border.color: edit.activeFocus ? theme.accent : theme.border
                 Flickable {
                     id: fl
-                    anchors { left: promptMark.right; leftMargin: 10; right: parent.right; top: parent.top; bottom: parent.bottom; topMargin: 2 }
+                    anchors { fill: parent; leftMargin: 12; rightMargin: 12; topMargin: 11; bottomMargin: 11 }
                     clip: true
                     contentWidth: width
                     contentHeight: edit.contentHeight
@@ -442,7 +466,7 @@ FocusScope {
                         }
                         Text {
                             visible: edit.text === ""
-                            text: root.asking ? "y to allow, n to deny" : root.conn === "ready" ? "ask the operator" : "ask the operator (it connects when you send)"
+                            text: root.asking ? "y to allow, n to deny" : root.conn === "ready" ? "Message the operator" : "Message the operator (it connects when you send)"
                             color: theme.muted; opacity: 0.8
                             font: edit.font
                         }
