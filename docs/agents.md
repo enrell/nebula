@@ -14,6 +14,8 @@ Open it with `Ctrl+Shift+L` or the `+` next to *agents*, then pick claude/codex/
 
 Every agent shows its state as a mark in the sidebar, on its pane title and in the status bar. Each mark is told apart by its shape and its motion, not only its color:
 
+<p><img src="media/status.gif" alt="the sidebar's agents list: a working agent with spinning dots and a running clock, a blocked one with a pulsing ring, and two done ones with a check" width="500"></p>
+
 | Mark | State | Meaning |
 |---|---|---|
 | spinning dots (yellow) | working | busy, with how long it has been working: `working 2m 13s` |
