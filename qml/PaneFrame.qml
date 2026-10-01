@@ -32,11 +32,10 @@ Item {
         height: root.fs + 2
         width: title.implicitWidth + 22
         color: theme.bg
-        Rectangle {
-            visible: root.session && root.session.agentState !== undefined && root.session.agentState !== "" && root.session.agentState !== "none"
-            x: 3; anchors.verticalCenter: parent.verticalCenter
-            width: 7; height: 7; radius: 4
-            color: root.session ? win.stateColor(root.session.agentState) : "transparent"
+        StateMark {
+            mark: root.session && root.session.agentState ? root.session.agentState : ""
+            x: 1; anchors.verticalCenter: parent.verticalCenter
+            size: 7
         }
         Text {
             id: title

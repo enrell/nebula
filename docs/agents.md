@@ -10,6 +10,21 @@ A named API key (Anthropic, OpenAI, OpenRouter, Gemini or any OpenAI-compatible 
 
 Open it with `Ctrl+Shift+L` or the `+` next to *agents*, then pick claude/codex/opencode/gemini/aider/shell (add your own in `~/.config/nebula/agents.conf`, one `name = command` per line), profile, model, directory, where to open it (split/tab/space), optionally a fresh **git worktree + branch** so parallel agents don't collide, and an initial prompt. `nebula ctl agent.launch agent=claude prompt="fix the flaky test" worktree=true branch=fix/flaky`. `Ctrl+Shift+M` broadcasts one prompt to several agents.
 
+## Status
+
+Every agent shows its state as a mark in the sidebar, on its pane title and in the status bar. Each mark is told apart by its shape and its motion, not only its color:
+
+<p><img src="media/status.gif" alt="the sidebar's agents list: a working agent with spinning dots and a running clock, a blocked one with a pulsing ring, and two done ones with a check" width="500"></p>
+
+| Mark | State | Meaning |
+|---|---|---|
+| spinning dots (yellow) | working | busy, with how long it has been working: `working 2m 13s` |
+| dot with a pulsing ring (red) | blocked | waiting for you, with how long it has waited |
+| check (green) | done | finished while you were elsewhere |
+| hollow ring | idle | waiting for a prompt |
+
+Only working and blocked move, so anything that moves is either busy or needs you. If a working clock climbs far past what the task should take, look at that agent.
+
 ## Hooks
 
 Exact `working / blocked / done` state instead of screen heuristics (Settings > Agent integrations). Claude Code (`~/.claude/settings.json`), opencode (plugin) and codex (`notify`, turn completion only). Your files are merged, never overwritten, and backed up as `*.nebula-bak`; Remove restores them. Hooks run `nebula ctl pane.report_state` and are silent no-ops outside nebula.

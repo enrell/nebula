@@ -23,6 +23,22 @@ Window {
     }
     function countState(s) { return app.agents.filter(a => a.state === s).length }
 
+    // one clock for every state mark, so all spinners turn together, and one for "working 2m 13s"
+    readonly property var spinFrames: ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"]
+    property int spin: 0
+    property double now: Date.now()
+    readonly property bool anyWorking: app.agents.some(a => a.state === "working")
+    Timer { interval: 80; repeat: true; running: win.anyWorking; onTriggered: win.spin = (win.spin + 1) % win.spinFrames.length }
+    Timer { interval: 1000; repeat: true; triggeredOnStart: true; running: app.agents.length > 0; onTriggered: win.now = Date.now() }
+    // how long an agent has been in its state: "12s", "4m", "1h 20m"
+    function since(ms) {
+        if (!ms) return ""
+        const s = Math.max(0, Math.floor((win.now - ms) / 1000))
+        if (s < 60) return s + "s"
+        if (s < 3600) return Math.floor(s / 60) + "m " + (s % 60 < 10 ? "0" : "") + (s % 60) + "s"
+        return Math.floor(s / 3600) + "h " + Math.floor(s % 3600 / 60) + "m"
+    }
+
     Component.onCompleted: if (!settings.onboarded) app.showOverlay("onboarding")
 
     Sidebar {

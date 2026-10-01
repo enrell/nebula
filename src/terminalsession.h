@@ -18,6 +18,7 @@ class TerminalSession : public QObject {
     Q_PROPERTY(QString branch READ branch NOTIFY metaChanged)
     Q_PROPERTY(QString agent READ agent NOTIFY metaChanged)
     Q_PROPERTY(QString agentState READ agentState NOTIFY metaChanged)
+    Q_PROPERTY(qint64 stateSince READ stateSince NOTIFY metaChanged)
     Q_PROPERTY(QString title READ title NOTIFY metaChanged)
     Q_PROPERTY(QString profile READ profile CONSTANT)
     Q_PROPERTY(QString summary READ summary NOTIFY metaChanged)
@@ -32,6 +33,7 @@ public:
     QString branch() const { return m_branch; }
     QString agent() const { return m_agent; }
     QString agentState() const { return m_state; }
+    qint64 stateSince() const { return m_stateSince; }   // epoch ms when agentState last changed
     QString title() const { return QString::fromUtf8(m_title); }
     void setActive(bool active);
     bool active() const { return m_active; }
@@ -110,6 +112,7 @@ private:
     int m_mouse = 0, m_cursorShape = 1;
     QByteArray m_title;
     QString m_cwd, m_branch, m_agent, m_state, m_proc;
+    qint64 m_stateSince = 0;
     bool m_active = false, m_sawWorking = false, m_alive = true, m_terminated = false;
     int m_notWorkingPolls = 0;
     QString m_reported;

@@ -75,6 +75,7 @@ qt_add_qml_module(nebula
     qml/Kbd.qml
     qml/Card.qml
     qml/StatusBar.qml
+    qml/StateMark.qml
     qml/OnboardingWizard.qml
     qml/ViewContent.qml
     qml/ViewModal.qml

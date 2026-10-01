@@ -47,7 +47,7 @@ Rectangle {
         property string title
         property string subtitle
         property color dot: "transparent"
-        property bool hollow: false
+        property string mark            // an agent state: drawn as a StateMark instead of the plain dot
         property bool selected: false
         signal clicked
         signal middleClicked
@@ -63,11 +63,11 @@ Rectangle {
         color: selected ? theme.panel : (ma.containsMouse ? Qt.darker(theme.panel, 1.4) : "transparent")
         Rectangle { visible: row.selected; width: 3; height: parent.height; color: theme.accent }
         Rectangle {
+            visible: row.mark === ""
             x: 16; y: 15; width: 8; height: 8; radius: 4
-            color: row.hollow ? "transparent" : row.dot
-            border.width: row.hollow ? 1 : 0
-            border.color: row.dot
+            color: row.dot
         }
+        StateMark { mark: row.mark; x: 14; y: 13; size: 8 }
         Column {
             x: 34; anchors.verticalCenter: parent.verticalCenter
             spacing: 3
@@ -141,6 +141,7 @@ Rectangle {
                 title: modelData.name
                 subtitle: modelData.branch
                 dot: root.stateColor(modelData.state) === "transparent" ? theme.accent : root.stateColor(modelData.state)
+                mark: modelData.state || ""
                 selected: index === app.currentIndex
                 editable: true
                 closable: true
@@ -177,9 +178,12 @@ Rectangle {
             delegate: Row2 {
                 required property var modelData
                 title: modelData.space
-                subtitle: (modelData.state === "done" && modelData.summary) ? modelData.summary : modelData.state + " · " + modelData.agent
+                // working and blocked show for how long: a clock that keeps going is the difference between busy and stuck
+                subtitle: (modelData.state === "done" && modelData.summary) ? modelData.summary
+                        : modelData.state + ((modelData.state === "working" || modelData.state === "blocked") && modelData.since ? " " + win.since(modelData.since) : "")
+                          + " · " + modelData.agent
                 dot: root.stateColor(modelData.state)
-                hollow: modelData.state === "idle"
+                mark: modelData.state
                 onClicked: app.focusAgent(modelData.spaceIndex, modelData.tabIndex, modelData.pane)
             }
         }

@@ -805,7 +805,8 @@ void Workspace::rebuildAgents() {
             for (TerminalSession *s : tabs[ti]->sessions())
                 if (!s->agent().isEmpty())
                     l << QVariantMap{{"space", m_spaces[si]->name()}, {"agent", s->agent()}, {"state", s->agentState()},
-                                     {"spaceIndex", si}, {"tabIndex", ti}, {"pane", s->id()}, {"summary", s->summary()}};
+                                     {"spaceIndex", si}, {"tabIndex", ti}, {"pane", s->id()}, {"summary", s->summary()},
+                                     {"since", s->stateSince()}};
     }
     if (l == m_agents) return;
     QHash<int, QString> old;

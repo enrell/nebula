@@ -25,6 +25,11 @@ Canvas {
             ctx.moveTo(m + 1, m + 1); ctx.lineTo(w - m - 1, h - m - 1)
             ctx.moveTo(w - m - 1, m + 1); ctx.lineTo(m + 1, h - m - 1)
             break
+        case "check":
+            ctx.lineWidth = Math.max(1.6, w * 0.17)
+            ctx.lineJoin = "round"
+            ctx.moveTo(w * 0.18, h * 0.55); ctx.lineTo(w * 0.42, h * 0.78); ctx.lineTo(w * 0.84, h * 0.24)
+            break
         case "plus":
             ctx.moveTo(w / 2, m); ctx.lineTo(w / 2, h - m)
             ctx.moveTo(m, h / 2); ctx.lineTo(w - m, h / 2)
