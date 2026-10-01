@@ -1,7 +1,7 @@
 # Maintainer: enrell <enrellsa10@proton.me>
 pkgname=nebula-bin
 _name=nebula
-pkgver=0.1.2
+pkgver=0.2.0
 pkgrel=1
 pkgdesc='Native Qt Quick workspace manager for terminal AI agents (Claude Code, Codex, opencode, ...) - prebuilt binary'
 arch=(x86_64)
@@ -16,7 +16,7 @@ provides=(nebula)
 conflicts=(nebula nebula-git)
 options=(!strip !debug)
 source=("$_name-$pkgver-1-x86_64.pkg.tar.zst::https://github.com/enrell/nebula/releases/download/v$pkgver/$_name-$pkgver-1-x86_64.pkg.tar.zst")
-sha256sums=('6b16eca82a821ae07d4d79d2ceae1edf9dcb19fc73d1f823d79c1ef492b8387f')
+sha256sums=('8d83caeed6ebb3dd21cc1b1ca54ea3487953fad776d660f4dca1927efc0bb1b1')
 
 package() {
   # repackages the Arch package built by the release workflow (packaging/arch/PKGBUILD)
