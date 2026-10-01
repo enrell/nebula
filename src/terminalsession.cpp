@@ -5,6 +5,7 @@
 #include "settings.h"
 #include "hostclient.h"
 #include "profiles.h"
+#include <QDateTime>
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
@@ -379,6 +380,7 @@ void TerminalSession::setState(const QString &s) {
     if (s == m_state) return;
     const QString prev = m_state;
     m_state = s;
+    m_stateSince = QDateTime::currentMSecsSinceEpoch();
     if (s == "working") m_summary.clear();
     if (!m_active && !m_agent.isEmpty() && (s == "blocked" || s == "done") && prev != s) emit attention(s);
     emit metaChanged();
@@ -441,6 +443,7 @@ void TerminalSession::hostInfo(qint64 pid, qint64 fg) {
         m_notWorkingPolls = 0;
         m_reported.clear();
         m_state = agent.isEmpty() ? QString() : "idle";
+        m_stateSince = QDateTime::currentMSecsSinceEpoch();
         changed = true;
     }
     if (!m_agent.isEmpty()) {

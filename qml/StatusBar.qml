@@ -14,6 +14,7 @@ Rectangle {
         property string text
         property color tone
         property bool active: true
+        property string mark            // an agent state: its StateMark, moving only while some agent is in it
         signal clicked
         height: parent.height
         width: r.implicitWidth + 4
@@ -22,7 +23,8 @@ Rectangle {
             id: r
             anchors.verticalCenter: parent.verticalCenter
             spacing: 6
-            Rectangle { anchors.verticalCenter: parent.verticalCenter; width: 7; height: 7; radius: 4; color: parent.parent.tone }
+            Rectangle { visible: parent.parent.mark === "" || !parent.parent.active; anchors.verticalCenter: parent.verticalCenter; width: 7; height: 7; radius: 4; color: parent.parent.tone }
+            StateMark { visible: parent.parent.mark !== "" && parent.parent.active; mark: parent.parent.mark; size: 7; anchors.verticalCenter: parent.verticalCenter }
             Text { text: parent.parent.text; color: theme.fg; font.family: theme.fontFamily; font.pixelSize: root.fs - 2 }
         }
         MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: parent.clicked() }
@@ -37,9 +39,9 @@ Rectangle {
             text: win.space ? win.space.name + (win.space.branch ? "  ⎇ " + win.space.branch : "") : ""
             color: theme.muted; font.family: theme.fontFamily; font.pixelSize: root.fs - 2
         }
-        Chip { text: root.working + " working"; tone: theme.yellow; active: root.working > 0 }
-        Chip { text: root.blocked + " blocked"; tone: theme.red; active: root.blocked > 0; onClicked: app.runAction("next-attention") }
-        Chip { text: root.done + " done"; tone: theme.green; active: root.done > 0; onClicked: app.runAction("next-attention") }
+        Chip { text: root.working + " working"; tone: theme.yellow; mark: "working"; active: root.working > 0 }
+        Chip { text: root.blocked + " blocked"; tone: theme.red; mark: "blocked"; active: root.blocked > 0; onClicked: app.runAction("next-attention") }
+        Chip { text: root.done + " done"; tone: theme.green; mark: "done"; active: root.done > 0; onClicked: app.runAction("next-attention") }
         Chip {
             visible: app.modalCount > 0
             text: app.modalCount + (app.modalCount === 1 ? " view" : " views") + (app.modalVisible ? "" : "  (hidden)")
