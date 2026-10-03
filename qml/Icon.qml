@@ -80,6 +80,12 @@ Canvas {
         case "hide":
             ctx.moveTo(m, h - m - 1); ctx.lineTo(w - m, h - m - 1)
             break
+        case "power": {
+            const cx = w / 2, cy = h / 2 + 0.5, r = w * 0.34
+            ctx.arc(cx, cy, r, -Math.PI / 2 + 0.7, 3 * Math.PI / 2 - 0.7)
+            ctx.moveTo(cx, m - 0.5); ctx.lineTo(cx, cy)
+            break
+        }
         case "back":
             ctx.moveTo(w - m, h / 2); ctx.lineTo(m, h / 2)
             ctx.moveTo(m + 3.5, h / 2 - 3.5); ctx.lineTo(m, h / 2); ctx.lineTo(m + 3.5, h / 2 + 3.5)

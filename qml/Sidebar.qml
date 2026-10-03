@@ -194,15 +194,29 @@ Rectangle {
         anchors { left: parent.left; right: parent.right; bottom: parent.bottom }
         height: 48
         Rectangle { anchors { left: parent.left; right: parent.right; top: parent.top } height: 1; color: theme.border }
+        // agents launch from the "+" in the agents header; the footer's primary action is the operator
         Button {
-            id: launchBtn
             x: 10; anchors.verticalCenter: parent.verticalCenter
-            label: "+ Agent"; primary: true
-            onClicked: app.runAction("launch-agent")
+            visible: !killArm.running
+            icon: "operator"; label: "Operator"; primary: true
+            onClicked: app.runAction("operator")
         }
+        // two-step kill: the first click arms it, a second within 3s terminates every pane and quits
+        Button {
+            x: 10; anchors.verticalCenter: parent.verticalCenter
+            visible: killArm.running
+            icon: "power"; label: "Kill all & quit"; danger: true; primary: true
+            onClicked: app.killSession()
+        }
+        Timer { id: killArm; interval: 3000 }
         Row {
             anchors { right: parent.right; rightMargin: 6; verticalCenter: parent.verticalCenter }
-            IconButton { icon: "operator"; size: 16; onClicked: app.runAction("operator") }
+            IconButton {
+                icon: "power"; size: 16
+                color: killArm.running ? theme.red : theme.muted
+                hoverColor: theme.red
+                onClicked: killArm.running ? killArm.stop() : killArm.start()
+            }
             IconButton { icon: "keys"; size: 16; onClicked: app.runAction("toggle-help") }
             IconButton {
                 icon: "gear"; size: 16
