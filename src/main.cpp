@@ -22,7 +22,27 @@
 #include <QLocalSocket>
 #include <QQmlApplicationEngine>
 #include <QQmlContext>
+#include <QFileInfo>
+#include <QLibraryInfo>
 #include <QtWebEngineQuick/qtwebenginequickglobal.h>
+
+// Desktops running fcitx5/ibus export QT_IM_MODULE for the system Qt, but our bundled Qt may not ship that
+// plugin; Qt then silently drops to the bare compose context and dead keys / layout-aware input break.
+// On Wayland the compositor relays text-input-v3 to the same input method, so use that instead.
+static void fixInputMethod() {
+    const QByteArray im = qgetenv("QT_IM_MODULE");
+    if (im.isEmpty() || im == "wayland" || im == "compose" || !qEnvironmentVariableIsSet("WAYLAND_DISPLAY")) return;
+    const QByteArray qpa = qgetenv("QT_QPA_PLATFORM");
+    if (!qpa.isEmpty() && !qpa.startsWith("wayland")) return;
+    QStringList dirs = qEnvironmentVariable("QT_PLUGIN_PATH").split(':', Qt::SkipEmptyParts);
+    dirs << QLibraryInfo::path(QLibraryInfo::PluginsPath)
+         << QFileInfo(QFileInfo("/proc/self/exe").canonicalFilePath()).dir().filePath("../plugins");
+    const QString name = QString::fromLocal8Bit(im).toLower();
+    for (const QString &d : dirs)
+        for (const QString &f : QDir(d + "/platforminputcontexts").entryList(QDir::Files))
+            if (f.contains(name)) return;
+    qputenv("QT_IM_MODULE", "wayland");
+}
 
 int main(int argc, char *argv[]) {
     if (argc > 1 && QByteArray(argv[1]) == "ctl") {
@@ -41,6 +61,7 @@ int main(int argc, char *argv[]) {
     // views: the scheme must be known before the web engine starts, and the engine before the application
     ViewWeb::prepare();
     QtWebEngineQuick::initialize();
+    fixInputMethod();
     QGuiApplication app(argc, argv);
     app.setApplicationName("nebula");
     app.setApplicationVersion(NEBULA_VERSION);
