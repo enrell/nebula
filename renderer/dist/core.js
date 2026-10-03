@@ -12826,7 +12826,7 @@ ${end.comment}` : end.comment;
         }
       }
     },
-    example: '- "[x] Extract the session store"\n- "[~] Port callers to the new API"\n- {text: Remove the old cache, status: todo, note: after the release}',
+    example: '- "[x] Extract the session store"\n- "[~] Port callers to the new API"\n- text: Remove the old cache\n  status: todo\n  note: after the release, once callers are ported',
     resolve(props, ctx) {
       const items = props.items.map((it) => {
         if (typeof it !== "string") return it;
@@ -37621,6 +37621,73 @@ ${end.comment}` : end.comment;
     }
     return { doc, value: doc.toJS(), lineOf };
   }
+  function nodeAt(doc, segments) {
+    var _a2;
+    let node = doc.contents;
+    for (const seg of segments) {
+      if (isMap(node)) node = (_a2 = node.items.find((p) => {
+        var _a3, _b;
+        return ((_b = (_a3 = p.key) == null ? void 0 : _a3.value) != null ? _b : p.key) === seg;
+      })) == null ? void 0 : _a2.value;
+      else if (isSeq(node)) node = node.items[seg];
+      else return void 0;
+    }
+    return node;
+  }
+  function repair(data, schema4, path2, cx) {
+    if (Array.isArray(data)) {
+      if (schema4 == null ? void 0 : schema4.items) data.forEach((v, i) => repair(v, schema4.items, [...path2, i], cx));
+      return;
+    }
+    if (!data || typeof data !== "object" || !(schema4 == null ? void 0 : schema4.properties)) return;
+    const props = schema4.properties;
+    if (schema4.additionalProperties === false) {
+      const docPath = path2.slice(cx.strip);
+      const flow = (() => {
+        const n = nodeAt(cx.parsed.doc, docPath);
+        return isMap(n) && n.flow;
+      })();
+      const warn2 = (key, message, hint) => cx.diagnostics.push({
+        severity: "warning",
+        line: cx.parsed.lineOf(offsetOf(cx.parsed.doc, docPath, key)),
+        block: cx.index,
+        component: cx.tag,
+        path: "/" + [...path2, key].join("/"),
+        message,
+        hint
+      });
+      let lastText;
+      for (const k of Object.keys(data)) {
+        const v = data[k];
+        if (k in props) {
+          if (typeof v === "string" && !props[k].enum) lastText = k;
+          continue;
+        }
+        if (v === null && flow && lastText) {
+          data[lastText] += ", " + k;
+          delete data[k];
+          warn2(
+            k,
+            `the comma ended the unquoted ${lastText}; joined ", ${k}" back into it`,
+            `inside {\u2026} quote text that contains a comma (${lastText}: "a, b"), or write one field per line`
+          );
+          continue;
+        }
+        if (typeof v === "string" || typeof v === "number") {
+          const fits = Object.keys(props).filter((p) => {
+            var _a2;
+            return !(p in data) && ((_a2 = props[p].enum) == null ? void 0 : _a2.includes(v));
+          });
+          if (fits.length === 1) {
+            data[fits[0]] = v;
+            delete data[k];
+            warn2(k, `unknown field "${k}"; used it as ${fits[0]}: ${v}`, `allowed: ${Object.keys(props).join(", ")}`);
+          }
+        }
+      }
+    }
+    for (const [k, s] of Object.entries(props)) if (data[k] !== void 0) repair(data[k], s, [...path2, k], cx);
+  }
   function pushSchemaError(err, data, parsed, diagnostics, where) {
     var _a2;
     const e = explain(err, data);
@@ -37688,6 +37755,7 @@ ${def.example}` });
       });
       return;
     }
+    repair(data, def.schema, [], { parsed, strip, diagnostics, tag, index });
     const validate = validators_generated_exports[def.name];
     if (!validate(data)) {
       for (const err of validate.errors) pushSchemaError(err, data, parsed, diagnostics, { component: tag, block: index, strip });

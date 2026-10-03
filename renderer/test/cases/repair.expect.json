@@ -1,0 +1,11 @@
+{
+ "ok": [true, true, true, false, false],
+ "errors": [
+  [16, "unknown field \"orphan\""],
+  [21, "unknown field \"kind\""]
+ ],
+ "warnings": [
+  [4, "joined \", not committed\" back"],
+  [9, "used it as tone: warning"]
+ ]
+}

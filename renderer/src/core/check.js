@@ -3,7 +3,7 @@
 // and loads referenced files through `host`. Nothing here touches a DOM: the same code runs in nebula (QJSEngine)
 // and in node (tests). The renderer only ever draws the returned, already validated blocks.
 import MarkdownIt from 'markdown-it';
-import { LineCounter, parseDocument } from 'yaml';
+import { LineCounter, isMap, isSeq, parseDocument } from 'yaml';
 import { byName, components } from '../components/index.js';
 import * as validators from './validators.generated.js';
 import { splitDocument } from './document.js';
@@ -136,6 +136,59 @@ function parseYaml(body, firstLine, what, diagnostics) {
   return { doc, value: doc.toJS(), lineOf };
 }
 
+function nodeAt(doc, segments) {
+  let node = doc.contents;
+  for (const seg of segments) {
+    if (isMap(node)) node = node.items.find((p) => (p.key?.value ?? p.key) === seg)?.value;
+    else if (isSeq(node)) node = node.items[seg];
+    else return undefined;
+  }
+  return node;
+}
+
+// Mistakes whose intent is unambiguous are fixed in place with a warning instead of failing the block: a failed
+// block costs the agent a round trip, and weaker models can loop on it. Two shapes, both seen in practice:
+//  - a comma inside an unquoted value in a {…} flow mapping ends the value, so `{note: built, not committed}`
+//    becomes note: built plus a key "not committed" with no value: join it back.
+//  - a field named by guess (`kind: warning` on a callout) whose value fits the enum of exactly one field that
+//    is not set (tone): use that field.
+// Anything less certain is left to the schema errors.
+function repair(data, schema, path, cx) {
+  if (Array.isArray(data)) {
+    if (schema?.items) data.forEach((v, i) => repair(v, schema.items, [...path, i], cx));
+    return;
+  }
+  if (!data || typeof data !== 'object' || !schema?.properties) return;
+  const props = schema.properties;
+  if (schema.additionalProperties === false) {
+    const docPath = path.slice(cx.strip);
+    const flow = (() => { const n = nodeAt(cx.parsed.doc, docPath); return isMap(n) && n.flow; })();
+    const warn = (key, message, hint) => cx.diagnostics.push({ severity: 'warning', line: cx.parsed.lineOf(offsetOf(cx.parsed.doc, docPath, key)),
+      block: cx.index, component: cx.tag, path: '/' + [...path, key].join('/'), message, hint });
+    let lastText;
+    for (const k of Object.keys(data)) {
+      const v = data[k];
+      if (k in props) { if (typeof v === 'string' && !props[k].enum) lastText = k; continue; }
+      if (v === null && flow && lastText) {
+        data[lastText] += ', ' + k;
+        delete data[k];
+        warn(k, `the comma ended the unquoted ${lastText}; joined ", ${k}" back into it`,
+          `inside {…} quote text that contains a comma (${lastText}: "a, b"), or write one field per line`);
+        continue;
+      }
+      if (typeof v === 'string' || typeof v === 'number') {
+        const fits = Object.keys(props).filter((p) => !(p in data) && props[p].enum?.includes(v));
+        if (fits.length === 1) {
+          data[fits[0]] = v;
+          delete data[k];
+          warn(k, `unknown field "${k}"; used it as ${fits[0]}: ${v}`, `allowed: ${Object.keys(props).join(', ')}`);
+        }
+      }
+    }
+  }
+  for (const [k, s] of Object.entries(props)) if (data[k] !== undefined) repair(data[k], s, [...path, k], cx);
+}
+
 function pushSchemaError(err, data, parsed, diagnostics, where) {
   const e = explain(err, data);
   const segments = pointerSegments(err.instancePath).slice(where.strip ?? 0);
@@ -185,6 +238,7 @@ function checkComponent(b, block, host, st, diagnostics, index, ids) {
       hint: `write it as ${def.shorthand.scalar}: "…" (quoted), or ${def.shorthand.scalar}: | followed by indented lines` });
     return;
   }
+  repair(data, def.schema, [], { parsed, strip, diagnostics, tag, index });
   const validate = validators[def.name];
   if (!validate(data)) {
     for (const err of validate.errors) pushSchemaError(err, data, parsed, diagnostics, { component: tag, block: index, strip });

@@ -27,7 +27,7 @@ export default {
       },
     },
   },
-  example: '- "[x] Extract the session store"\n- "[~] Port callers to the new API"\n- {text: Remove the old cache, status: todo, note: after the release}',
+  example: '- "[x] Extract the session store"\n- "[~] Port callers to the new API"\n- text: Remove the old cache\n  status: todo\n  note: after the release, once callers are ported',
   resolve(props, ctx) {
     const items = props.items.map((it) => {
       if (typeof it !== 'string') return it;

@@ -35,18 +35,25 @@ Spec make(const QString &name, const QString &desc, const QJsonObject &sch, std:
 // The format primer in view_show's description. The component list comes from the checker's registry, so the
 // tool never advertises something the checker does not know.
 QString viewShowDescription() {
+    // Clients truncate long tool descriptions (Claude Code keeps ~2 KB), so the rules come first and the
+    // component summaries, the part that is fine to lose, last.
+    QStringList names;
     QString list;
-    for (const QJsonValue &c : ViewEngine::instance().components())
+    for (const QJsonValue &c : ViewEngine::instance().components()) {
+        names << c["name"].toString();
         list += QString("\n- nebula:%1: %2").arg(c["name"].toString(), c["summary"].toString());
+    }
     return "Show the user a rich view (by default a large window over the workspace): Markdown plus nebula components, validated before it is drawn. "
            "Use it to present results, plans, tables, code and images instead of long terminal output.\n"
            "Format: Markdown with $TeX$ math; a component is a fenced block ```nebula:<name> [#id] with a YAML body, and a ```mermaid fence is a diagram. "
+           "Components: " + names.join(", ") + ". "
+           "Don't guess field names: call view_components with a name for its fields and an example. "
+           "YAML: write one field per line; inside {…} quote any text that contains a comma or \": \".\n"
+           "The result lists errors with line numbers: fix them and call view_show again with view=<id> to update the same pane "
+           "(never open a new one for a correction). view_snapshot shows you what the user sees; view_export saves the view as HTML or PDF. "
            "An optional front matter block (--- lines) may set title: and bibliography: refs.bib (BibTeX), then cite with [@key] or [@a; @b, p. 3]. "
            "Reference big data and code by relative file path (table data:, code file:) instead of pasting it."
-           "\nComponents:" + list +
-           "\nCall view_components with a name for its fields and an example. The result lists errors with line numbers: fix them "
-           "and call view_show again with view=<id> to update the same pane (never open a new one for a correction). "
-           "view_snapshot shows you what the user sees; view_export saves the view as HTML or PDF.";
+           "\nWhat each component is for:" + list;
 }
 
 // Checker report -> text an agent can act on.
