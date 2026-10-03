@@ -12,6 +12,8 @@ Item {
     readonly property var session: tab ? (isView ? tab.view(paneId) : tab.session(paneId)) : null
     readonly property bool focused: tab && tab.focusedId === paneId && win.tab === tab && win.active
     readonly property int fs: Math.round(theme.fontSize * 1.33)
+    // the title sits on the top border; content starts below it so the first row never paints over it
+    readonly property int titleH: fs + 2
 
     HoverHandler {
         id: hover
@@ -20,7 +22,7 @@ Item {
 
     Rectangle {
         anchors.fill: parent
-        anchors.topMargin: 8
+        anchors.topMargin: Math.round(root.titleH / 2)
         color: "transparent"
         radius: 4
         border.width: root.focused ? 2 : 1
@@ -29,7 +31,7 @@ Item {
 
     Rectangle {
         x: 10; y: 0
-        height: root.fs + 2
+        height: root.titleH
         width: title.implicitWidth + 22
         color: theme.bg
         StateMark {
@@ -56,7 +58,7 @@ Item {
         visible: hover.hovered || root.focused
         opacity: hover.hovered ? 1 : 0.0
         anchors { right: parent.right; rightMargin: 10; top: parent.top }
-        height: root.fs + 6
+        height: root.titleH
         width: btns.width + 8
         color: theme.bg
         Row {
@@ -72,7 +74,7 @@ Item {
 
     Loader {
         id: content
-        anchors { fill: parent; leftMargin: 6; rightMargin: 6; topMargin: 8 + 5; bottomMargin: 5 }
+        anchors { fill: parent; leftMargin: 6; rightMargin: 6; topMargin: root.titleH + 2; bottomMargin: 5 }
         sourceComponent: root.isView ? viewContent : terminalContent
     }
 
