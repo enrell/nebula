@@ -52,6 +52,7 @@ Views are what sets nebula apart, and they become the default output:
   ```sh
   CGO_ENABLED=1 go list -deps -f '{{if not .Standard}}{{if or .CgoFiles .CFiles .CXXFiles .FFiles .SysoFiles}}{{.ImportPath}}{{end}}{{end}}' ./...
   ```
+- One exception, for tests only: `go test -race`, whose race detector needs cgo. It never touches the shipped binary, which is still built with `CGO_ENABLED=0` and checked.
 - Standard library first; every dependency has to justify itself. No SQLite (neither `mattn/go-sqlite3`, which needs cgo, nor `modernc.org/sqlite`, which is translated C). Secrets stay in the C++ side's keyring and reach the agent as environment variables.
 
 ## Order

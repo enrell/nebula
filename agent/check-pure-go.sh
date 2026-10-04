@@ -5,6 +5,8 @@
 # Packages are listed as cgo would see them: with CGO_ENABLED=0 Go silently drops files that import "C", so a
 # dependency carrying optional C code would otherwise pass unnoticed.
 set -eu
+bin=""
+if [ "$#" -gt 0 ]; then bin=$(realpath "$1"); fi   # optional: the built binary to verify (resolved before the cd)
 cd "$(dirname "$0")"
 
 offenders=$(CGO_ENABLED=1 go list -deps -test -f '{{if not .Standard}}{{if or .CgoFiles .CFiles .CXXFiles .FFiles .SysoFiles}}{{.ImportPath}}{{end}}{{end}}' ./...)
@@ -14,7 +16,8 @@ if [ -n "$offenders" ]; then
     exit 1
 fi
 
-if [ "$#" -gt 0 ]; then   # optional: the built binary to verify
-    go version -m "$1" | grep -q 'CGO_ENABLED=0' || { echo "pure-Go rule broken: $1 was not built with CGO_ENABLED=0" >&2; exit 1; }
+if [ -n "$bin" ]; then
+    info=$(go version -m "$bin") || { echo "cannot read build info from $bin" >&2; exit 1; }
+    echo "$info" | grep -q 'CGO_ENABLED=0' || { echo "pure-Go rule broken: $bin was not built with CGO_ENABLED=0" >&2; exit 1; }
 fi
 echo "pure Go: ok"

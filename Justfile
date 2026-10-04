@@ -40,9 +40,9 @@ test:
     cmake --build {{dev_dir}} -j {{jobs}}
     ctest --test-dir {{dev_dir}} --output-on-failure
 
-# nebula-agent (Go): vet, test, and the pure-Go rule (no cgo, no C in any dependency; see docs/vision.md)
+# nebula-agent (Go): vet, race-checked tests (the only use of cgo), and the pure-Go rule (no cgo, no C in any dependency; see docs/vision.md)
 agent:
-    cd agent && CGO_ENABLED=0 go vet ./... && CGO_ENABLED=0 go test ./...
+    cd agent && CGO_ENABLED=0 go vet ./... && CGO_ENABLED=1 go test -race ./...
     cd agent && CGO_ENABLED=0 go build -trimpath -o ../{{dev_dir}}/nebula-agent ./cmd/nebula-agent
     ./agent/check-pure-go.sh {{dev_dir}}/nebula-agent
 
