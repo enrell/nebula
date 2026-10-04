@@ -48,9 +48,9 @@ Views are what sets nebula apart, and they become the default output:
 
 - Always built with `CGO_ENABLED=0`.
 - No cgo, C, C++, Fortran or prebuilt object (`.syso`) files in any non-standard package. Go assembly inside the standard library is accepted.
-- Enforced, not trusted: the build and CI fail when this lists anything:
+- Enforced, not trusted: `agent/check-pure-go.sh` (run by ctest, so by CI) fails when this lists anything. Packages are listed with cgo on, because with it off Go silently drops files that import "C" and optional C code in a dependency would pass unseen:
   ```sh
-  CGO_ENABLED=0 go list -deps -f '{{if not .Standard}}{{if or .CgoFiles .CFiles .CXXFiles .FFiles .SysoFiles}}{{.ImportPath}}{{end}}{{end}}' ./...
+  CGO_ENABLED=1 go list -deps -f '{{if not .Standard}}{{if or .CgoFiles .CFiles .CXXFiles .FFiles .SysoFiles}}{{.ImportPath}}{{end}}{{end}}' ./...
   ```
 - Standard library first; every dependency has to justify itself. No SQLite (neither `mattn/go-sqlite3`, which needs cgo, nor `modernc.org/sqlite`, which is translated C). Secrets stay in the C++ side's keyring and reach the agent as environment variables.
 

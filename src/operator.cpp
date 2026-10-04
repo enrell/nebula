@@ -5,6 +5,7 @@
 #include "paths.h"
 #include "settings.h"
 #include <QCoreApplication>
+#include <QFileInfo>
 #include <QDir>
 #include <QFile>
 #include <QJsonArray>
@@ -43,9 +44,18 @@ const Cand kCandidates[] = {
      {"npx -y @agentclientprotocol/claude-agent-acp", "npx -y @zed-industries/claude-code-acp", "claude-agent-acp", "claude-code-acp"}},
     {"opencode", "opencode acp", {"opencode"}, {}},
     {"Gemini (Google sign-in)", "gemini --acp", {"gemini"}, {}},
+    // nebula's own agent (agent/, Go). Last, so auto-detect keeps picking a real model until it has one.
+    {"nebula agent (preview)", "nebula-agent", {"nebula-agent"}, {}},
 };
 
-bool hasExe(const QString &n) { return !QStandardPaths::findExecutable(n).isEmpty(); }
+// nebula-agent ships next to the nebula binary (and sits there in a build dir), so look there before PATH.
+QString findExe(const QString &n) {
+    const QString sibling = QCoreApplication::applicationDirPath() + "/" + n;
+    if (n == "nebula-agent" && QFileInfo(sibling).isExecutable()) return sibling;
+    return QStandardPaths::findExecutable(n);
+}
+
+bool hasExe(const QString &n) { return !findExe(n).isEmpty(); }
 
 bool candAvailable(const Cand &c) {
     for (const QString &n : c.needs)
@@ -408,7 +418,8 @@ void Operator::beginAgent() {
     setStage(Stage::Spawn);
     const QStringList parts = QProcess::splitCommand(cmd);
     if (parts.isEmpty()) { finish({}, "invalid operator agent command"); return; }
-    m_acp->start(parts.first(), parts.mid(1));
+    const QString program = findExe(parts.first());
+    m_acp->start(program.isEmpty() ? parts.first() : program, parts.mid(1));
 }
 
 // Applies the configured model, or heals a stale one: agents (e.g. codex) inject the CLI's

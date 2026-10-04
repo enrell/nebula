@@ -120,6 +120,25 @@ target_include_directories(test_views PRIVATE src)
 target_link_libraries(test_views PRIVATE Qt6::Qml)
 add_test(NAME views COMMAND test_views ${CMAKE_SOURCE_DIR}/renderer/test)
 
+# nebula-agent: nebula's own agent, a separate pure-Go binary (agent/, docs/vision.md). Go's own cache makes the
+# always-run build a no-op when nothing changed. Built next to nebula, where the operator looks for it first.
+find_program(GO_PROGRAM go)
+option(NEBULA_AGENT "Build nebula-agent (needs Go)" ON)
+if(NEBULA_AGENT AND GO_PROGRAM)
+  add_custom_target(agent ALL
+    COMMAND ${CMAKE_COMMAND} -E env CGO_ENABLED=0
+            ${GO_PROGRAM} build -trimpath -ldflags "-X main.version=${PROJECT_VERSION}" -o ${CMAKE_BINARY_DIR}/nebula-agent ./cmd/nebula-agent
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/agent
+    BYPRODUCTS ${CMAKE_BINARY_DIR}/nebula-agent
+    COMMENT "Building nebula-agent (pure Go)"
+    VERBATIM)
+  install(PROGRAMS ${CMAKE_BINARY_DIR}/nebula-agent DESTINATION bin)
+  add_test(NAME agent COMMAND ${CMAKE_COMMAND} -E env CGO_ENABLED=0 ${GO_PROGRAM} test ./... WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/agent)
+  add_test(NAME agent-pure-go COMMAND ${CMAKE_SOURCE_DIR}/agent/check-pure-go.sh ${CMAKE_BINARY_DIR}/nebula-agent)
+elseif(NEBULA_AGENT)
+  message(STATUS "go not found: nebula-agent is not built")
+endif()
+
 install(TARGETS nebula RUNTIME DESTINATION bin)
 install(FILES data/nebula.desktop DESTINATION share/applications)
 install(FILES data/nebula.svg DESTINATION share/icons/hicolor/scalable/apps)
