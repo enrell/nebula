@@ -118,3 +118,5 @@ void HostClient::dispatch(const HostProto::Frame &f) {
     default: break;
     }
 }
+
+#include "moc_hostclient.cpp"

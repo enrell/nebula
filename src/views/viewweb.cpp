@@ -108,3 +108,5 @@ QQuickWebEngineProfile *profile() {
 }
 
 } // namespace ViewWeb
+
+#include "moc_viewweb.cpp"

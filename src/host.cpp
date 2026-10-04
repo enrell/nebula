@@ -277,3 +277,5 @@ int runHost() {
     if (!server.listen(Paths::hostSocket())) return 0;
     return app.exec();
 }
+
+#include "moc_host.cpp"

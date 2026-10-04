@@ -410,3 +410,5 @@ void CodexNativeClient::dispatch(const QJsonObject &msg) {
         }
     }
 }
+
+#include "moc_nativeagents.cpp"

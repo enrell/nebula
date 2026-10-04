@@ -5,6 +5,8 @@ set shell := ["bash", "-euo", "pipefail", "-c"]
 build_dir := "build"
 dev_dir   := "build-dev"
 prefix    := env_var_or_default("PREFIX", "/usr/local")
+# parallel compile jobs: each one takes ~500 MB of RAM, so all cores at once can push a small machine into swap
+jobs      := env_var_or_default("NEBULA_JOBS", "4")
 
 # dev instances use their own socket and state so they never touch your real session
 # NEBULA_QML_DIR makes the dev instance load qml/ from disk and hot-reload it on save (no rebuild for UI changes)
@@ -16,7 +18,7 @@ default:
 # Configure + build (release)
 build:
     cmake -S . -B {{build_dir}} -G Ninja -DCMAKE_BUILD_TYPE=Release
-    cmake --build {{build_dir}}
+    cmake --build {{build_dir}} -j {{jobs}}
 
 # Build (release) and run the real app
 run *ARGS: build
@@ -25,7 +27,7 @@ run *ARGS: build
 # Debug build + run as an isolated dev instance (separate socket/state)
 dev *ARGS:
     cmake -S . -B {{dev_dir}} -G Ninja -DCMAKE_BUILD_TYPE=Debug -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
-    cmake --build {{dev_dir}}
+    cmake --build {{dev_dir}} -j {{jobs}}
     {{dev_env}} ./{{dev_dir}}/nebula {{ARGS}}
 
 # Rebuild and restart the dev instance only when C++ changes (needs watchexec). QML edits hot-reload by themselves.
@@ -35,7 +37,7 @@ watch:
 # Run unit tests
 test:
     cmake -S . -B {{dev_dir}} -G Ninja -DCMAKE_BUILD_TYPE=Debug
-    cmake --build {{dev_dir}}
+    cmake --build {{dev_dir}} -j {{jobs}}
     ctest --test-dir {{dev_dir}} --output-on-failure
 
 # End-to-end check of the automation API against a throw-away instance (headless-capable via QT_QPA_PLATFORM=offscreen)

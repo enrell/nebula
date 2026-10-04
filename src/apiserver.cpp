@@ -586,3 +586,5 @@ QJsonValue ApiServer::call(const QString &method, const QJsonObject &p, QLocalSo
     }
     throw ApiError("unknown method '" + method.toStdString() + "'");
 }
+
+#include "moc_apiserver.cpp"

@@ -95,3 +95,5 @@ int Llm::summarize(const QString &screenText) {
                "past tense, no quotes, no markdown. If it stopped to ask a question, say what it asks.",
                screenText.right(8000));
 }
+
+#include "moc_llm.cpp"

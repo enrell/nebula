@@ -102,3 +102,5 @@ void AcpClient::dispatch(const QJsonObject &msg) {
         emit notification(method, msg["params"].toObject());
     }
 }
+
+#include "moc_acp.cpp"

@@ -1025,3 +1025,5 @@ void Workspace::copyToClipboard(const QString &text) { QGuiApplication::clipboar
 void Workspace::setSpaceProfile(int i, const QString &profile) {
     if (i >= 0 && i < m_spaces.size()) m_spaces[i]->setProfile(profile);
 }
+
+#include "moc_workspace.cpp"

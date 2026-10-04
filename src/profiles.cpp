@@ -161,3 +161,5 @@ void Profiles::setDefault(const QString &name) {
     store();
     emit changed();
 }
+
+#include "moc_profiles.cpp"

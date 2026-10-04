@@ -16,10 +16,16 @@ qt_policy(SET QTP0001 NEW)
 qt_policy(SET QTP0004 NEW)
 
 # Fast dev loop: the Debug build skips QML AOT compilation (qmlcachegen) and uses a cheap debug level.
-# Use ccache and mold when present. UI-only changes need no rebuild: run with NEBULA_QML_DIR=qml (see `just dev`).
+# Use ccache (or sccache) and mold when present. UI-only changes need no rebuild: run with NEBULA_QML_DIR=qml (see `just dev`).
+# Each source includes its own moc_*.cpp, so editing one header does not recompile every moc in mocs_compilation.
 find_program(CCACHE_PROGRAM ccache)
+find_program(SCCACHE_PROGRAM sccache)
 if(CCACHE_PROGRAM)
-  set(CMAKE_CXX_COMPILER_LAUNCHER ${CCACHE_PROGRAM})
+  # the sloppiness lets ccache cache sources compiled against the precompiled header
+  set(CMAKE_CXX_COMPILER_LAUNCHER ${CMAKE_COMMAND} -E env
+      CCACHE_SLOPPINESS=pch_defines,time_macros,include_file_mtime,include_file_ctime ${CCACHE_PROGRAM})
+elseif(SCCACHE_PROGRAM)
+  set(CMAKE_CXX_COMPILER_LAUNCHER ${SCCACHE_PROGRAM})
 endif()
 find_program(MOLD_PROGRAM mold)
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
@@ -96,6 +102,7 @@ target_link_libraries(nebula PRIVATE Qt6::Quick Qt6::Network Qt6::Qml Qt6::WebEn
 target_include_directories(nebula PRIVATE src)
 target_compile_definitions(nebula PRIVATE NEBULA_VERSION="${PROJECT_VERSION}")
 target_compile_options(nebula PRIVATE -Wall -Wextra)
+target_precompile_headers(nebula PRIVATE src/pch.h)
 if(MOLD_PROGRAM)
   target_link_options(nebula PRIVATE -fuse-ld=mold)
 endif()

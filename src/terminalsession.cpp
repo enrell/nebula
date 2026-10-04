@@ -461,3 +461,5 @@ void TerminalSession::hostInfo(qint64 pid, qint64 fg) {
     }
     if (changed) emit metaChanged();
 }
+
+#include "moc_terminalsession.cpp"

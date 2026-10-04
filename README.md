@@ -69,6 +69,7 @@ Portable builds, arm64 and building from source are covered in [docs/install.md]
 | [Agents](docs/agents.md) | launcher, profiles, status hooks, MCP server, the operator |
 | [Views](docs/views.md) | every component, the checker, export and snapshots |
 | [Automation](docs/automation.md) | the socket API and `nebula ctl` |
+| [Vision](docs/vision.md) | where nebula is going: memory, views, the Go agent |
 | [Contributing](CONTRIBUTING.md) | building, testing, what a good pull request looks like |
 | [Security](SECURITY.md) | the security model and private reporting |
 

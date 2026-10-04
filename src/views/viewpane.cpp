@@ -262,3 +262,5 @@ void ViewPane::snapshotRegion(int request, QQuickWindow *window, const QRectF &r
     m_snapshots.insert(request, img);
     emit taskFinished(request, {{"ok", true}});
 }
+
+#include "moc_viewpane.cpp"

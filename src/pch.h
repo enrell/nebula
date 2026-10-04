@@ -1,0 +1,22 @@
+// Precompiled header: the Qt headers most translation units include. Parsing them is most of each compile.
+#pragma once
+#include <QCoreApplication>
+#include <QDir>
+#include <QFile>
+#include <QFileInfo>
+#include <QGuiApplication>
+#include <QHash>
+#include <QJsonArray>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QObject>
+#include <QPointer>
+#include <QProcess>
+#include <QQmlEngine>
+#include <QQuickItem>
+#include <QRegularExpression>
+#include <QSet>
+#include <QStandardPaths>
+#include <QString>
+#include <QTimer>
+#include <QVariantMap>

@@ -261,3 +261,5 @@ QString Integrations::remove(const QString &agent, const QString &kind) {
     emit changed();
     return err;
 }
+
+#include "moc_integrations.cpp"

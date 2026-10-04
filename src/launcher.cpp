@@ -168,3 +168,5 @@ int Launcher::broadcast(const QVariantList &panes, const QString &text, bool ent
     }
     return n;
 }
+
+#include "moc_launcher.cpp"

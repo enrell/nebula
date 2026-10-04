@@ -433,3 +433,5 @@ void TerminalView::wheelEvent(QWheelEvent *e) {
         update();
     }
 }
+
+#include "moc_terminalview.cpp"

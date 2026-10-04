@@ -656,3 +656,5 @@ void Operator::confirm(bool allow) {
     answerPermission(id, m_permOptions, allow);
     m_permOptions = {};
 }
+
+#include "moc_operator.cpp"

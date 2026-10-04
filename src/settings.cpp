@@ -85,3 +85,5 @@ void Settings::resetAll() {
     m_viewPlacement = "modal";
     emit changed();
 }
+
+#include "moc_settings.cpp"

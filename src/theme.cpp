@@ -85,3 +85,5 @@ void Theme::load() {
     for (int i = 232; i < 256; ++i) { int g = 8 + (i - 232) * 10; m_palette[i] = QColor(g, g, g); }
     emit changed();
 }
+
+#include "moc_theme.cpp"
