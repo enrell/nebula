@@ -2,7 +2,7 @@ name: ci
 
 on:
   push:
-    branches: [main]
+    branches: [main, claude/charming-hopper-5cfd81]   # TEMP: run CI on this branch before a PR exists
   pull_request:
 
 jobs:
