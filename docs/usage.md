@@ -61,16 +61,18 @@ Gear icon in the sidebar footer, or `Ctrl+,`. Stored in `~/.config/nebula/settin
 
 ## Files and configuration
 
+On Windows, `~/.config/nebula` is `%APPDATA%\nebula` and `~/.local/state/nebula` is `%LOCALAPPDATA%\nebula\state`.
+
 | Path | What |
 |---|---|
 | `~/.config/nebula/settings.json` | Settings (also editable in the app; `nebula ctl settings.get/set`) |
 | `~/.config/nebula/keys.conf` | Key overrides, one `Ctrl+Shift+D = split-right` per line (`none` unbinds) |
 | `~/.config/nebula/agents.conf` | Extra launcher agents, one `name = command` per line (`mytool = mytool --fast`) |
-| `~/.config/nebula/secrets.json` | API keys, only when no system keyring is available (mode 0600) |
+| `~/.config/nebula/secrets.json` | API keys, only when no system keyring is available (mode 0600); on Windows the Credential Manager is used |
 | `~/.local/state/nebula/session.json` | Layout of spaces, tabs and splits |
 | `~/.local/state/nebula/operator-history.json` | Operator chat history (display only) |
 | `~/.local/state/nebula/views/` | Inline content of open views |
-| `$XDG_RUNTIME_DIR/nebula.sock` | Automation socket (`NEBULA_SOCKET` overrides; `NEBULA_STATE_DIR` moves the state dir) |
+| `$XDG_RUNTIME_DIR/nebula.sock` | Automation socket (`NEBULA_SOCKET` overrides; `NEBULA_STATE_DIR` moves the state dir); on Windows the named pipe `\\.\pipe\nebula-<user>` |
 
 ## Input methods
 

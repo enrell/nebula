@@ -2,7 +2,7 @@
 
 <p align="center">
   <b>All your terminal AI agents, side by side, and one that runs them for you.</b><br>
-  A native Linux workspace for Claude Code, Codex, opencode, Gemini and any other CLI agent.
+  A native workspace for Claude Code, Codex, opencode, Gemini and any other CLI agent, on Linux and Windows.
 </p>
 
 <p align="center">
@@ -39,10 +39,10 @@ A small background host owns your shells, not the window. Kill the window and yo
 
 ## Why nebula
 
-- **Native and light**: C++ and Qt Quick with a real terminal (libvterm). It follows your Omarchy theme and font live.
+- **Native and light**: C++ and Qt Quick with a real terminal (libvterm; ConPTY on Windows). It follows your Omarchy theme and font live.
 - **Keyboard first**: every shortcut is `Ctrl+Shift+…`, so nothing is taken from your shell or TUIs, and you can rebind them all.
 - **Made to be driven**: an MCP server lets one agent delegate to and supervise others, and `nebula ctl` does the same from any script.
-- **Private by design**: views run offline in a sandbox, API keys live in your keyring, and summaries are opt-in.
+- **Private by design**: views run offline in a sandbox, API keys live in your keyring (the Credential Manager on Windows), and summaries are opt-in.
 
 ## Install
 
@@ -51,7 +51,8 @@ A small background host owns your shells, not the window. Kill the window and yo
 | Arch / Omarchy | `sudo pacman -U https://github.com/enrell/nebula/releases/latest/download/nebula-<ver>-1-x86_64.pkg.tar.zst` |
 | Debian 13, Ubuntu 25.04+ | `sudo apt install ./nebula_<ver>_amd64.deb` (from the [release](https://github.com/enrell/nebula/releases/latest)) |
 | Fedora 41+ | `sudo dnf install <url of nebula-<ver>-1.x86_64.rpm>` |
-| Anything else | `curl -fsSL https://raw.githubusercontent.com/enrell/nebula/main/install.sh \| sh` |
+| Anything else (Linux) | `curl -fsSL https://raw.githubusercontent.com/enrell/nebula/main/install.sh \| sh` |
+| Windows 10 1809+, 11 | `irm https://raw.githubusercontent.com/enrell/nebula/main/install.ps1 \| iex` (in PowerShell) |
 
 Portable builds, arm64 and building from source are covered in [docs/install.md](docs/install.md).
 

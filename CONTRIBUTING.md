@@ -21,6 +21,17 @@ You need Qt >= 6.5 (Quick, WebEngine, WebChannel), libvterm >= 0.3, CMake and Ni
 | `just pkg` / `just release-local` | Arch package from the checkout / every release artifact in docker containers |
 | `just lint` / `just fmt` | static checks / formatting |
 
+On Windows (no `just` needed): Visual Studio 2022 C++ tools, Qt 6.8 for MSVC 2022 with WebEngine, WebChannel and
+Positioning, CMake and Ninja, in an "x64 Native Tools" prompt. libvterm comes from `third_party/libvterm`.
+
+    cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH=C:\Qt\6.8.3\msvc2022_64
+    cmake --build build && ctest --test-dir build --output-on-failure
+    bash tests/e2e_windows.sh build/nebula.exe        # in Git Bash: the end-to-end test (PowerShell on a pseudo console)
+
+The platform split is small: `src/ptyprocess.h` (forkpty in `ptyprocess_posix.cpp`, ConPTY in `ptyprocess_win.cpp`),
+`src/platform.*` (shell, quoting, notifications), `src/procinfo.*` (what `/proc` gives on Linux) and `src/win/`, plain
+Win32 without Qt, which `tests/win_probe.cpp` exercises on its own. New code should go through those, not `#ifdef`s.
+
 Every test and screenshot script runs headless in a throw-away `HOME` and never touches your real session.
 
 ## Where things live
