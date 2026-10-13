@@ -89,6 +89,12 @@ Session *start(const std::wstring &cmdline, const std::wstring &cwd, const std::
         STARTUPINFOEXW si = {};
         si.StartupInfo.cb = sizeof si;
         si.lpAttributeList = attrs;
+        // Without this the program inherits our own standard handles when they are redirected (a daemon's stdio, a
+        // pipe) and prints there instead of on the console. Invalid handles make it use the pseudo console.
+        si.StartupInfo.dwFlags |= STARTF_USESTDHANDLES;
+        si.StartupInfo.hStdInput = INVALID_HANDLE_VALUE;
+        si.StartupInfo.hStdOutput = INVALID_HANDLE_VALUE;
+        si.StartupInfo.hStdError = INVALID_HANDLE_VALUE;
         std::wstring cmd = cmdline;   // CreateProcessW may modify it
         cmd.push_back(L'\0');
         DWORD flags = EXTENDED_STARTUPINFO_PRESENT;

@@ -12,9 +12,23 @@
 #include <QJsonDocument>
 #include <QTemporaryDir>
 #include <cstdio>
+#include <filesystem>
 
 static int failures = 0;
 #define CHECK(cond, ...) do { if (!(cond)) { ++failures; std::fprintf(stderr, "FAIL %s:%d: ", __FILE__, __LINE__); std::fprintf(stderr, __VA_ARGS__); std::fputc('\n', stderr); } } while (0)
+
+// A real symlink. (QFile::link makes a .lnk shortcut on Windows, which is not one; real links need a privilege there.)
+static bool symlink(const QString &target, const QString &link, bool dir) {
+    namespace fs = std::filesystem;
+#ifdef Q_OS_WIN
+    const fs::path t(target.toStdWString()), l(link.toStdWString());
+#else
+    const fs::path t(QFile::encodeName(target).toStdString()), l(QFile::encodeName(link).toStdString());
+#endif
+    std::error_code ec;
+    if (dir) fs::create_directory_symlink(t, l, ec); else fs::create_symlink(t, l, ec);
+    return !ec;
+}
 
 static QByteArray read(const QString &path) {
     QFile f(path);
@@ -52,21 +66,23 @@ static void sandbox() {
     QDir().mkpath(base + "/sub");
     QFile(outside).open(QIODevice::WriteOnly);
     { QFile f(base + "/sub/a.txt"); f.open(QIODevice::WriteOnly); f.write("hello"); }
-    QFile::link(outside, base + "/leak.txt");
-    QFile::link(tmp.path(), base + "/up");
+    const bool links = symlink(outside, base + "/leak.txt", false) && symlink(tmp.path(), base + "/up", true);
+    if (!links) std::printf("note: cannot create symlinks here (no privilege?); the symlink checks are skipped\n");
 
     CHECK(ViewFiles::resolve(base, "sub/a.txt").error.isEmpty(), "plain relative path");
     CHECK(ViewFiles::resolve(base, "sub/../sub/a.txt").error.isEmpty(), "`..` that stays inside");
     CHECK(ViewFiles::resolve(base, "../secret.txt").error.contains("outside"), "`..` escape");
     CHECK(ViewFiles::resolve(base, outside).error.contains("relative"), "absolute path");
     CHECK(ViewFiles::resolve(base, "~/x").error.contains("relative"), "home path");
-    CHECK(ViewFiles::resolve(base, "leak.txt").error.contains("links outside"), "symlink to a file outside");
-    CHECK(ViewFiles::resolve(base, "up/secret.txt").error.contains("links outside"), "symlinked directory outside");
+    if (links) {
+        CHECK(ViewFiles::resolve(base, "leak.txt").error.contains("links outside"), "symlink to a file outside");
+        CHECK(ViewFiles::resolve(base, "up/secret.txt").error.contains("links outside"), "symlinked directory outside");
+    }
     CHECK(ViewFiles::resolve(base, "sub").error.contains("not a file"), "directory");
     CHECK(ViewFiles::resolve(base, "nope.txt").error.contains("file not found"), "missing file");
     CHECK(ViewFiles::readTextJson(base, "sub/a.txt").contains("\"text\":\"hello\""), "read text");
     CHECK(ViewFiles::hashJson(base, "sub/a.txt").contains("2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824"), "sha256 of a file");
-    CHECK(ViewFiles::hashJson(base, "leak.txt").contains("\"ok\":false"), "no hash outside the sandbox");
+    if (links) CHECK(ViewFiles::hashJson(base, "leak.txt").contains("\"ok\":false"), "no hash outside the sandbox");
 }
 
 // Provenance reads the commit from .git without running git: loose refs, packed refs, detached HEAD, worktrees.
