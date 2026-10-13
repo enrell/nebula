@@ -1,17 +1,12 @@
 #include "host.h"
 #include "paths.h"
 #include <QCoreApplication>
-#include <QFile>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
-#include <cerrno>
+#ifndef Q_OS_WIN
 #include <csignal>
-#include <fcntl.h>
-#include <pty.h>
-#include <sys/ioctl.h>
-#include <sys/wait.h>
-#include <unistd.h>
+#endif
 
 static constexpr int kRingMax = 2 * 1024 * 1024;
 
@@ -83,21 +78,20 @@ void HostServer::handle(QLocalSocket *sock, const HostProto::Frame &f) {
         else send(sock, Exit, f.pane, QByteArray::fromRawData("\xff\xff\xff\xff", 4));
         break;
     case Input:
-        if (p && !p->exited) write(*p, f.payload);
+        if (p && p->pty && !p->exited) p->pty->write(f.payload);
         break;
     case Resize:
         if (p && !p->exited && f.payload.size() >= 4) {
             p->rows = qFromLittleEndian<quint16>(f.payload.constData());
             p->cols = qFromLittleEndian<quint16>(f.payload.constData() + 2);
-            struct winsize ws = {p->rows, p->cols, 0, 0};
-            ioctl(p->fd, TIOCSWINSZ, &ws);
+            if (p->pty) p->pty->resize(p->rows, p->cols);
         }
         break;
     case Kill: kill(id); break;
     case Info:
         if (p) {
-            const pid_t fg = p->exited ? -1 : tcgetpgrp(p->fd);
-            send(sock, InfoReply, f.pane, QJsonDocument(QJsonObject{{"pid", p->pid}, {"fg", qint64(fg)}, {"exited", p->exited}}).toJson(QJsonDocument::Compact));
+            const qint64 fg = p->exited || !p->pty ? -1 : p->pty->foregroundPid();
+            send(sock, InfoReply, f.pane, QJsonDocument(QJsonObject{{"pid", p->pid}, {"fg", fg}, {"exited", p->exited}}).toJson(QJsonDocument::Compact));
         }
         break;
     case Shutdown: {
@@ -112,66 +106,47 @@ void HostServer::handle(QLocalSocket *sock, const HostProto::Frame &f) {
 
 void HostServer::spawn(int id, const QByteArray &json) {
     const QJsonObject o = QJsonDocument::fromJson(json).object();
-    QByteArray sh = o["shell"].toString().toLocal8Bit();
-    if (sh.isEmpty()) sh = "/bin/sh";
-    const QByteArray dir = QFile::encodeName(o["cwd"].toString());
-    std::vector<QByteArray> env;
-    for (const QJsonValue &v : o["env"].toArray()) {
-        const QByteArray e = v.toString().toLocal8Bit();
-        if (e.startsWith("TERM=") || e.startsWith("COLORTERM=") || e.startsWith("QT_") || e.startsWith("TERM_PROGRAM")) continue;
-        env.push_back(e);
+    Pty::Spec spec;
+    spec.shell = o["shell"].toString();
+    if (spec.shell.isEmpty()) {
+#ifdef Q_OS_WIN
+        spec.shell = qEnvironmentVariable("COMSPEC", "cmd.exe");
+#else
+        spec.shell = "/bin/sh";
+#endif
     }
-    env.push_back("TERM=xterm-256color");
-    env.push_back("COLORTERM=truecolor");
-    env.push_back("NEBULA=1");
-    env.push_back("NEBULA_PANE=" + QByteArray::number(id));
-    env.push_back("AINEBULA_PANE=" + QByteArray::number(id));   // pre-rename compat for older hooks
-    std::vector<char *> envp;
-    for (auto &e : env) envp.push_back(e.data());
-    envp.push_back(nullptr);
-    char *argv[] = {sh.data(), nullptr};
+    spec.cwd = o["cwd"].toString();
+    spec.rows = o["rows"].toInt(24);
+    spec.cols = o["cols"].toInt(80);
+    for (const QJsonValue &v : o["env"].toArray()) {
+        const QString e = v.toString();
+        if (e.startsWith("TERM=") || e.startsWith("COLORTERM=") || e.startsWith("QT_") || e.startsWith("TERM_PROGRAM")) continue;
+        spec.env << e;
+    }
+    spec.env << "TERM=xterm-256color"
+             << "COLORTERM=truecolor"
+             << "NEBULA=1"
+             << "NEBULA_PANE=" + QString::number(id)
+             << "AINEBULA_PANE=" + QString::number(id);   // pre-rename compat for older hooks
 
     auto *p = new Pane;
     p->id = id;
-    p->rows = quint16(o["rows"].toInt(24));
-    p->cols = quint16(o["cols"].toInt(80));
-    struct winsize ws = {p->rows, p->cols, 0, 0};
-    int fd = -1;
-    const pid_t pid = forkpty(&fd, nullptr, nullptr, &ws);
-    if (pid == 0) {
-        if (!dir.isEmpty() && chdir(dir.constData()) != 0) (void)!chdir("/");
-        execve(sh.constData(), argv, envp.data());
-        _exit(127);
+    p->rows = quint16(spec.rows);
+    p->cols = quint16(spec.cols);
+    QString error;
+    p->pty = Pty::start(spec, &error, this);
+    if (!p->pty) {
+        // keep the pane, so the window shows why instead of waiting for a shell that never comes
+        p->ring = ("nebula: cannot start " + spec.shell + (error.isEmpty() ? QString() : ": " + error) + "\r\n").toUtf8();
+        p->exited = true;
+        p->status = 127;
+        m_panes.insert(id, p);
+        return;
     }
-    if (pid < 0) { delete p; return; }
-    p->fd = fd;
-    p->pid = pid;
-    fcntl(fd, F_SETFL, fcntl(fd, F_GETFL) | O_NONBLOCK);
-    fcntl(fd, F_SETFD, FD_CLOEXEC);
-    p->rn = new QSocketNotifier(fd, QSocketNotifier::Read, this);
-    connect(p->rn, &QSocketNotifier::activated, this, [this, p] { onReadable(*p); });
-    p->wn = new QSocketNotifier(fd, QSocketNotifier::Write, this);
-    p->wn->setEnabled(false);
-    connect(p->wn, &QSocketNotifier::activated, this, [p] {
-        const ssize_t n = ::write(p->fd, p->pending.constData(), size_t(p->pending.size()));
-        if (n > 0) p->pending.remove(0, n);
-        if (p->pending.isEmpty()) p->wn->setEnabled(false);
-    });
+    p->pid = p->pty->pid();
+    connect(p->pty, &Pty::output, this, [this, p](const QByteArray &data) { onOutput(*p, data); });
+    connect(p->pty, &Pty::finished, this, [this, p](int status) { onFinished(*p, status); });
     m_panes.insert(id, p);
-}
-
-void HostServer::write(Pane &p, const QByteArray &data) {
-    const char *s = data.constData();
-    size_t len = size_t(data.size());
-    if (p.pending.isEmpty()) {
-        while (len) {
-            const ssize_t n = ::write(p.fd, s, len);
-            if (n > 0) { s += n; len -= size_t(n); continue; }
-            if (n < 0 && errno == EINTR) continue;
-            break;
-        }
-    }
-    if (len) { p.pending.append(s, qsizetype(len)); p.wn->setEnabled(true); }
 }
 
 void HostServer::attach(QLocalSocket *sock, Pane &p) {
@@ -193,33 +168,23 @@ void HostServer::attach(QLocalSocket *sock, Pane &p) {
     }
 }
 
-void HostServer::onReadable(Pane &p) {
+void HostServer::onOutput(Pane &p, const QByteArray &data) {
     using namespace HostProto;
-    char buf[65536];
-    for (;;) {
-        const ssize_t n = read(p.fd, buf, sizeof buf);
-        if (n > 0) {
-            const QByteArray data(buf, int(n));
-            p.ring += data;
-            if (p.ring.size() > kRingMax) {
-                p.ring.remove(0, p.ring.size() - kRingMax);
-                const int nl = p.ring.indexOf('\n');
-                if (nl >= 0 && nl < 4096) p.ring.remove(0, nl + 1);
-                p.truncated = true;
-            }
-            scanModes(p, data);
-            for (QLocalSocket *c : std::as_const(p.clients)) send(c, Output, quint32(p.id), data);
-            continue;
-        }
-        if (n < 0 && (errno == EAGAIN || errno == EINTR)) return;
-        break;
+    p.ring += data;
+    if (p.ring.size() > kRingMax) {
+        p.ring.remove(0, p.ring.size() - kRingMax);
+        const int nl = p.ring.indexOf('\n');
+        if (nl >= 0 && nl < 4096) p.ring.remove(0, nl + 1);
+        p.truncated = true;
     }
-    p.rn->setEnabled(false);
-    p.wn->setEnabled(false);
-    int st = 0;
-    waitpid(pid_t(p.pid), &st, 0);
+    scanModes(p, data);
+    for (QLocalSocket *c : std::as_const(p.clients)) send(c, Output, quint32(p.id), data);
+}
+
+void HostServer::onFinished(Pane &p, int status) {
+    using namespace HostProto;
     p.exited = true;
-    p.status = WIFEXITED(st) ? WEXITSTATUS(st) : 128 + WTERMSIG(st);
+    p.status = status;
     char b[4];
     qToLittleEndian<qint32>(p.status, b);
     for (QLocalSocket *c : std::as_const(p.clients)) send(c, Exit, quint32(p.id), QByteArray(b, 4));
@@ -254,21 +219,14 @@ void HostServer::scanModes(Pane &p, const QByteArray &data) {
 void HostServer::kill(int id) {
     Pane *p = m_panes.take(id);
     if (!p) return;
-    delete p->rn;
-    delete p->wn;
-    if (!p->exited) {
-        ::kill(pid_t(p->pid), SIGHUP);
-        close(p->fd);
-        const pid_t pid = pid_t(p->pid);
-        QTimer::singleShot(1000, this, [pid] { waitpid(pid, nullptr, WNOHANG); });
-    } else {
-        close(p->fd);
-    }
+    delete p->pty;   // hangs up the program if it still runs
     delete p;
 }
 
 int runHost() {
+#ifndef Q_OS_WIN
     signal(SIGPIPE, SIG_IGN);
+#endif
     int argc = 1;
     char name[] = "nebula-host";
     char *argv[] = {name, nullptr};

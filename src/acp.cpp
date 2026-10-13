@@ -1,4 +1,5 @@
 #include "acp.h"
+#include "platform.h"
 #include <QJsonDocument>
 #include <QProcessEnvironment>
 #include <cstdio>
@@ -46,7 +47,7 @@ void AcpClient::start(const QString &program, const QStringList &args) {
         emit died(code ? QString("agent exited with code %1").arg(code) : QString("agent exited"));
     });
     if (traceOn()) std::fprintf(stderr, "acp start: %s %s\n", qPrintable(program), qPrintable(args.join(' ').left(200)));
-    m_proc->start(program, args);
+    m_proc->start(Platform::program(program), args);
 }
 
 void AcpClient::stop() {

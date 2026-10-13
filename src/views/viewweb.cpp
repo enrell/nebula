@@ -10,7 +10,9 @@
 #include <QWebEngineUrlScheme>
 #include <QWebEngineUrlSchemeHandler>
 #include <QtWebEngineQuick/QQuickWebEngineProfile>
+#ifndef Q_OS_WIN
 #include <unistd.h>
+#endif
 
 namespace {
 
@@ -83,7 +85,9 @@ namespace ViewWeb {
 void prepare() {
     // Chromium's sandbox cannot run as root and Chromium then refuses to start at all. View pages stay isolated
     // by their profile (no network, no files but the document's), so run them unsandboxed rather than not at all.
+#ifndef Q_OS_WIN
     if (::geteuid() == 0 && !qEnvironmentVariableIsSet("QTWEBENGINE_DISABLE_SANDBOX")) qputenv("QTWEBENGINE_DISABLE_SANDBOX", "1");
+#endif
 
     QWebEngineUrlScheme scheme(kScheme);
     scheme.setSyntax(QWebEngineUrlScheme::Syntax::Host);

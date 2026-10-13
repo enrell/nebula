@@ -16,7 +16,7 @@ Values are parsed as JSON when possible (pane=3 enter=true keys='["Ctrl+C"]'), o
 Use text=@- to read a value from stdin. Set NEBULA_SOCKET to talk to another instance.
 
 methods:
-  window.screenshot [path=/tmp/nebula.png] | window.resize width=N height=N
+  window.screenshot [path=PNG] | window.resize width=N height=N
   operator.ask prompt=STR [approve=all|none]   (the built-in ACP operator; none = reject every permission request)
   settings.get | settings.set key=NAME value=V
   ping | status | action.run action=<name>
@@ -52,6 +52,24 @@ static QJsonValue parseValue(const QString &v) {
 }
 
 int runCtl(const QStringList &args) {
+    // `ctl --hook ...` is what agent hooks run: silent, always successful, and nothing at all outside a nebula pane,
+    // so a hook can never break the agent that runs it. Only the report_state arguments are used (Codex appends a
+    // JSON payload to its notify command).
+    if (!args.isEmpty() && args[0] == "--hook") {
+        if (qEnvironmentVariableIsEmpty("NEBULA_PANE") || args.size() < 2) return 0;
+#ifdef Q_OS_WIN
+        const char *nul = "NUL";
+#else
+        const char *nul = "/dev/null";
+#endif
+        std::freopen(nul, "w", stdout);
+        std::freopen(nul, "w", stderr);
+        QStringList rest;
+        for (int i = 1; i < args.size(); ++i)
+            if (i == 1 || args[i].startsWith("state=") || args[i].startsWith("ttl=") || args[i].startsWith("pane=")) rest << args[i];
+        runCtl(rest);
+        return 0;
+    }
     if (args.isEmpty() || args[0] == "-h" || args[0] == "--help") { std::fputs(kHelp, stdout); return args.isEmpty() ? 2 : 0; }
     const bool watch = args[0] == "--watch";
     const QString method = watch ? "events.subscribe" : args[0];

@@ -1,5 +1,6 @@
 #include "hostclient.h"
 #include "paths.h"
+#include "platform.h"
 #include "terminalsession.h"
 #include <QCoreApplication>
 #include <QDir>
@@ -9,10 +10,8 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QProcess>
+#include <QProcessEnvironment>
 #include <QThread>
-#include <cstdlib>
-
-extern char **environ;
 
 HostClient *HostClient::instance() {
     static HostClient *c = new HostClient;
@@ -71,22 +70,20 @@ QList<HostClient::PaneInfo> HostClient::list() {
 
 void HostClient::spawn(int id, const QString &cwd, const QString &shell, int rows, int cols, const QStringList &extraEnv) {
     QJsonArray env;
+    // variable names are case-insensitive on Windows
+    const auto key = [](const QString &entry) { return Platform::isWindows ? entry.section('=', 0, 0).toUpper() : entry.section('=', 0, 0); };
     QSet<QString> override;
-    for (const QString &e : extraEnv) override.insert(e.section('=', 0, 0));
-    for (char **e = environ; *e; ++e) {
-        const QString v = QString::fromLocal8Bit(*e);
-        if (!override.contains(v.section('=', 0, 0))) env.append(v);
-    }
+    for (const QString &e : extraEnv) override.insert(key(e));
+    for (const QString &v : QProcessEnvironment::systemEnvironment().toStringList())
+        if (!v.startsWith('=') && !override.contains(key(v))) env.append(v);
     env.append("NEBULA_SOCKET=" + Paths::socket());
     env.append("NEBULA_BIN=" + Paths::selfExe());
     // pre-rename aliases so hooks/scripts installed by older versions keep working
     env.append("AINEBULA_SOCKET=" + Paths::socket());
     env.append("AINEBULA_BIN=" + Paths::selfExe());
     for (const QString &e : extraEnv) env.append(e);
-    QByteArray sh = shell.toLocal8Bit();
-    if (sh.isEmpty()) sh = qgetenv("SHELL");
     send(HostProto::Spawn, id,
-         QJsonDocument(QJsonObject{{"cwd", cwd.isEmpty() ? QDir::homePath() : cwd}, {"shell", QString::fromLocal8Bit(sh)},
+         QJsonDocument(QJsonObject{{"cwd", cwd.isEmpty() ? QDir::homePath() : cwd}, {"shell", Platform::shellCommandLine(shell)},
                                    {"rows", rows}, {"cols", cols}, {"env", env}}).toJson(QJsonDocument::Compact));
 }
 

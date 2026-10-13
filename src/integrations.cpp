@@ -1,5 +1,6 @@
 #include "paths.h"
 #include "integrations.h"
+#include "platform.h"
 #include <QCoreApplication>
 #include <QDir>
 #include <QFile>
@@ -17,7 +18,11 @@ const QStringList kAgents = {"claude", "opencode", "codex", "gemini"};
 QString home() { return QDir::homePath(); }
 QString bin() { return Paths::selfExe(); }
 
+// Windows has no `sh` to rely on: nebula itself is the hook (`ctl --hook` stays silent and succeeds when it is not
+// inside a nebula pane or cannot reach nebula, which is what the sh one-liner does). The marker is still in the text.
 QString reportCmd(const QString &state) {
+    if (Platform::isWindows)
+        return QString("\"%1\" ctl --hook pane.report_state state=%2 ttl=3600").arg(bin(), state);
     return QString("sh -c '[ -n \"$NEBULA_PANE\" ] && \"${NEBULA_BIN:-nebula}\" ctl pane.report_state state=%1 ttl=3600 >/dev/null 2>&1; exit 0'").arg(state);
 }
 
@@ -173,7 +178,9 @@ export const NebulaPlugin = async () => ({
             if (notify.match(t).hasMatch() && !t.contains(kMarker)) return "codex already has a custom `notify` in config.toml; not overriding it";
             t.remove(QRegularExpression(QString("^notify\\s*=.*%1.*\\n").arg(kMarker), QRegularExpression::MultilineOption));
             const QString shCmd = "[ -n \\\"$NEBULA_PANE\\\" ] && \\\"${NEBULA_BIN:-nebula}\\\" ctl pane.report_state state=idle ttl=3600 >/dev/null 2>&1; exit 0";
-            const QString entry = QString("notify = [\"sh\", \"-c\", \"%1\"]\n").arg(shCmd);
+            const QString entry = Platform::isWindows
+                ? QString("notify = [\"%1\", \"ctl\", \"--hook\", \"pane.report_state\", \"state=idle\", \"ttl=3600\"]\n").arg(bin())
+                : QString("notify = [\"sh\", \"-c\", \"%1\"]\n").arg(shCmd);
             const int firstTable = t.indexOf(QRegularExpression("^\\[", QRegularExpression::MultilineOption));
             if (firstTable < 0) t += (t.isEmpty() || t.endsWith('\n') ? "" : "\n") + entry;
             else t.insert(firstTable, entry + "\n");
@@ -183,7 +190,7 @@ export const NebulaPlugin = async () => ({
     } else if (kind == "mcp") {
         if (agent == "claude") {
             QProcess p;
-            p.start("claude", {"mcp", "add", "--scope", "user", "nebula", "--", bin(), "mcp"});
+            p.start(Platform::program("claude"), {"mcp", "add", "--scope", "user", "nebula", "--", bin(), "mcp"});
             if (!p.waitForFinished(20000) || p.exitCode() != 0) err = "`claude mcp add` failed: " + QString::fromUtf8(p.readAllStandardError()).trimmed();
         } else if (agent == "opencode" || agent == "gemini") {
             const QString path = agent == "opencode" ? opencodeConfig() : geminiSettings();
@@ -239,7 +246,7 @@ QString Integrations::remove(const QString &agent, const QString &kind) {
     } else if (kind == "mcp") {
         if (agent == "claude") {
             QProcess p;
-            p.start("claude", {"mcp", "remove", "--scope", "user", "nebula"});
+            p.start(Platform::program("claude"), {"mcp", "remove", "--scope", "user", "nebula"});
             p.waitForFinished(20000);
         } else if (agent == "opencode" || agent == "gemini") {
             const QString path = agent == "opencode" ? opencodeConfig() : geminiSettings();
