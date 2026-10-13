@@ -82,3 +82,12 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with: { name: nebula-windows, path: 'shots/*', if-no-files-found: ignore }
+      - name: TEMP print the screenshot into the log
+        if: always()
+        shell: bash
+        run: |
+          echo "===PNG-BEGIN==="
+          base64 -w0 shots/nebula-windows.png || true
+          echo
+          echo "===PNG-END==="
+
