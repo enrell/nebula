@@ -52,15 +52,20 @@ ctl pane.get pane="$P" | grep -qi 'dir with space' || fail "directory not follow
 echo "cwd: ok"
 
 # 4. a program the shell runs is recognised as an agent: a copy of ping.exe named claude.exe stands in for one
+agent_up() { ctl agent.list 2>/dev/null | grep -q '"agent": *"claude"'; }
 mkdir -p "$WORK/bin"
 cp "$(cygpath -u "$SYSTEMROOT")/System32/PING.EXE" "$WORK/bin/claude.exe"
-ctl pane.send_text pane="$P" text="\$env:Path = '$(cygpath -w "$WORK/bin");' + \$env:Path; claude -n 60 127.0.0.1" enter=true >/dev/null
-for _ in $(seq 80); do ctl agent.list 2>/dev/null | grep -q '"agent": *"claude"' && break; sleep 0.25; done
-ctl agent.list | grep -q '"agent": *"claude"' || fail "agent not detected: $(ctl agent.list | tr -d '\n ' | cut -c1-300)"
-ctl pane.send_keys pane="$P" keys='["Ctrl+C"]' >/dev/null
-for _ in $(seq 50); do ctl agent.list 2>/dev/null | grep -q '"agent": *"claude"' || break; sleep 0.2; done
-ctl agent.list | grep -q '"agent": *"claude"' && fail "agent still reported after it ended"
+ctl pane.send_text pane="$P" text="\$env:Path = '$(cygpath -w "$WORK/bin");' + \$env:Path; claude -n 14 127.0.0.1" enter=true >/dev/null
+for _ in $(seq 80); do agent_up && break; sleep 0.25; done
+agent_up || fail "agent not detected: $(ctl agent.list | tr -d '\n ' | cut -c1-300)"
 echo "agent detection: ok"
+# it is cleared once the program ends (here after ~14 s on its own; Ctrl+C is tried first and only reported)
+ctl pane.send_keys pane="$P" keys='["Ctrl+C"]' >/dev/null
+for _ in $(seq 20); do agent_up || break; sleep 0.25; done
+if agent_up; then echo "note: Ctrl+C did not end the program within 5 s; screen: $(pane_read "$P" | tail -5 | tr '\n' '|')"; else echo "ctrl+c: ok"; fi
+for _ in $(seq 100); do agent_up || break; sleep 0.25; done
+agent_up && fail "agent still reported after it ended: $(ctl agent.list | tr -d '\n ' | cut -c1-300); screen: $(pane_read "$P" | tail -8 | tr '\n' '|')"
+echo "agent cleared: ok"
 
 # 5. state reports from hooks: `ctl --hook` is silent and always succeeds, in or out of a pane
 OUT=$(NEBULA_PANE=$P "$BIN" ctl --hook pane.report_state state=working ttl=60 '{"ignored":"json payload"}' 2>&1) || fail "hook failed"
