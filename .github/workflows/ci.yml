@@ -45,6 +45,8 @@ jobs:
 
   windows:
     runs-on: windows-2022
+    permissions:
+      contents: write   # TEMP: only for committing the screenshot
     steps:
       - uses: actions/checkout@v4
       - uses: ilammy/msvc-dev-cmd@v1
@@ -82,12 +84,14 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with: { name: nebula-windows, path: 'shots/*', if-no-files-found: ignore }
-      - name: TEMP print the screenshot into the log
-        if: always()
+      - name: TEMP commit the screenshot to this branch
+        if: always() && github.event_name == 'push'
         shell: bash
         run: |
-          echo "===PNG-BEGIN==="
-          base64 -w0 shots/nebula-windows.png || true
-          echo
-          echo "===PNG-END==="
-
+          if [ -s shots/nebula-windows.png ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            cp shots/nebula-windows.png docs/screenshots/windows.png
+            git add docs/screenshots/windows.png
+            git commit -m "CI: screenshot of nebula on Windows" && git push origin "HEAD:${GITHUB_REF_NAME}"
+          fi
