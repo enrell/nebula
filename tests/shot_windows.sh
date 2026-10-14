@@ -26,15 +26,15 @@ ctl ping >/dev/null 2>&1 || fail "gui did not start on a real window"
 ctl window.resize width=1200 height=720 >/dev/null
 P=$(ctl pane.list | grep -o '"id": *[0-9]*' | head -1 | grep -o '[0-9]*$')
 for _ in $(seq 150); do ctl pane.read pane="$P" 2>/dev/null | grep -q 'PS ' && break; sleep 0.2; done
-# the right pane lists a folder; the left one runs a stand-in agent (a copy of ping.exe named claude.exe), so the
+# the right pane lists a folder; the left one runs a stand-in agent (a copy of cmd.exe named claude.exe), so the
 # sidebar shows an agent that is working
 ctl pane.split pane="$P" direction=right >/dev/null
 sleep 1.5
 Q=$(ctl pane.list | grep -o '"id": *[0-9]*' | grep -o '[0-9]*$' | grep -vx "$P" | tail -1)
 ctl pane.send_text pane="$Q" text='Get-ChildItem C:\Windows -Directory | Select-Object -First 6 Name, LastWriteTime | Format-Table' enter=true >/dev/null
 mkdir -p "$STATE/bin"
-cp "$(cygpath -u "$SYSTEMROOT")/System32/PING.EXE" "$STATE/bin/claude.exe"
-ctl pane.send_text pane="$P" text="\$env:Path = '$(cygpath -w "$STATE/bin");' + \$env:Path; Clear-Host; claude -n 100 127.0.0.1" enter=true >/dev/null
+cp "$(cygpath -u "$SYSTEMROOT")/System32/cmd.exe" "$STATE/bin/claude.exe"
+ctl pane.send_text pane="$P" text="\$env:Path = '$(cygpath -w "$STATE/bin");' + \$env:Path; Clear-Host; claude /c 'echo Claude Code v2 & echo. & echo ^> refactor the session store & echo   Reading src/session.cpp ... & ping -n 120 127.0.0.1 >nul'" enter=true >/dev/null
 for _ in $(seq 60); do ctl agent.list 2>/dev/null | grep -q '"agent": *"claude"' && break; sleep 0.25; done
 ctl pane.report_state pane="$P" state=working ttl=600 >/dev/null
 sleep 4
