@@ -1,18 +1,25 @@
 #include "agentdetect.h"
 #include <QFileInfo>
 #include <QRegularExpression>
+#include <cstring>
 
 namespace AgentDetect {
 
 QString identify(const QStringList &args, const QString &comm) {
     static const QStringList known = {"claude", "opencode", "codex", "gemini", "aider", "amp", "pi", "droid", "goose",
                                       "crush", "agy", "hermes", "qwen", "kimi", "cursor-agent", "copilot"};
-    QStringList names{comm.toLower()};
-    for (int i = 0; i < args.size() && i < 4; ++i) names << QFileInfo(args[i]).fileName().toLower();
+    // "claude.exe", "claude.cmd" and "cli.js" style names: the program without its extension
+    const auto bare = [](QString n) {
+        for (const char *ext : {".exe", ".cmd", ".bat", ".ps1"})
+            if (n.endsWith(ext)) { n.chop(int(strlen(ext))); break; }
+        return n;
+    };
+    QStringList names{bare(comm.toLower())};
+    for (int i = 0; i < args.size() && i < 4; ++i) names << bare(QFileInfo(args[i]).fileName().toLower());
     for (const QString &n : std::as_const(names))
         for (const QString &k : known)
             if (n == k || n == k + ".js") return k;
-    const QString joined = args.join(' ').toLower();
+    const QString joined = QString(args.join(' ')).replace('\\', '/').toLower();
     if (joined.contains("claude-code")) return "claude";
     if (joined.contains("opencode")) return "opencode";
     if (joined.contains("gemini-cli")) return "gemini";

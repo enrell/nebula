@@ -10,6 +10,12 @@ using namespace AgentDetect;
 int main() {
     CHECK_EQ(identify({"node", "/usr/lib/node_modules/@anthropic-ai/claude-code/cli.js"}, "node"), "claude");
     CHECK_EQ(identify({"/usr/bin/opencode"}, "opencode"), "opencode");
+    // Windows: executables carry an extension, paths use backslashes, npm installs run through node
+    CHECK_EQ(identify({"C:\\Users\\me\\.local\\bin\\claude.exe"}, "claude"), "claude");
+    CHECK_EQ(identify({"codex.exe"}, "codex"), "codex");
+    CHECK_EQ(identify({"node.exe", "C:\\Users\\me\\AppData\\Roaming\\npm\\node_modules\\@anthropic-ai\\claude-code\\cli.js"}, "node"), "claude");
+    CHECK_EQ(identify({"node.exe", "C:\\Users\\me\\AppData\\Roaming\\npm\\node_modules\\@openai\\codex\\bin\\codex.js"}, "node"), "codex");
+    CHECK_EQ(identify({"C:\\Program Files\\PowerShell\\7\\pwsh.exe", "-NoLogo"}, "pwsh"), "");
     CHECK_EQ(identify({"fish"}, "fish"), "");
     CHECK_EQ(identify({"btop"}, "btop"), "");
 

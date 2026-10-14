@@ -149,7 +149,7 @@ FocusScope {
                         }
                     }
                 }
-                P { width: parent.width; text: "Add your own agents in ~/.config/nebula/agents.conf (one “name = command” per line)." }
+                P { width: parent.width; text: "Add your own agents in " + settings.configPath.replace(/[\\/][^\\/]*$/, "") + "/agents.conf (one “name = command” per line)." }
             }
 
             // 3 api keys

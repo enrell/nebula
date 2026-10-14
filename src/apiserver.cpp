@@ -399,7 +399,7 @@ QJsonValue ApiServer::call(const QString &method, const QJsonObject &p, QLocalSo
         for (QWindow *tw : QGuiApplication::topLevelWindows())
             if ((w = qobject_cast<QQuickWindow *>(tw))) break;
         if (!w) throw ApiError("no window");
-        const QString file = p["path"].toString("/tmp/nebula.png");
+        const QString file = p["path"].toString(QDir::tempPath() + "/nebula.png");
         if (!w->grabWindow().save(file)) throw ApiError("cannot write " + file.toStdString());
         return file;
     }

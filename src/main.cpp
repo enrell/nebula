@@ -25,10 +25,15 @@
 #include <QFileInfo>
 #include <QLibraryInfo>
 #include <QtWebEngineQuick/qtwebenginequickglobal.h>
+#include <cstdio>
+#ifdef Q_OS_WIN
+#include <windows.h>
+#endif
 
 // Desktops running fcitx5/ibus export QT_IM_MODULE for the system Qt, but our bundled Qt may not ship that
 // plugin; Qt then silently drops to the bare compose context and dead keys / layout-aware input break.
 // On Wayland the compositor relays text-input-v3 to the same input method, so use that instead.
+#ifndef Q_OS_WIN
 static void fixInputMethod() {
     const QByteArray im = qgetenv("QT_IM_MODULE");
     if (im.isEmpty() || im == "wayland" || im == "compose" || !qEnvironmentVariableIsSet("WAYLAND_DISPLAY")) return;
@@ -43,8 +48,30 @@ static void fixInputMethod() {
             if (f.contains(name)) return;
     qputenv("QT_IM_MODULE", "wayland");
 }
+#endif
+
+#ifdef Q_OS_WIN
+// nebula.exe is a GUI program, so Windows gives it no console. `nebula ctl`, `nebula mcp` and `--help` talk through
+// stdout, so when started from a terminal they borrow its console, unless the output is already redirected (a pipe,
+// a file, the stdio of an agent that runs `nebula mcp`).
+static void attachParentConsole() {
+    const auto valid = [](DWORD which) {
+        const HANDLE h = GetStdHandle(which);
+        return h && h != INVALID_HANDLE_VALUE;
+    };
+    if (!valid(STD_OUTPUT_HANDLE) && AttachConsole(ATTACH_PARENT_PROCESS)) {
+        std::freopen("CONOUT$", "w", stdout);
+        if (!valid(STD_ERROR_HANDLE)) std::freopen("CONOUT$", "w", stderr);
+    }
+    if (!valid(STD_INPUT_HANDLE) && GetConsoleWindow()) std::freopen("CONIN$", "r", stdin);
+}
+#endif
 
 int main(int argc, char *argv[]) {
+#ifdef Q_OS_WIN
+    if (argc > 1 && (QByteArray(argv[1]) == "ctl" || QByteArray(argv[1]) == "mcp" || QByteArray(argv[1]) == "--help" || QByteArray(argv[1]) == "-h"))
+        attachParentConsole();
+#endif
     if (argc > 1 && QByteArray(argv[1]) == "ctl") {
         QCoreApplication core(argc, argv);
         return runCtl(core.arguments().mid(2));
@@ -61,7 +88,9 @@ int main(int argc, char *argv[]) {
     // views: the scheme must be known before the web engine starts, and the engine before the application
     ViewWeb::prepare();
     QtWebEngineQuick::initialize();
+#ifndef Q_OS_WIN
     fixInputMethod();
+#endif
     QGuiApplication app(argc, argv);
     app.setApplicationName("nebula");
     app.setApplicationVersion(NEBULA_VERSION);

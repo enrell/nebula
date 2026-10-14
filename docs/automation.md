@@ -1,8 +1,8 @@
 # Automation
 
-nebula is scriptable from anything: a Unix-socket JSON API, the `nebula ctl` CLI and an MCP server for agents. Back to the [README](../README.md).
+nebula is scriptable from anything: a local-socket JSON API (a Unix socket on Linux, a named pipe on Windows), the `nebula ctl` CLI and an MCP server for agents. Back to the [README](../README.md).
 
-Unix socket `$XDG_RUNTIME_DIR/nebula.sock` (override with `NEBULA_SOCKET`), newline-delimited JSON:
+Unix socket `$XDG_RUNTIME_DIR/nebula.sock` (override with `NEBULA_SOCKET`; on Windows the named pipe `\\.\pipe\nebula-<user>`, where `NEBULA_SOCKET` is a pipe name), newline-delimited JSON:
 
     {"id":1,"method":"pane.send_text","params":{"pane":2,"text":"ls","enter":true}}
     {"id":1,"ok":true,"result":true}

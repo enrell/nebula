@@ -80,6 +80,7 @@ signals:
     void attention(const QString &kind);
 
 private:
+    void scanCwdReports(const QByteArray &data);
     void start(const QString &cwd, bool attach);
     void writeOut(const char *s, size_t len);
     void poll();
@@ -113,6 +114,8 @@ private:
     QByteArray m_title;
     QString m_cwd, m_branch, m_agent, m_state, m_proc;
     qint64 m_stateSince = 0;
+    QString m_reportedCwd;       // the directory the shell last reported with OSC 9;9 or OSC 7
+    QByteArray m_oscCarry;       // the start of a report that continues in the next chunk of output
     bool m_active = false, m_sawWorking = false, m_alive = true, m_terminated = false;
     int m_notWorkingPolls = 0;
     QString m_reported;

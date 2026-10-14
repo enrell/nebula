@@ -27,7 +27,7 @@ Only working and blocked move, so anything that moves is either busy or needs yo
 
 ## Hooks
 
-Exact `working / blocked / done` state instead of screen heuristics (Settings > Agent integrations). Claude Code (`~/.claude/settings.json`), opencode (plugin) and codex (`notify`, turn completion only). Your files are merged, never overwritten, and backed up as `*.nebula-bak`; Remove restores them. Hooks run `nebula ctl pane.report_state` and are silent no-ops outside nebula.
+Exact `working / blocked / done` state instead of screen heuristics (Settings > Agent integrations). Claude Code (`~/.claude/settings.json`), opencode (plugin) and codex (`notify`, turn completion only). Your files are merged, never overwritten, and backed up as `*.nebula-bak`; Remove restores them. Hooks run `nebula ctl pane.report_state` and are silent no-ops outside nebula. On Windows, where there is no `sh` to wrap the command in, they run `nebula.exe ctl --hook pane.report_state ...`, which is silent, always succeeds, and does nothing outside a nebula pane.
 
 ## MCP server
 

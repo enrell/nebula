@@ -29,12 +29,21 @@ void Theme::watch() {
 
 void Theme::loadFont() {
     m_fontFamily = QFontDatabase::systemFont(QFontDatabase::FixedFont).family();
+#ifdef Q_OS_WIN
+    // the system fixed font on Windows is Courier New: prefer the terminal fonts Windows ships
+    const QStringList installed = QFontDatabase::families();
+    for (const char *f : {"Cascadia Mono", "Cascadia Code", "Consolas"})
+        if (installed.contains(f)) { m_fontFamily = f; break; }
+#endif
     const QString home = QDir::homePath();
     struct Src { QString path; QRegularExpression rx; };
     const Src srcs[] = {
         {home + "/.config/ghostty/config", QRegularExpression(R"re(^\s*font-family\s*=\s*"?([^"\n]+)"?)re", QRegularExpression::MultilineOption)},
         {home + "/.config/kitty/kitty.conf", QRegularExpression(R"(^\s*font_family\s+(.+)$)", QRegularExpression::MultilineOption)},
         {home + "/.config/alacritty/alacritty.toml", QRegularExpression(R"re(normal\s*=\s*\{\s*family\s*=\s*"([^"]+)")re")},
+#ifdef Q_OS_WIN
+        {QDir::fromNativeSeparators(qEnvironmentVariable("APPDATA")) + "/alacritty/alacritty.toml", QRegularExpression(R"re(normal\s*=\s*\{\s*family\s*=\s*"([^"]+)")re")},
+#endif
     };
     for (const Src &s : srcs) {
         QFile f(s.path);

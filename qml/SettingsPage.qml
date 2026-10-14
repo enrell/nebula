@@ -211,11 +211,11 @@ FocusScope {
                 PageTitle { title: "Terminal"; subtitle: "Applies to new panes and the way you interact with the terminal." }
                 SettingRow {
                     label: "Shell"
-                    description: "Used for new panes. Empty uses $SHELL"
+                    description: Qt.platform.os === "windows" ? "Used for new panes. Empty uses PowerShell" : "Used for new panes. Empty uses $SHELL"
                     Field {
                         width: 240
                         text: settings.shell
-                        placeholder: "$SHELL"
+                        placeholder: Qt.platform.os === "windows" ? "pwsh" : "$SHELL"
                         onAccepted: (t) => settings.shell = t.trim()
                     }
                 }
@@ -248,7 +248,7 @@ FocusScope {
                     subtitle: "A profile is a named API key injected as environment variables into the panes that use it. "
                         + (profiles.backend === "keyring"
                             ? "Keys are kept in your system keyring and never written to settings or session files."
-                            : "No system keyring found: keys are stored in ~/.config/nebula/secrets.json (mode 0600).")
+                            : "No system keyring found: keys are stored in " + settings.configPath.replace(/[\\/][^\\/]*$/, "") + "/secrets.json (readable only by you).")
                 }
                 Card {
                     visible: profiles.list.length === 0

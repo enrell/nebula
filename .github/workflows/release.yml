@@ -5,6 +5,7 @@ name: release
 #   nebula_X.Y.Z_{amd64,arm64}.deb         Debian 13 / Ubuntu 25.04+
 #   nebula-X.Y.Z-1.{x86_64,aarch64}.rpm    Fedora 41+
 #   nebula-X.Y.Z-1-x86_64.pkg.tar.zst      Arch (also consumed by the AUR nebula-bin package)
+#   nebula-windows-x86_64.zip              Windows 10 1809+ / 11 portable build (used by install.ps1)
 on:
   push:
     tags: ['v*']
@@ -61,8 +62,35 @@ jobs:
       - uses: actions/upload-artifact@v4
         with: { name: '${{ matrix.kind }}-${{ matrix.runner }}', path: dist/* }
 
+  windows:
+    needs: version
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ilammy/msvc-dev-cmd@v1
+      - uses: jurplel/install-qt-action@v4
+        with:
+          version: 6.8.3
+          host: windows
+          target: desktop
+          arch: win64_msvc2022_64
+          modules: qtwebengine qtwebchannel qtpositioning
+          cache: true
+      - name: Build the portable zip
+        shell: bash
+        run: powershell -NoProfile -ExecutionPolicy Bypass -File packaging/release/windows.ps1 -Version "${GITHUB_REF_NAME#v}" -Out dist
+      - name: Smoke test the bundle without this machine's Qt
+        shell: bash
+        run: |
+          powershell -NoProfile -ExecutionPolicy Bypass -File install.ps1 -Zip dist/nebula-windows-x86_64.zip -Dir "$RUNNER_TEMP/nebula-installed"
+          unset QT_PLUGIN_PATH QML2_IMPORT_PATH QT_ROOT_DIR Qt6_DIR QTDIR QT_QPA_PLATFORM_PLUGIN_PATH
+          export PATH=$(echo "$PATH" | tr ':' '\n' | grep -vi '/Qt/' | paste -sd:)
+          ./tests/e2e_windows.sh "$RUNNER_TEMP/nebula-installed/nebula.exe"
+      - uses: actions/upload-artifact@v4
+        with: { name: bundle-windows, path: 'dist/nebula-windows-x86_64.zip' }
+
   publish:
-    needs: [bundle, native]
+    needs: [bundle, native, windows]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v4

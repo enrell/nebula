@@ -1,4 +1,5 @@
 #include "launcher.h"
+#include "platform.h"
 #include "paths.h"
 #include "profiles.h"
 #include "terminalsession.h"
@@ -65,11 +66,8 @@ QString Launcher::currentCwd() const {
     return p && !p->cwd().isEmpty() ? p->cwd() : QDir::homePath();
 }
 
-static QString shq(const QString &s) {
-    QString r = s;
-    r.replace("'", "'\\''");
-    return "'" + r + "'";
-}
+// one argument for the shell the panes run (POSIX shells and PowerShell take 'single quotes', cmd.exe "double quotes")
+static QString shq(const QString &s) { return Platform::quote(s); }
 
 static bool git(const QString &dir, const QStringList &args, QString *out = nullptr) {
     QProcess p;

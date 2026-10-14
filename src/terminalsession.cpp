@@ -2,6 +2,8 @@
 #include "agentdetect.h"
 #include "paneids.h"
 #include "paths.h"
+#include "platform.h"
+#include "procinfo.h"
 #include "settings.h"
 #include "hostclient.h"
 #include "profiles.h"
@@ -10,14 +12,9 @@
 #include <QFile>
 #include <QFileInfo>
 #include <QKeyEvent>
+#include <QUrl>
 #include <cerrno>
 #include <cstring>
-#include <csignal>
-#include <fcntl.h>
-#include <pty.h>
-#include <sys/ioctl.h>
-#include <sys/wait.h>
-#include <unistd.h>
 
 TerminalSession::TerminalSession(const QString &cwd, QObject *parent, int fixedId, bool attach, const QString &prefill, const QString &profile)
     : QObject(parent), m_id(fixedId > 0 ? fixedId : PaneIds::next()), m_cwd(cwd), m_prefill(prefill), m_profile(profile) {
@@ -123,7 +120,39 @@ QByteArray TerminalSession::translateFaint(const QByteArray &d) {
     return r;
 }
 
+// Shells can say where they are with OSC 9;9;"path" (Windows Terminal, ConEmu) or OSC 7;file://host/path. On
+// Windows that is the only way to know for PowerShell (see Platform::shellCommandLine); elsewhere it is a fallback.
+void TerminalSession::scanCwdReports(const QByteArray &data) {
+    const QByteArray s = m_oscCarry + data;
+    m_oscCarry.clear();
+    int i = 0;
+    while ((i = s.indexOf("\x1b]", i)) >= 0) {
+        int end = -1, termLen = 1;
+        for (int j = i + 2; j < s.size() && j < i + 4096; ++j) {
+            if (s[j] == '\a') { end = j; break; }
+            if (s[j] == '\x1b' && j + 1 < s.size() && s[j + 1] == '\\') { end = j; termLen = 2; break; }
+        }
+        if (end < 0) {
+            if (s.size() - i < 4096) m_oscCarry = s.mid(i);   // the sequence continues in the next chunk
+            return;
+        }
+        const QByteArray body = s.mid(i + 2, end - i - 2);
+        QString dir;
+        if (body.startsWith("9;9;")) {
+            dir = QString::fromUtf8(body.mid(4));
+            if (dir.size() >= 2 && dir.startsWith('"') && dir.endsWith('"')) dir = dir.mid(1, dir.size() - 2);
+        } else if (body.startsWith("7;")) {
+            const QUrl url(QString::fromUtf8(body.mid(2)));
+            dir = url.path();
+            if (dir.size() >= 3 && dir[0] == '/' && dir[2] == ':') dir.remove(0, 1);   // /C:/Users/me -> C:/Users/me
+        }
+        if (!dir.isEmpty()) m_reportedCwd = QDir::cleanPath(QDir::fromNativeSeparators(dir));
+        i = end + termLen;
+    }
+}
+
 void TerminalSession::hostOutput(const QByteArray &raw) {
+    scanCwdReports(raw);
     const QByteArray d = translateFaint(raw);
     vterm_input_write(m_vt, d.constData(), size_t(d.size()));
     if (!m_replaying) m_lastOutput.restart();
@@ -392,15 +421,16 @@ static QString readFirstLine(const QString &path) {
 }
 
 static QString gitBranch(QString dir) {
-    while (!dir.isEmpty() && dir != "/") {
+    while (!dir.isEmpty()) {
         const QString head = dir + "/.git/HEAD";
         if (QFileInfo::exists(head)) {
             const QString l = readFirstLine(head);
             if (l.startsWith("ref: refs/heads/")) return l.mid(16);
             return l.left(7);
         }
-        dir = QFileInfo(dir).absolutePath();
-        if (dir == "/") break;
+        const QString parent = QFileInfo(dir).absolutePath();
+        if (parent.isEmpty() || parent == dir || parent == "/") break;   // the root of the drive or filesystem
+        dir = parent;
     }
     return {};
 }
@@ -420,19 +450,18 @@ void TerminalSession::hostInfo(qint64 pid, qint64 fg) {
     if (!m_alive) return;
     m_pid = pid;
     bool changed = false;
-    const QString cwd = QFileInfo(QString("/proc/%1/cwd").arg(m_pid)).symLinkTarget();
+    // Windows shells that report their directory (PowerShell, through nebula's prompt hook) are believed over the
+    // process's own directory, which PowerShell never changes
+    QString cwd = Platform::isWindows && !m_reportedCwd.isEmpty() ? m_reportedCwd : ProcInfo::cwd(m_pid);
+    if (cwd.isEmpty()) cwd = m_reportedCwd;
     if (!cwd.isEmpty() && cwd != m_cwd) { m_cwd = cwd; changed = true; }
     const QString branch = gitBranch(m_cwd);
     if (branch != m_branch) { m_branch = branch; changed = true; }
 
     QString proc, agent;
     if (fg > 0) {
-        QFile f(QString("/proc/%1/cmdline").arg(fg));
-        QStringList args;
-        if (f.open(QIODevice::ReadOnly))
-            for (const QByteArray &a : f.readAll().split('\0'))
-                if (!a.isEmpty()) args << QString::fromUtf8(a);
-        const QString comm = readFirstLine(QString("/proc/%1/comm").arg(fg));
+        const QStringList args = ProcInfo::arguments(fg);
+        const QString comm = ProcInfo::name(fg);
         proc = comm.isEmpty() ? (args.isEmpty() ? QString() : QFileInfo(args[0]).fileName()) : comm;
         agent = AgentDetect::identify(args, comm);
     }

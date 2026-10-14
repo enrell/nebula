@@ -6,6 +6,9 @@
 #include <QJsonObject>
 #include <QProcess>
 #include <QStandardPaths>
+#ifdef Q_OS_WIN
+#include "win/winsecret.h"
+#endif
 
 namespace {
 QHash<QString, QString> &cache() {
@@ -14,10 +17,19 @@ QHash<QString, QString> &cache() {
 }
 QString key(const QString &p, const QString &v) { return p + "\x1f" + v; }
 
+// the system's secret store: the Credential Manager on Windows, the Secret Service (secret-tool) elsewhere
 bool useKeyring() {
+#ifdef Q_OS_WIN
+    static const bool ok = qEnvironmentVariable("NEBULA_SECRETS") != "file";
+#else
     static const bool ok = qEnvironmentVariable("NEBULA_SECRETS") != "file" && !QStandardPaths::findExecutable("secret-tool").isEmpty();
+#endif
     return ok;
 }
+
+#ifdef Q_OS_WIN
+std::wstring target(const QString &p, const QString &v) { return QString("nebula/%1/%2").arg(p, v).toStdWString(); }
+#endif
 
 QString filePath() { return Paths::configDir() + "/secrets.json"; }
 
@@ -39,10 +51,15 @@ QStringList attrs(const QString &p, const QString &v) { return {"service", "nebu
 
 namespace SecretStore {
 
-QString backend() { return useKeyring() ? "keyring" : "file"; }
+QString backend() { return useKeyring() ? "keyring" : "file"; }   // on Windows the Credential Manager
 
 bool set(const QString &profile, const QString &var, const QString &value) {
     bool ok = true;
+#ifdef Q_OS_WIN
+    if (useKeyring()) {
+        ok = winsecret::set(target(profile, var), value.toUtf8().toStdString());
+    } else
+#endif
     if (useKeyring()) {
         QProcess p;
         p.start("secret-tool", QStringList{"store", "--label", "nebula " + profile + "/" + var} + attrs(profile, var));
@@ -63,6 +80,12 @@ QString get(const QString &profile, const QString &var) {
     const QString k = key(profile, var);
     if (cache().contains(k)) return cache().value(k);
     QString v;
+#ifdef Q_OS_WIN
+    if (useKeyring()) {
+        std::string raw;
+        if (winsecret::get(target(profile, var), &raw)) v = QString::fromUtf8(raw.data(), qsizetype(raw.size()));
+    } else
+#endif
     if (useKeyring()) {
         QProcess p;
         p.start("secret-tool", QStringList{"lookup"} + attrs(profile, var));
@@ -81,6 +104,11 @@ QString get(const QString &profile, const QString &var) {
 
 void remove(const QString &profile, const QString &var) {
     cache().remove(key(profile, var));
+#ifdef Q_OS_WIN
+    if (useKeyring()) {
+        winsecret::remove(target(profile, var));
+    } else
+#endif
     if (useKeyring()) {
         QProcess p;
         p.start("secret-tool", QStringList{"clear"} + attrs(profile, var));

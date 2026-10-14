@@ -27,7 +27,8 @@ notes unless you prefer otherwise.
 nebula gives programs (and people) control of your terminals by design. What
 is and is not a vulnerability follows from that:
 
-- **Automation socket** (`$XDG_RUNTIME_DIR/nebula.sock`): anyone who can
+- **Automation socket** (`$XDG_RUNTIME_DIR/nebula.sock`; on Windows the named pipe
+  `\\.\pipe\nebula-<user>`, restricted to your account): anyone who can
   connect can read and type into every pane. It lives in your per-user runtime
   directory; a way for another local user to reach it is a vulnerability.
 - **MCP server** (`nebula mcp`) and **operator**: expose the same terminal
@@ -35,8 +36,9 @@ is and is not a vulnerability follows from that:
   tool calls are auto-approved by default and can be switched to per-call
   approval in the chat header. Pane text is passed to agents as untrusted
   data, but prompt injection through terminal output is an inherent risk.
-- **API keys** are stored in the system keyring (Secret Service) and only fall
-  back to `~/.config/nebula/secrets.json` (mode 0600). They are never written
+- **API keys** are stored in the system keyring (Secret Service; the Credential
+  Manager on Windows) and only fall back to `~/.config/nebula/secrets.json`
+  (mode 0600; `%APPDATA%\nebula\secrets.json` on Windows). They are never written
   to `settings.json` or `session.json`, and `list_profiles` never returns them.
 - **Hooks** edit agent config files (`~/.claude/settings.json`, ...) by
   merging, with `*.nebula-bak` backups, and are no-ops outside nebula.

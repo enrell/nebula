@@ -1,4 +1,5 @@
 #include "workspace.h"
+#include "platform.h"
 #include "paneids.h"
 #include "paths.h"
 #include "hostclient.h"
@@ -721,7 +722,7 @@ void Workspace::adopt(Space *s) {
             if (!tsp) return;
             if (!Settings::instance()->notifications()) return;
             const QString title = tsp->agent() + " " + (kind == "done" ? "finished" : "needs your input");
-            QProcess::startDetached("notify-send", {"-a", "nebula", "-i", "utilities-terminal", title, summary.isEmpty() ? tsp->cwd() : summary});
+            Platform::notify(title, summary.isEmpty() ? tsp->cwd() : summary);
         };
         if (kind == "done" && Settings::instance()->aiSummaries() && Llm::instance()->available()) {
             const int id = Llm::instance()->summarize(ts->readText(80, true));
