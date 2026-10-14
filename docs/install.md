@@ -16,6 +16,8 @@ The installer puts the portable build in `~/.local/lib/nebula` (no root, checksu
 
 ## Windows
 
+![nebula on Windows: PowerShell 7 in two panes, and an agent that is working in the sidebar](screenshots/windows.png)
+
 `install.ps1` downloads `nebula-windows-x86_64.zip` from the release (checksum verified), unpacks it into `%LOCALAPPDATA%\Programs\nebula`, adds that folder to your user `PATH` and creates a Start Menu entry. No administrator rights are needed. Run it with `-Version 0.3.0` for a specific release, `-Zip nebula-windows-x86_64.zip` to install a file you already have, or `-Uninstall` to remove it (your settings in `%APPDATA%\nebula` stay). To remove it from a one-liner: `& ([scriptblock]::Create((irm https://raw.githubusercontent.com/enrell/nebula/main/install.ps1))) -Uninstall`. You can also unzip the release anywhere and run `nebula.exe`.
 
 Panes run PowerShell 7 if it is installed, else Windows PowerShell; pick another shell (`cmd`, Git Bash, `nu`, ...) under Settings > Terminal. Terminals need the Windows pseudo console, so Windows 10 version 1809 or newer.
