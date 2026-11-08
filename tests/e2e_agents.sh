@@ -71,6 +71,61 @@ echo "$W" | grep -q '"/[^"]*/repo-feat-y"' || fail "worktree from a worktree sho
 ctl agent.presets | grep -q claude || fail "presets"
 echo "launcher: ok"
 
+# ---- isolation: agents in silo sessions, through a stand-in silo CLI (tests/fake_silo.py: no microVM, state in $HOME/fakesilo)
+cp "$HERE/fake_silo.py" "$HOME/fakebin/silo"; chmod +x "$HOME/fakebin/silo"
+FS=$HOME/fakesilo
+js() { python3 -c "import json,sys;d=json.load(sys.stdin);print($1)"; }
+[ "$(ctl isolation.info | js 'd["silo"]["available"]')" = True ] || fail "silo should be available: $(ctl isolation.info)"
+S=$(ctl agent.launch agent=claude profile=work cwd="$REPO" isolation=silo branch=iso/a where=tab prompt="fix it")
+[ "$(echo "$S" | js 'd["isolation"], d["session"], d["cwd"].endswith("/repo-iso-a")')" = "silo iso-a True" ] || fail "silo launch: $S"
+SP=$(echo "$S" | js 'd["pane"]')
+for _ in $(seq 50); do grep -q '"run"' "$FS/calls.log" 2>/dev/null && break; sleep 0.1; done
+python3 - "$FS/calls.log" <<'PY2' || fail "silo run arguments"
+import json, sys
+run = [a for a in map(json.loads, open(sys.argv[1])) if a[0] == "run"][0]
+assert run == ["run", "--name", "iso-a", "--network", "proxy", "--allow-domain", "api.anthropic.com",
+               "--env", "ANTHROPIC_BASE_URL", "--env", "ANTHROPIC_API_KEY", "--", "claude", "fix it"], run   # names only
+PY2
+grep -q sk-work "$FS/calls.log" && fail "a profile secret reached the silo command line"
+agent_in() { ctl pane.get pane="$1" | js 'd["agent"] + "/" + d["isolation"]'; }
+for _ in $(seq 40); do [ "$(agent_in "$SP")" = claude/silo ] && break; sleep 0.2; done
+[ "$(agent_in "$SP")" = claude/silo ] || fail "the agent inside silo was not recognized: $(ctl pane.get pane="$SP")"
+[ "$(ctl isolation.status pane="$SP" | js 'd["phase"], d["name"]')" = "running iso-a" ] || fail "status of a running session"
+{ ctl isolation.apply pane="$SP" 2>&1 || true; } | grep -q "quit it in its pane" || fail "apply while the agent runs should say to quit it first"
+ctl pane.send_text pane="$SP" text=exit enter=true
+wait_read "$SP" "is ready to apply" || fail "the silo session did not finish"
+D=$(ctl isolation.diff pane="$SP")
+[ "$(echo "$D" | js 'd["phase"], d["hostSafe"], "agent.txt" in d["stat"], "+agent" in d["patch"]')" = "review True True True" ] || fail "diff: $D"
+[ "$(ctl isolation.diff pane="$SP" stat_only=true | js 'repr(d["patch"])')" = "''" ] || fail "stat_only diff carries a patch"
+{ ctl isolation.discard pane="$SP" 2>&1 || true; } | grep -q "force=true" || fail "discarding unapplied changes should ask for force"
+[ "$(ctl isolation.apply pane="$SP" | js 'd["phase"], d["appliedCommit"]')" = "closed $(printf 'f%.0s' $(seq 40))" ] || fail "apply"
+[ "$(ctl isolation.status session=iso-a | js 'd["phase"]')" = closed ] || fail "status by session name"
+# a pane the session was not launched from (as after a restart) finds it by its worktree
+B=$(ctl agent.launch agent=shell cwd="$REPO" isolation=silo branch=iso/b where=tab | js 'd["pane"]')
+for _ in $(seq 50); do grep -q '"iso-b"' "$FS/calls.log" 2>/dev/null && break; sleep 0.1; done
+X=$(ctl pane.split pane="$B" direction=down | js 'd["pane"]')
+sleep 1
+[ "$(ctl isolation.status pane="$X" | js 'd["name"]')" = iso-b ] || fail "session not found from its worktree: $(ctl pane.get pane="$X")"
+ctl pane.send_text pane="$B" text=exit enter=true
+wait_read "$B" "is ready to apply" || fail "the second silo session did not finish"
+[ "$(ctl isolation.discard pane="$X" force=true | js 'd["phase"]')" = closed ] || fail "discard with force"
+# auto falls back to a worktree when silo cannot run here; an explicit silo fails instead of running unisolated
+touch "$FS/doctor-fail"
+A=$(ctl agent.launch agent=shell cwd="$REPO" isolation=auto branch=iso/c where=tab)
+[ "$(echo "$A" | js 'd["isolation"], "/dev/kvm" in d.get("note", "")')" = "worktree True" ] || fail "auto without a working silo: $A"
+{ ctl agent.launch agent=shell cwd="$REPO" isolation=silo branch=iso/d where=tab 2>&1 || true; } | grep -q "/dev/kvm" || fail "isolation=silo without a working silo must fail"
+[ -d "$REPO-iso-d" ] && fail "a failed silo launch left a worktree behind"
+rm "$FS/doctor-fail"
+# the setting upgrades launches that ask for a worktree
+ctl settings.set key=isolation value=vm >/dev/null 2>&1 && fail "invalid isolation setting accepted"
+ctl settings.set key=isolation value=auto
+E=$(ctl agent.launch agent=shell cwd="$REPO" worktree=true branch=iso/e where=tab)
+[ "$(echo "$E" | js 'd["isolation"]')" = silo ] || fail "worktree=true with isolation=auto should use silo: $E"
+ctl settings.set key=isolation value=worktree
+[ "$(ctl agent.launch agent=shell cwd="$REPO" worktree=true branch=iso/f where=tab | js 'd["isolation"]')" = worktree ] || fail "the default keeps worktrees"
+ctl pane.send_text pane="$(echo "$E" | js 'd["pane"]')" text=exit enter=true
+echo "isolation: ok"
+
 # ---- integrations (throw-away HOME)
 mkdir -p "$HOME/.claude" "$HOME/.codex" "$HOME/.gemini" "$HOME/.config/opencode"
 echo '{"theme":"dark","hooks":{"Stop":[{"hooks":[{"type":"command","command":"echo mine"}]}]}}' > "$HOME/.claude/settings.json"
@@ -210,7 +265,7 @@ import json, sys
 r = {m["id"]: m for m in map(json.loads, sys.stdin)}
 assert r[1]["result"]["protocolVersion"] == "2025-03-26" and "tools" in r[1]["result"]["capabilities"]
 names = {t["name"] for t in r[2]["result"]["tools"]}
-assert {"launch_agent", "read_pane", "send_text", "wait_for_state", "list_panes", "whoami"} <= names, names
+assert {"launch_agent", "read_pane", "send_text", "wait_for_state", "list_panes", "whoami", "session_diff", "session_apply", "session_discard"} <= names, names
 assert "key=sk-work" in r[3]["result"]["content"][0]["text"], r[3]["result"]["content"][0]["text"][-600:]
 assert "sk-" not in r[4]["result"]["content"][0]["text"], "list_profiles leaked a secret"
 assert r[5]["error"]["code"] == -32602
