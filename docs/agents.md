@@ -10,6 +10,8 @@ A named API key (Anthropic, OpenAI, OpenRouter, Gemini or any OpenAI-compatible 
 
 Open it with `Ctrl+Shift+L` or the `+` next to *agents*, then pick claude/codex/opencode/gemini/aider/shell (add your own in `~/.config/nebula/agents.conf`, one `name = command` per line), profile, model, directory, where to open it (split/tab/space), optionally a fresh **git worktree + branch** so parallel agents don't collide, and an initial prompt. `nebula ctl agent.launch agent=claude prompt="fix the flaky test" worktree=true branch=fix/flaky`. `Ctrl+Shift+M` broadcasts one prompt to several agents.
 
+On Linux with [silo](isolation.md) set up, `isolation=silo` runs the agent inside a microVM on a private clone of that worktree. Its changes reach the branch only when you apply them (`nebula ctl isolation.diff|apply|discard pane=ID`). The `isolation` setting (`worktree` by default, or `auto` or `silo`) decides what `worktree=true` gets. See [isolation](isolation.md).
+
 ## Status
 
 Every agent shows its state as a mark in the sidebar, on its pane title and in the status bar. Each mark is told apart by its shape and its motion, not only its color:
@@ -31,7 +33,7 @@ Exact `working / blocked / done` state instead of screen heuristics (Settings > 
 
 ## MCP server
 
-`nebula mcp` (stdio). Install it for claude/opencode/codex/gemini from Settings > Agent integrations, or add it yourself: `claude mcp add --scope user nebula -- /path/to/nebula mcp`. Tools: `whoami`, `list_panes`, `list_agents`, `list_spaces`, `list_profiles` (never secrets), `read_pane`, `send_text`, `send_keys`, `launch_agent`, `wait_for_state`, `broadcast`, `close_pane`, `create_space`, `view_show`, `view_components`, `view_get`, `view_export`, `view_snapshot` (see [views](views.md)). This lets one agent delegate to and supervise others. It is real terminal control: only install it in agents you trust.
+`nebula mcp` (stdio). Install it for claude/opencode/codex/gemini from Settings > Agent integrations, or add it yourself: `claude mcp add --scope user nebula -- /path/to/nebula mcp`. Tools: `whoami`, `list_panes`, `list_agents`, `list_spaces`, `list_profiles` (never secrets), `read_pane`, `send_text`, `send_keys`, `launch_agent`, `wait_for_state`, `broadcast`, `close_pane`, `create_space`, `session_diff`, `session_apply`, `session_discard`, `view_show`, `view_components`, `view_get`, `view_export`, `view_snapshot` (see [views](views.md)). This lets one agent delegate to and supervise others. It is real terminal control: only install it in agents you trust.
 
 ## Operator
 
