@@ -5,7 +5,20 @@
 
 namespace AgentDetect {
 
+QString wrapper(const QStringList &args, const QString &comm) {
+    // the program itself, or the script an interpreter runs (python3 /path/to/silo ...)
+    bool silo = comm == "silo";
+    for (int i = 0; i < args.size() && i < 2 && !silo; ++i) silo = QFileInfo(args[i]).fileName() == "silo";
+    return silo && (args.contains(QStringLiteral("run")) || args.contains(QStringLiteral("shell"))) ? QStringLiteral("silo") : QString();
+}
+
 QString identify(const QStringList &args, const QString &comm) {
+    // the agent runs inside silo's microVM, so the host only sees silo: look at the command after `--`
+    if (!wrapper(args, comm).isEmpty()) {
+        const qsizetype dashes = args.indexOf(QStringLiteral("--"));
+        const QStringList inner = dashes < 0 ? QStringList() : args.mid(dashes + 1);
+        return inner.isEmpty() ? QString() : identify(inner, QFileInfo(inner[0]).fileName());
+    }
     static const QStringList known = {"claude", "opencode", "codex", "gemini", "aider", "amp", "pi", "droid", "goose",
                                       "crush", "agy", "hermes", "qwen", "kimi", "cursor-agent", "copilot"};
     // "claude.exe", "claude.cmd" and "cli.js" style names: the program without its extension

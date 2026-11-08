@@ -440,6 +440,8 @@ void TerminalSession::poll() {
 }
 
 QString TerminalSession::resumeCommand() const {
+    // an agent that ran inside a silo microVM cannot continue there, and its resume command would start it on the host
+    if (!m_isolation.isEmpty()) return {};
     static const QHash<QString, QString> resume = {
         {"claude", "claude --continue"}, {"opencode", "opencode --continue"}, {"codex", "codex resume --last"},
         {"aider", "aider --restore-chat-history"}};
@@ -458,14 +460,16 @@ void TerminalSession::hostInfo(qint64 pid, qint64 fg) {
     const QString branch = gitBranch(m_cwd);
     if (branch != m_branch) { m_branch = branch; changed = true; }
 
-    QString proc, agent;
+    QString proc, agent, isolation;
     if (fg > 0) {
         const QStringList args = ProcInfo::arguments(fg);
         const QString comm = ProcInfo::name(fg);
         proc = comm.isEmpty() ? (args.isEmpty() ? QString() : QFileInfo(args[0]).fileName()) : comm;
         agent = AgentDetect::identify(args, comm);
+        isolation = AgentDetect::wrapper(args, comm);
     }
     if (proc != m_proc) { m_proc = proc; changed = true; }
+    if (isolation != m_isolation) { m_isolation = isolation; changed = true; }
     if (agent != m_agent) {
         m_agent = agent;
         m_sawWorking = false;

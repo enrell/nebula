@@ -33,6 +33,7 @@ public:
     QString branch() const { return m_branch; }
     QString agent() const { return m_agent; }
     QString agentState() const { return m_state; }
+    QString isolation() const { return m_isolation; }   // "silo" while the foreground program runs inside a silo microVM
     qint64 stateSince() const { return m_stateSince; }   // epoch ms when agentState last changed
     QString title() const { return QString::fromUtf8(m_title); }
     void setActive(bool active);
@@ -112,7 +113,7 @@ private:
     bool m_cursorVisible = true, m_altScreen = false, m_appCursor = false;
     int m_mouse = 0, m_cursorShape = 1;
     QByteArray m_title;
-    QString m_cwd, m_branch, m_agent, m_state, m_proc;
+    QString m_cwd, m_branch, m_agent, m_state, m_proc, m_isolation;
     qint64 m_stateSince = 0;
     QString m_reportedCwd;       // the directory the shell last reported with OSC 9;9 or OSC 7
     QByteArray m_oscCarry;       // the start of a report that continues in the next chunk of output

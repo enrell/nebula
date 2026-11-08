@@ -13,7 +13,11 @@ struct Signals {
 };
 
 // Identify an agent from a process command line + comm name. Empty if none.
+// Under a sandbox wrapper (`silo run ... -- claude ...`) it is the wrapped command's agent.
 QString identify(const QStringList &args, const QString &comm);
+
+// The sandbox the process runs its command in: "silo" for `silo run|shell ...` (a microVM), else empty.
+QString wrapper(const QStringList &args, const QString &comm);
 
 // Instantaneous state from a single screen snapshot: "working", "blocked" or "idle".
 QString classify(const Signals &s);

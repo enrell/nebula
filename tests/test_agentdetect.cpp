@@ -18,6 +18,18 @@ int main() {
     CHECK_EQ(identify({"C:\\Program Files\\PowerShell\\7\\pwsh.exe", "-NoLogo"}, "pwsh"), "");
     CHECK_EQ(identify({"fish"}, "fish"), "");
     CHECK_EQ(identify({"btop"}, "btop"), "");
+    // inside a silo microVM: the host sees silo, the agent is the command after --
+    const QStringList silo = {"/home/me/.local/bin/silo", "run", "--name", "opencode-fix", "--network", "proxy",
+                              "--allow-domain", "api.anthropic.com", "--", "claude", "--model", "opus", "fix the test"};
+    CHECK_EQ(identify(silo, "silo"), "claude");
+    CHECK_EQ(wrapper(silo, "silo"), "silo");
+    CHECK_EQ(identify({"python3", "/tmp/fakebin/silo", "run", "--name", "s", "--", "/usr/local/bin/codex"}, "python3"), "codex");
+    CHECK_EQ(wrapper({"python3", "/tmp/fakebin/silo", "run", "--name", "s", "--", "/bin/sh"}, "python3"), "silo");
+    CHECK_EQ(identify({"silo", "run", "--name", "claude", "--", "/bin/sh"}, "silo"), "");   // the session name is not the agent
+    CHECK_EQ(identify({"silo", "shell"}, "silo"), "");
+    CHECK_EQ(wrapper({"silo", "shell"}, "silo"), "silo");
+    CHECK_EQ(wrapper({"silo", "diff", "s"}, "silo"), "");
+    CHECK_EQ(wrapper({"claude"}, "claude"), "");
 
     CHECK_EQ(classify({"claude", "✻ Baking… (13m 40s · esc to interrupt)", "", false, true}), "working");
     CHECK_EQ(classify({"claude", "Do you want to proceed?\n❯ 1. Yes\n  2. No", "", false, true}), "blocked");
