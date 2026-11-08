@@ -149,11 +149,32 @@ const QList<Spec> &all() {
              [](const QJsonObject &a, const Api &api) { api("pane.send_keys", {{"pane", a["pane"]}, {"keys", a["keys"]}}); return QString("sent"); }, true),
         make("launch_agent",
              "Start a coding agent in a new pane. agent is a preset (claude, codex, opencode, gemini, aider, shell). Optionally run it in a fresh git worktree so parallel agents don't collide, "
-             "pick a credential profile and model, and give it an initial prompt. Returns the new pane id. The agent runs asynchronously.",
+             "pick a credential profile and model, and give it an initial prompt. Returns the new pane id, and with isolation=silo the silo session. The agent runs asynchronously.",
              schema({{"agent", str("preset id")}, {"prompt", str("initial prompt")}, {"cwd", str("directory, defaults to the focused pane's")}, {"profile", str("credential profile name")},
                      {"model", str("model name for the agent CLI")}, {"worktree", boolean("create a git worktree + branch")}, {"branch", str("branch name for the worktree")},
+                     {"isolation", str("worktree | silo (inside a microVM, changes come back only through session_apply) | auto (silo when available) | none; "
+                                       "leave it unset: worktree=true follows the user's setting")},
+                     {"domains", arr("silo only: hosts the agent may reach (default: its provider's API)")},
                      {"where", str("split-right | split-down | tab | space (default split-right)")}}, {"agent"}),
              [](const QJsonObject &a, const Api &api) { return pretty(api("agent.launch", a)); }, true),
+        make("session_diff",
+             "Review an agent that runs in a silo session (launched with isolation=silo): phase (running | review | failed | closed), "
+             "whether its worktree can take the changes (hostSafe, hostError), and the changes (stat, patch). Show the patch to the user "
+             "in a view before they decide. pane or session.",
+             schema({{"pane", num("the agent's pane")}, {"session", str("silo session name instead of a pane")},
+                     {"stat_only", boolean("only the summary, without the patch")}}),
+             [](const QJsonObject &a, const Api &api) { return pretty(api("isolation.diff", a)); }),
+        make("session_apply",
+             "Bring a silo session's changes into its worktree branch as one fast-forward commit. Only when the user asked for it, "
+             "after the agent has exited (phase review). pane or session.",
+             schema({{"pane", num("the agent's pane")}, {"session", str("silo session name instead of a pane")}}),
+             [](const QJsonObject &a, const Api &api) { return pretty(api("isolation.apply", a)); }, true, true),
+        make("session_discard",
+             "Delete a silo session and its private workspace. force=true also drops changes that were never applied. "
+             "Only when the user asked for it. pane or session.",
+             schema({{"pane", num("the agent's pane")}, {"session", str("silo session name instead of a pane")},
+                     {"force", boolean("discard changes that were never applied")}}),
+             [](const QJsonObject &a, const Api &api) { return pretty(api("isolation.discard", a)); }, true, true),
         make("broadcast", "Send the same prompt to several agent panes.",
              schema({{"panes", arr("pane ids", "number")}, {"text", str("prompt")}, {"enter", boolean("submit, default true")}}, {"panes", "text"}),
              [](const QJsonObject &a, const Api &api) { return pretty(api("agent.broadcast", a)); }, true),
