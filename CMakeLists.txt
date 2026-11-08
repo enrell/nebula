@@ -75,6 +75,7 @@ qt_add_qml_module(nebula
     src/paths.h
     src/secrets.h src/secrets.cpp src/profiles.h src/profiles.cpp src/llm.h src/llm.cpp
     src/integrations.h src/integrations.cpp src/launcher.h src/launcher.cpp src/mcp.h src/mcp.cpp
+    src/isolation.h src/isolation.cpp src/silo.h src/silo.cpp
     src/tools.h src/tools.cpp src/operator.h src/operator.cpp src/acp.h src/acp.cpp src/nativeagents.h src/nativeagents.cpp
     src/ptyprocess.h ${NEBULA_PLATFORM_SOURCES}
     src/platform.h src/platform.cpp src/procinfo.h src/procinfo.cpp
@@ -148,6 +149,11 @@ add_executable(test_agentdetect tests/test_agentdetect.cpp src/agentdetect.cpp)
 target_include_directories(test_agentdetect PRIVATE src)
 target_link_libraries(test_agentdetect PRIVATE Qt6::Core)
 add_test(NAME agentdetect COMMAND test_agentdetect)
+
+# which isolation a launch gets and the silo command line, on their own (plain C++, no Qt)
+add_executable(test_isolation tests/test_isolation.cpp src/isolation.cpp)
+target_include_directories(test_isolation PRIVATE src)
+add_test(NAME isolation COMMAND test_isolation)
 
 # the view checker inside V4 with the real file sandbox, over the same cases as `npm test` in renderer/
 add_executable(test_views tests/test_views.cpp src/views/viewengine.cpp src/views/viewfiles.cpp)

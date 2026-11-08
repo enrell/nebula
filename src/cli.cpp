@@ -28,6 +28,7 @@ methods:
   pane.send_keys [pane=ID] keys='["Ctrl+C","Enter"]'
   pane.read [pane=ID] [lines=N] [scrollback=true]
   pane.report_state [pane=ID] state=working|blocked|done|idle [ttl=SECONDS]
+  isolation.info | isolation.status|diff|apply|discard [pane=ID|session=NAME] [stat_only=true] [force=true]   (silo sessions)
   view.show file=PATH | content=STR (content=@- reads stdin) [view=ID] [title=STR] [where=modal|right|down|tab]
   view.get view=ID | view.list | view.close view=ID | view.dock view=ID where=modal|right|down|tab | view.toggle
   view.components [name=NAME]
@@ -100,7 +101,7 @@ int runCtl(const QStringList &args) {
     // llm.ask/profile.test wait on a provider round-trip.
     int timeout = 30000;
     if (method == "operator.ask") timeout = 600000;
-    else if (method == "llm.ask" || method == "profile.test") timeout = 120000;
+    else if (method == "llm.ask" || method == "profile.test" || method.startsWith("isolation.")) timeout = 120000;   // silo apply runs git over the whole tree
     QByteArray buf;
     bool gotResponse = false;
     while (sock.state() == QLocalSocket::ConnectedState || sock.bytesAvailable()) {

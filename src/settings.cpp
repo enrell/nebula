@@ -1,4 +1,5 @@
 #include "settings.h"
+#include "isolation.h"
 #include "paths.h"
 #include <QFile>
 #include <QJsonDocument>
@@ -63,6 +64,7 @@ bool Settings::set(const QString &key, const QVariant &value) {
     if (key == "scrollback") v = qBound(0, v.toInt(), 1000000);
     if (key == "sidebarWidth") v = qBound(140, v.toInt(), 600);
     if (key == "viewPlacement" && !viewPlacements().contains(v.toString())) return false;
+    if (key == "isolation" && !Isolation::validSetting(v.toString().toStdString())) return false;
     return p.write(this, v);
 }
 
@@ -83,5 +85,6 @@ void Settings::resetAll() {
     m_operatorModel.clear();
     m_operatorApproveAll = true;
     m_viewPlacement = "modal";
+    m_isolation = "worktree";
     emit changed();
 }

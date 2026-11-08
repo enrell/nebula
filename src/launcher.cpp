@@ -1,13 +1,18 @@
 #include "launcher.h"
+#include "isolation.h"
 #include "platform.h"
 #include "paths.h"
 #include "profiles.h"
+#include "settings.h"
+#include "silo.h"
 #include "terminalsession.h"
 #include "workspace.h"
 #include <QDateTime>
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
+#include <QJsonArray>
+#include <QJsonObject>
 #include <QPointer>
 #include <QProcess>
 #include <QRegularExpression>
@@ -93,8 +98,17 @@ QVariantMap Launcher::launch(const QVariantMap &o) {
     const QString profile = o["profile"].toString();
     if (!profile.isEmpty() && profile != "none" && !Profiles::instance()->exists(profile)) return err("unknown profile: " + profile);
 
+    // worktree, or silo: the agent works inside a microVM on a private clone of that worktree, and its changes reach
+    // the worktree's branch only through silo apply. The setting decides for launches that just ask for a worktree.
+    const QString requested = o["isolation"].toString().trimmed();
+    const QString setting = Settings::instance() ? Settings::instance()->isolation() : QString("worktree");
+    const bool mayUseSilo = requested == "silo" || requested == "auto" || (requested.isEmpty() && o["worktree"].toBool() && setting != "worktree");
+    const Isolation::Choice choice = Isolation::choose(requested.toStdString(), o["worktree"].toBool(), setting.toStdString(),
+                                                       mayUseSilo ? Silo::probe() : Isolation::Probe{});
+    if (!choice.error.empty()) return err(QString::fromStdString(choice.error));
+
     QString spaceName;
-    if (o["worktree"].toBool()) {
+    if (choice.kind != Isolation::Kind::None) {
         QString root;
         if (!git(cwd, {"rev-parse", "--show-toplevel"}, &root)) return err("not inside a git repository: " + cwd);
         // launched from inside a worktree (e.g. the pane of an agent started this way): branch off the main checkout,
@@ -139,6 +153,29 @@ QVariantMap Launcher::launch(const QVariantMap &o) {
         else if (pre.promptMode.startsWith("flag:")) cmd += " " + pre.promptMode.mid(5) + " " + shq(prompt);   // e.g. agy -i 'prompt'
         else cmd += " " + shq(prompt);
     }
+    QString session;
+    if (choice.kind == Isolation::Kind::Silo) {
+        // `silo run ... -- <the agent's command>` in the pane: the agent's TUI, its permission prompts and nebula's
+        // keys all pass through silo's pty. Profile secrets are forwarded by name, so no value is typed into the shell.
+        session = QString::fromStdString(Isolation::sessionName(spaceName.toStdString()));
+        std::vector<std::string> env;
+        if (TerminalSession *s = m_ws->findPane(pane))
+            for (const QString &e : Profiles::instance()->envFor(s->profile())) env.push_back(e.toStdString());
+        std::vector<std::string> domains;
+        if (o.contains("domains")) {
+            const QVariant d = o["domains"];
+            const QStringList list = d.typeId() == QMetaType::QString ? d.toString().split(QRegularExpression("[,\\s]+"), Qt::SkipEmptyParts)
+                                                                      : d.toStringList();
+            for (const QString &h : list) domains.push_back(h.trimmed().toStdString());
+        } else {
+            domains = Isolation::defaultDomains(pre.id.toStdString());
+        }
+        QStringList silo{shq(Silo::program())};
+        for (const std::string &a : Isolation::runArguments({session.toStdString(), domains, Isolation::forwardedNames(env)}))
+            silo << shq(QString::fromStdString(a));
+        cmd = silo.join(' ') + " " + (cmd.isEmpty() ? QString("/bin/sh") : cmd);
+        m_sessions[pane] = session;
+    }
     if (!cmd.isEmpty()) {
         QPointer<TerminalSession> s = m_ws->findPane(pane);
         QTimer::singleShot(300, this, [s, cmd] {
@@ -147,7 +184,62 @@ QVariantMap Launcher::launch(const QVariantMap &o) {
             s->injectKey(Qt::Key_Return, 0, "\r");
         });
     }
-    return {{"ok", true}, {"pane", pane}, {"cwd", cwd}};
+    QVariantMap r{{"ok", true}, {"pane", pane}, {"cwd", cwd}, {"isolation", QString::fromLatin1(Isolation::name(choice.kind))}};
+    if (!session.isEmpty()) r["session"] = session;
+    if (!choice.note.empty()) r["note"] = QString::fromStdString(choice.note);
+    return r;
+}
+
+QVariantMap Launcher::isolationInfo() const {
+    const Isolation::Probe p = Silo::probe();
+    return {{"setting", Settings::instance() ? Settings::instance()->isolation() : QString("worktree")},
+            {"silo", QVariantMap{{"available", Isolation::available(p)}, {"program", Silo::program()},
+                                 {"reason", QString::fromStdString(Isolation::unavailableReason(p))}}}};
+}
+
+// The silo session nebula launched in a pane; after a restart of the window, the newest open session whose project is
+// the pane's directory (every silo launch runs from its own worktree, so that directory names one session).
+QString Launcher::paneSession(int pane) const {
+    if (m_sessions.contains(pane)) return m_sessions.value(pane);
+    TerminalSession *s = m_ws->findPane(pane);
+    const QString cwd = s ? QFileInfo(s->cwd()).canonicalFilePath() : QString();
+    if (cwd.isEmpty()) return {};
+    const Silo::Result r = Silo::list();
+    for (const QJsonValue &v : r.value.toArray()) {   // newest first
+        const Isolation::Phase ph = Isolation::phase(v["status"].toString().toStdString());
+        if (ph != Isolation::Phase::Closed && QFileInfo(v["projectRoot"].toString()).canonicalFilePath() == cwd) return v["name"].toString();
+    }
+    return {};
+}
+
+QVariantMap Launcher::siloSession(const QString &action, int pane, const QString &name, const QVariantMap &opts) {
+    auto err = [](const QString &m, const QString &code = QString()) {
+        QVariantMap e{{"ok", false}, {"error", m}};
+        if (!code.isEmpty()) e["code"] = code;
+        return e;
+    };
+    const QString session = name.isEmpty() ? paneSession(pane) : name;
+    if (session.isEmpty()) return err(QString("pane %1 has no silo session").arg(pane));
+    Silo::Result r;
+    if (action == "status") r = Silo::status(session);
+    else if (action == "diff") r = Silo::diff(session, opts["stat_only"].toBool());
+    else if (action == "apply") r = Silo::apply(session);
+    else if (action == "discard") r = Silo::discard(session, opts["force"].toBool());
+    else return err("unknown session action: " + action);
+    if (!r.ok) {
+        const QString hint = QString::fromStdString(Isolation::hint(r.code.toStdString()));
+        QVariantMap e = err(QString("silo %1 %2: %3%4").arg(action, session, r.message, hint.isEmpty() ? QString() : " (" + hint + ")"), r.code);
+        if (!hint.isEmpty()) e["hint"] = hint;
+        return e;
+    }
+    // silo's JSON as it is, plus the session's name and phase: diff wraps the record ({session, hostSafe, patch, ...}),
+    // the other commands print the record itself
+    QVariantMap out = r.value.toObject().toVariantMap();
+    const QJsonObject record = action == "diff" ? r.value["session"].toObject() : r.value.toObject();
+    out["ok"] = true;
+    out["name"] = record["name"].toString(session);
+    out["phase"] = QString::fromLatin1(Isolation::name(Isolation::phase(record["status"].toString().toStdString())));
+    return out;
 }
 
 void Launcher::queuePrompt(int pane, const QString &prompt) {

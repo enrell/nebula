@@ -364,7 +364,7 @@ QJsonObject ApiServer::paneInfo(TerminalSession *s) const {
     Tab *tab = nullptr;
     m_ws->findPane(s->id(), &si, &ti, &tab);
     return {{"id", s->id()}, {"space", si}, {"tab", ti}, {"label", s->label()}, {"title", s->title()}, {"cwd", s->cwd()},
-            {"branch", s->branch()}, {"agent", s->agent()}, {"state", s->agentState()},
+            {"branch", s->branch()}, {"agent", s->agent()}, {"state", s->agentState()}, {"isolation", s->isolation()},
             {"focused", tab && tab->focusedId() == s->id()}, {"active", s->active()}, {"profile", s->profile()}, {"summary", s->summary()}};
 }
 
@@ -424,6 +424,13 @@ QJsonValue ApiServer::call(const QString &method, const QJsonObject &p, QLocalSo
     }
     if (method == "agent.broadcast") {
         return QJsonObject{{"sent", m_launcher->broadcast(p["panes"].toArray().toVariantList(), p["text"].toString(), p["enter"].toBool(true))}};
+    }
+    if (method == "isolation.info") return QJsonObject::fromVariantMap(m_launcher->isolationInfo());
+    if (method == "isolation.status" || method == "isolation.diff" || method == "isolation.apply" || method == "isolation.discard") {
+        const QString session = p["session"].toString();
+        const QVariantMap r = m_launcher->siloSession(method.mid(10), session.isEmpty() ? pane(p)->id() : -1, session, p.toVariantMap());
+        if (!r["ok"].toBool()) throw ApiError(r["error"].toString().toStdString());
+        return QJsonObject::fromVariantMap(r);
     }
     if (method == "integration.list") return QJsonArray::fromVariantList(Integrations::instance()->list());
     if (method == "integration.install" || method == "integration.remove") {
