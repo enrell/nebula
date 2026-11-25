@@ -11,6 +11,7 @@
 #include "paneids.h"
 #include "views/viewengine.h"
 #include "views/viewpane.h"
+#include "editor/editorpane.h"
 #include <QBuffer>
 #include <QCoreApplication>
 #include <QDir>
@@ -124,10 +125,10 @@ QJsonObject ApiServer::handle(const QJsonObject &req, QLocalSocket *sock) {
         return {{"__deferred", true}};
     }
     try {
+        if (req["params"]["raise"].toBool()) raiseWindow();   // a file opened from a file manager: bring nebula forward
         if (m == "view.show") {
             ViewPane *v = nullptr;
             const QJsonObject r = showView(req["params"].toObject(), &v);
-            if (req["params"]["raise"].toBool()) raiseWindow();   // opened from a file manager: bring nebula forward
             if (v && waitForRender(v, req, sock, r)) return {{"__deferred", true}};
             resp["result"] = r;
         } else if (m == "view.export" || m == "view.snapshot") {
@@ -542,6 +543,11 @@ QJsonValue ApiServer::call(const QString &method, const QJsonObject &p, QLocalSo
         if (m_ws->closeView(id)) return true;
         Tab *t = m_ws->tabOfPane(id);
         if (!t) throw ApiError("no such pane");
+        if (EditorPane *e = t->editorById(id); e && e->dirty()) {
+            if (!p["force"].toBool()) throw ApiError("the editor has unsaved changes: save it (editor.save) or pass force=true to discard them");
+            t->closePaneNow(id);
+            return true;
+        }
         t->closePane(id);
         return true;
     }
@@ -579,6 +585,66 @@ QJsonValue ApiServer::call(const QString &method, const QJsonObject &p, QLocalSo
         const QJsonObject d = ViewEngine::instance().describe(p["name"].toString().remove(QRegularExpression("^nebula:")));
         if (d.isEmpty()) throw ApiError("unknown component; list them with view.components");
         return d;
+    }
+    // ---- editors
+    auto editorOf = [&](const QJsonObject &q) -> EditorPane * {
+        if (q.contains("pane")) {
+            EditorPane *e = m_ws->findEditor(q["pane"].toInt());
+            if (!e) throw ApiError("no such editor pane");
+            return e;
+        }
+        Space *sp = m_ws->currentSpace();
+        Tab *t = sp ? sp->currentTab() : nullptr;
+        EditorPane *e = t ? t->editorById(t->focusedId()) : nullptr;
+        if (!e) throw ApiError("no focused editor");
+        return e;
+    };
+    auto editorInfo = [&](EditorPane *e, bool withText) {
+        int si = -1, ti = -1;
+        m_ws->findEditor(e->id(), &si, &ti);
+        QJsonObject o{{"pane", e->id()}, {"path", e->path()}, {"dirty", e->dirty()}, {"line", e->cursorLine()},
+                      {"column", e->cursorColumn()}, {"language", e->languageName()}, {"readOnly", e->readOnly()},
+                      {"message", e->message()}, {"space", si}, {"tab", ti}, {"lines", e->buffer().lineCount()},
+                      {"selection", e->selectedText()}};
+        if (withText) o["text"] = e->buffer().text();
+        return o;
+    };
+    if (method == "editor.open") {
+        QString file = p["file"].toString();
+        if (file.isEmpty()) throw ApiError("file= is required");
+        if (!p["cwd"].toString().isEmpty()) file = QDir(p["cwd"].toString()).absoluteFilePath(file);
+        const QVariantMap r = m_ws->openEditor(file, p["line"].toInt(0), p["where"].toString(), p["pane"].toInt(-1));
+        if (r.contains("error")) throw ApiError(("cannot open " + file + ": " + r["error"].toString()).toStdString());
+        return QJsonObject{{"pane", r["pane"].toInt()}};
+    }
+    if (method == "editor.list") {
+        QJsonArray out;
+        for (EditorPane *e : m_ws->allEditors()) out << editorInfo(e, false);
+        return out;
+    }
+    if (method == "editor.get") return editorInfo(editorOf(p), p["text"].toBool());
+    if (method == "editor.save") {
+        EditorPane *e = editorOf(p);
+        if (!e->save()) throw ApiError(e->message().toStdString());
+        return true;
+    }
+    if (method == "pane.send_text" && p.contains("pane") && m_ws->findEditor(p["pane"].toInt())) {
+        EditorPane *e = m_ws->findEditor(p["pane"].toInt());
+        if (p["paste"].toBool()) e->paste(p["text"].toString());
+        else e->insertText(p["text"].toString());
+        if (p["enter"].toBool()) e->injectKey(Qt::Key_Return, 0, "\r");
+        return true;
+    }
+    if (method == "pane.send_keys" && p.contains("pane") && m_ws->findEditor(p["pane"].toInt())) {
+        EditorPane *e = m_ws->findEditor(p["pane"].toInt());
+        const QJsonValue kv = p["keys"];
+        QStringList keys;
+        if (kv.isArray()) for (const QJsonValue &v : kv.toArray()) keys << v.toString();
+        else keys << kv.toString();
+        std::vector<KeySpec> parsed;
+        for (const QString &k : std::as_const(keys)) parsed.push_back(parseKey(k));
+        for (const KeySpec &k : parsed) e->injectKey(k.key, k.mods, k.text);
+        return true;
     }
     if (method == "pane.send_text") {
         TerminalSession *s = pane(p);

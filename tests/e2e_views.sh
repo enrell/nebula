@@ -105,9 +105,13 @@ N0=$(ctl view.list | json 'len(d)')
 [ "$(ctl view.list | json 'len(d)')" = $((N0 + 1)) ] || fail "the document was not opened: $(ctl view.list)"
 ctl view.list | json '[v for v in d if v["title"] == "Notes"][0]["source"]' | grep -q 'notes.neb$' || fail "wrong source: $(ctl view.list)"
 ctl view.close view="$(ctl view.list | json '[v for v in d if v["title"] == "Notes"][0]["view"]')" >/dev/null
-touch plain.rs
-! "$BIN" plain.rs 2>"$WORK/err" || fail "a .rs file should not open"
-grep -q 'only .neb and .md' "$WORK/err" || fail "no explanation for a .rs file: $(cat "$WORK/err")"
+printf 'fn main() {}\n' > plain.rs
+"$BIN" plain.rs || fail "nebula plain.rs: other files open in the editor"
+ctl editor.list | json '[e["path"] for e in d]' | grep -q 'plain.rs' || fail "plain.rs not in an editor: $(ctl editor.list)"
+ctl pane.close pane="$(ctl editor.list | json 'd[0]["pane"]')" >/dev/null
+mkdir -p adir
+! "$BIN" adir 2>"$WORK/err" || fail "a directory should not open"
+grep -q 'is a directory' "$WORK/err" || fail "no explanation for a directory: $(cat "$WORK/err")"
 ! "$BIN" missing.neb 2>"$WORK/err" || fail "a missing file should fail"
 grep -q 'no such file' "$WORK/err" || fail "no explanation for a missing file: $(cat "$WORK/err")"
 [ "$(ctl view.list | json 'len(d)')" = "$N0" ] || fail "a failed open left a view behind"

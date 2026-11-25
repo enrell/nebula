@@ -43,6 +43,20 @@ All `Ctrl+Shift+…` combos are unused by terminal programs, so nothing is stole
 
 Actions: split-right split-down close-pane zoom-pane focus-left/right/up/down new-tab close-tab next-tab prev-tab goto-tab:N new-space rename-space close-space next-space prev-space goto-space:N next-attention toggle-views toggle-sidebar open-settings launch-agent operator broadcast toggle-help font-larger font-smaller font-reset.
 
+## Editor
+
+A native editor pane for code and text, drawn like the terminal (no web engine), next to your shells and agents.
+
+- **Open**: `nebula path/to/file` (any text file; `.neb` and Markdown open as views, with an *edit* button), `Ctrl+Shift+P` (quick open: type part of a path; a path that does not exist yet is created on save), or `nebula ctl editor.open file=PATH [line=N] [where=right|down|tab]`. Opening a file that is already open focuses it.
+- **Keys**: `Ctrl+S` save (`Ctrl+Shift+S` save as), `Ctrl+Z` / `Ctrl+Y` undo / redo (typing undoes word by word), `Ctrl+X/C/V` (with nothing selected: the whole line), `Ctrl+A`, `Ctrl+F` find, `Ctrl+H` replace, `F3` / `Shift+F3` next / previous, `Ctrl+G` go to line (`120` or `120:8`), `Ctrl+/` toggle comment, `Ctrl+D` duplicate line or selection, `Ctrl+L` select line, `Ctrl+Shift+K` delete line, `Alt+Up/Down` move lines, `Tab` / `Shift+Tab` indent / outdent, `Home` (first non-blank, again: column 0), `Ctrl+Left/Right` by word, `Ctrl+Backspace/Delete` delete a word. Enter keeps the indentation and adds a level after `{ [ (` (and `:` in Python and YAML); brackets and quotes close as you type them and typing the closer steps over it.
+- **Mouse**: click, drag to select (scrolls at the edges), double-click a word, triple-click or click the line numbers for lines, `Shift+click` extends, middle-click pastes the primary selection, wheel scrolls (`Shift` sideways, `Ctrl` zooms the font), the scrollbar drags.
+- **Find bar**: match count, case (`Aa`), whole word (`W`) and regular expressions (`.*`, replacement with `\1`); matches are marked in the text.
+- **Colours** for C, C++, Rust, Python, JavaScript/TypeScript, QML, Go, Java/Kotlin/C#, shell, JSON, YAML, TOML, INI, Markdown and `.neb`, CMake, Make/just, Lua, SQL, CSS and HTML/XML, recomputed only from an edit down, so large files stay fast.
+- **Files** are written atomically, keeping their permissions, symlinks, line endings (LF or CRLF), BOM and final newline; binary files and files over 64 MB are refused. A file changed on disk reloads by itself, or, with unsaved changes, asks whether to reload or keep yours.
+- **Nothing is lost**: unsaved text is kept with the session, so closing the window, a reboot or Kill all & quit bring it back; closing a modified editor (or its tab or space) asks to save, discard or cancel.
+- **`.neb` and Markdown**: the *edit* button of a view opens its file next to it, and the *preview* button of an editor shows the document next to the editor; either way the view follows what you type, before you save.
+- **Automation**: `editor.list`, `editor.get [pane=ID] [text=true]`, `editor.save`, and `pane.send_text` / `pane.send_keys` type into an editor; `pane.close` refuses unsaved changes without `force=true`.
+
 ## Mouse
 
 Click a pane to focus; drag dividers (double-click resets to 50%); drag the sidebar edge to resize it. Double-click selects a word, triple-click a line, drag selects (auto-copies), middle-click pastes, `Ctrl+click` opens a link, right-click opens a context menu (copy/paste/split/zoom/close/settings). Hover a pane for split/zoom/close buttons; tabs and spaces have hover close buttons; double-click a space to rename. The scrollbar appears while scrolled back and is draggable.

@@ -7,12 +7,15 @@
 #include "settings.h"
 #include "theme.h"
 #include "views/viewpane.h"
+#include "editor/editorpane.h"
 #include <QClipboard>
 #include <QCoreApplication>
 #include <QGuiApplication>
 #include <QDesktopServices>
 #include <QUrl>
+#include <QDateTime>
 #include <QDir>
+#include <QDirIterator>
 #include <QFile>
 #include <QFileInfo>
 #include <QJsonArray>
@@ -60,6 +63,47 @@ QList<ViewPane *> Tab::views() const {
 }
 
 QObject *Tab::view(int id) const { return m_views.value(id); }
+QObject *Tab::editor(int id) const { return m_editors.value(id); }
+
+QList<EditorPane *> Tab::editors() const {
+    auto l = m_editors.values();
+    std::sort(l.begin(), l.end(), [](auto *a, auto *b) { return a->id() < b->id(); });
+    return l;
+}
+
+EditorPane *Tab::dirtyEditor() const {
+    for (EditorPane *e : m_editors)
+        if (e->dirty()) return e;
+    return nullptr;
+}
+
+QString Tab::kindOf(int pane) const { return m_views.contains(pane) ? "view" : m_editors.contains(pane) ? "editor" : "terminal"; }
+
+void Tab::adoptEditor(EditorPane *e) {
+    e->setParent(this);
+    m_editors.insert(e->id(), e);
+    connect(e, &EditorPane::changed, this, &Tab::activity);
+    connect(e, &EditorPane::textChanged, this, &Tab::activity);   // the session keeps unsaved text
+    const int id = e->id();
+    connect(e, &EditorPane::closeConfirmed, this, [this, id] { removePane(id, true); });
+}
+
+bool Tab::addEditor(EditorPane *e, int anchorPane, bool sideBySide) {
+    adoptEditor(e);
+    if (!addLeaf(e->id(), anchorPane, sideBySide)) { m_editors.remove(e->id()); e->disconnect(this); return false; }
+    focusPane(e->id());
+    return true;
+}
+
+Tab *Tab::withEditor(EditorPane *e, QObject *parent) {
+    auto *t = new Tab(RestoreTag{}, parent);
+    t->adoptEditor(e);
+    t->m_root = new Node;
+    t->m_root->id = t->m_nodeSeq++;
+    t->m_root->pane = e->id();
+    t->m_focus = e->id();
+    return t;
+}
 
 void Tab::adoptView(ViewPane *v) {
     v->setParent(this);
@@ -68,15 +112,20 @@ void Tab::adoptView(ViewPane *v) {
 }
 
 bool Tab::addView(ViewPane *v, int anchorPane, bool sideBySide) {
+    if (!find(m_root, anchorPane)) return false;
+    adoptView(v);
+    return addLeaf(v->id(), anchorPane, sideBySide);
+}
+
+bool Tab::addLeaf(int pane, int anchorPane, bool sideBySide) {
     Node *n = find(m_root, anchorPane);
     if (!n) return false;
-    adoptView(v);
     auto *a = new Node, *b = new Node;
     a->id = m_nodeSeq++;
     a->pane = n->pane;
     a->parent = n;
     b->id = m_nodeSeq++;
-    b->pane = v->id();
+    b->pane = pane;
     b->parent = n;
     n->pane = -1;
     n->horizontal = sideBySide;
@@ -109,14 +158,17 @@ QJsonObject Tab::toJson() const {
     }
     QJsonObject views;
     for (ViewPane *v : m_views) views[QString::number(v->id())] = v->toJson();
+    QJsonObject editors;
+    for (EditorPane *e : m_editors) editors[QString::number(e->id())] = e->toJson();
     return {{"layout", m_root ? QJsonObject::fromVariantMap(toVariant(m_root)) : QJsonObject()},
-            {"focus", m_focus}, {"zoom", m_zoom}, {"panes", panes}, {"views", views}};
+            {"focus", m_focus}, {"zoom", m_zoom}, {"panes", panes}, {"views", views}, {"editors", editors}};
 }
 
 Tab *Tab::restore(const QJsonObject &o, const QSet<int> &live, QObject *parent) {
     auto *t = new Tab(RestoreTag{}, parent);
     const QJsonObject panes = o["panes"].toObject();
     const QJsonObject views = o["views"].toObject();
+    const QJsonObject editors = o["editors"].toObject();
     std::function<Node *(const QJsonObject &)> build = [&](const QJsonObject &n) -> Node * {
         if (n.isEmpty()) return nullptr;
         auto *node = new Node;
@@ -124,6 +176,12 @@ Tab *Tab::restore(const QJsonObject &o, const QSet<int> &live, QObject *parent) 
         if (n["leaf"].toBool()) {
             const int id = n["pane"].toInt();
             if (id <= 0 || t->hasPane(id)) { delete node; return nullptr; }
+            if (editors.contains(QString::number(id))) {
+                PaneIds::reserve(id);
+                t->adoptEditor(EditorPane::restore(id, editors[QString::number(id)].toObject(), t));
+                node->pane = id;
+                return node;
+            }
             if (views.contains(QString::number(id))) {
                 PaneIds::reserve(id);
                 t->adoptView(ViewPane::restore(id, views[QString::number(id)].toObject(), t));
@@ -174,7 +232,7 @@ QVariantMap Tab::toVariant(const Node *n) const {
     if (n->leaf()) {
         m["leaf"] = true;
         m["pane"] = n->pane;
-        m["kind"] = m_views.contains(n->pane) ? "view" : "terminal";
+        m["kind"] = kindOf(n->pane);
         return m;
     }
     m["leaf"] = false;
@@ -188,12 +246,13 @@ QVariantMap Tab::toVariant(const Node *n) const {
 
 QVariantMap Tab::layout() const {
     if (!m_root) return {};
-    if (m_zoom) return {{"leaf", true}, {"pane", m_focus}, {"kind", m_views.contains(m_focus) ? "view" : "terminal"}};
+    if (m_zoom) return {{"leaf", true}, {"pane", m_focus}, {"kind", kindOf(m_focus)}};
     return toVariant(m_root);
 }
 
 QString Tab::title() const {
     if (ViewPane *v = m_views.value(m_focus)) return v->title();
+    if (EditorPane *e = m_editors.value(m_focus)) return e->label();
     auto *s = focusedSession();
     if (!s) return "shell";
     if (!s->label().isEmpty()) return s->label();
@@ -207,7 +266,8 @@ int Tab::splitWith(bool sideBySide, const QString &cwd, const QString &profile) 
     if (!n) return -1;
     auto *cur = focusedSession();
     QString dir = cwd;
-    if (dir.isEmpty()) dir = cur ? cur->cwd() : m_views.contains(m_focus) ? m_views[m_focus]->baseDir() : QString();
+    if (dir.isEmpty()) dir = cur ? cur->cwd() : m_views.contains(m_focus) ? m_views[m_focus]->baseDir()
+                                              : m_editors.contains(m_focus) ? m_editors[m_focus]->baseDir() : QString();
     auto *s = makeSession(dir, 0, false, QString(),
                           profile.isEmpty() ? (cur ? cur->profile() : m_profile) : profile);
     auto *a = new Node, *b = new Node;
@@ -230,7 +290,14 @@ int Tab::splitWith(bool sideBySide, const QString &cwd, const QString &profile) 
     return s->id();
 }
 
-void Tab::closePane(int id) { removePane(id, true); }
+void Tab::closePane(int id) {
+    if (EditorPane *e = m_editors.value(id); e && e->dirty()) {
+        focusPane(id);
+        e->requestClose();   // closes through closeConfirmed once answered
+        return;
+    }
+    removePane(id, true);
+}
 
 ViewPane *Tab::takeView(int id) { return m_views.contains(id) ? removePane(id, false) : nullptr; }
 
@@ -251,6 +318,10 @@ ViewPane *Tab::removePane(int id, bool destroy) {
         v->disconnect(this);
         if (destroy) { v->discard(); v->deleteLater(); }
         else { v->setParent(nullptr); kept = v; }
+    } else if (EditorPane *e = m_editors.take(id)) {
+        e->disconnect(this);
+        e->discard();
+        e->deleteLater();
     }
 
     if (!n->parent) {
@@ -475,6 +546,12 @@ void Space::newTab() {
 
 void Space::closeTab(int i) {
     if (i < 0 || i >= m_tabs.size()) return;
+    // unsaved text is never dropped by closing around it: ask in the editor first
+    if (EditorPane *e = m_tabs[i]->dirtyEditor()) {
+        setCurrent(i);
+        m_tabs[i]->closePane(e->id());
+        return;
+    }
     Tab *t = m_tabs.takeAt(i);
     t->disconnect(this);
     t->terminateAll();
@@ -681,6 +758,13 @@ void Workspace::restore() {
     for (Space *s : std::as_const(m_spaces))
         for (Tab *t : s->tabList())
             for (ViewPane *v : t->views()) keep.insert(QString("%1.nebula.md").arg(v->id()));
+    QSet<QString> keepEditors;
+    for (Space *s : std::as_const(m_spaces))
+        for (Tab *t : s->tabList())
+            for (EditorPane *e : t->editors()) keepEditors.insert(QString("%1.txt").arg(e->id()));
+    QDir editorsDir(Paths::stateDir() + "/editors");
+    for (const QString &f : editorsDir.entryList({"*.txt"}, QDir::Files))
+        if (!keepEditors.contains(f)) editorsDir.remove(f);
     QDir views(Paths::stateDir() + "/views");
     for (const QString &f : views.entryList({"*.nebula.md"}, QDir::Files))
         if (!keep.contains(f)) views.remove(f);
@@ -781,6 +865,12 @@ int Workspace::newSpace(const QString &cwd, const QString &name, const QString &
 
 void Workspace::closeSpace(int i) {
     if (i < 0 || i >= m_spaces.size()) return;
+    for (int ti = 0; ti < m_spaces[i]->tabList().size(); ++ti)
+        if (EditorPane *e = m_spaces[i]->tabList()[ti]->dirtyEditor()) {
+            focusAgent(i, ti, e->id());
+            m_spaces[i]->tabList()[ti]->closePane(e->id());
+            return;
+        }
     Space *s = m_spaces.takeAt(i);
     s->disconnect(this);
     s->terminateAll();
@@ -850,6 +940,181 @@ void Workspace::renameSpace(int i, const QString &name) {
     emit focusRequested();
 }
 
+// ---------------- editors ----------------
+
+EditorPane *Workspace::findEditor(int id, int *spaceIdx, int *tabIdx, Tab **tab) const {
+    Tab *t = tabOfPane(id, spaceIdx, tabIdx);
+    if (tab) *tab = t;
+    return t ? t->editorById(id) : nullptr;
+}
+
+QList<EditorPane *> Workspace::allEditors() const {
+    QList<EditorPane *> out;
+    for (Space *s : m_spaces)
+        for (Tab *t : s->tabList()) out << t->editors();
+    return out;
+}
+
+QVariantMap Workspace::openEditor(const QString &path, int line, const QString &where, int anchorPane) {
+    const QFileInfo fi(path);
+    if (fi.isDir()) return {{"error", "is a directory"}};
+    const QString canonical = fi.exists() ? fi.canonicalFilePath() : fi.absoluteFilePath();
+    // already open: focus it
+    for (int si = 0; si < m_spaces.size(); ++si)
+        for (int ti = 0; ti < m_spaces[si]->tabList().size(); ++ti)
+            for (EditorPane *e : m_spaces[si]->tabList()[ti]->editors())
+                if (e->path() == canonical) {
+                    focusAgent(si, ti, e->id());
+                    if (line > 0) e->gotoLine(line);
+                    emit focusRequested();
+                    return {{"pane", e->id()}};
+                }
+    auto *e = new EditorPane(PaneIds::next());
+    QString err;
+    if (!e->open(canonical, &err)) { delete e; return {{"error", err}}; }
+    if (line > 0) e->gotoLine(line);
+    Space *s = currentSpace();
+    Tab *t = s ? s->currentTab() : nullptr;
+    int anchor = anchorPane;
+    if (anchor <= 0 && t) anchor = t->focusedId();
+    int si = -1;
+    Tab *at = tabOfPane(anchor, &si);
+    const QString w = where.isEmpty() ? "right" : where;
+    bool ok = false;
+    if (w == "tab" || !at) {
+        Space *target = at ? m_spaces[si] : s;
+        if (target) {
+            target->adopt(Tab::withEditor(e, target));
+            target->setCurrent(int(target->tabList().size()) - 1);
+            emit target->tabsChanged();
+            emit target->activity();
+            ok = true;
+        }
+    } else {
+        ok = at->addEditor(e, anchor, w != "down");
+        if (ok) focusAgent(si, int(m_spaces[si]->tabList().indexOf(at)), e->id());
+    }
+    if (!ok) { delete e; return {{"error", "cannot place the editor"}}; }
+    scheduleSave();
+    emit focusRequested();
+    return {{"pane", e->id()}};
+}
+
+void Workspace::editView(int viewId) {
+    ViewPane *v = findView(viewId);
+    if (!v || v->sourceFile().isEmpty()) return;
+    // a modal view is docked first, so the editor and the document sit side by side
+    if (isModal(v)) {
+        showModal(v, v->anchor());
+        if (!dockModal("right")) return;
+    }
+    const QVariantMap r = openEditor(v->sourceFile(), 0, "right", viewId);
+    if (EditorPane *e = r.contains("pane") ? findEditor(r["pane"].toInt()) : nullptr) linkPreview(e, v);
+}
+
+// Keeps `v` showing what `e` holds: the unsaved text shortly after typing stops, the file again once saved.
+void Workspace::linkPreview(EditorPane *e, ViewPane *v) {
+    m_previews.insert(e->id(), v);
+    auto sourceOf = [e] {
+        ViewPane::Source src;
+        if (e->dirty()) { src.content = e->buffer().text(); src.baseDir = e->baseDir(); }
+        else { src.file = e->path(); src.baseDir = e->baseDir(); }
+        return src;   // the title stays the document's (front matter), or the file name
+    };
+    auto *debounce = new QTimer(v);
+    debounce->setSingleShot(true);
+    debounce->setInterval(250);
+    QPointer<EditorPane> ep(e);
+    QPointer<ViewPane> vp(v);
+    connect(debounce, &QTimer::timeout, v, [ep, vp, sourceOf] { if (ep && vp) vp->setSource(sourceOf()); });
+    connect(e, &EditorPane::textChanged, debounce, qOverload<>(&QTimer::start));
+    connect(e, &EditorPane::saved, debounce, qOverload<>(&QTimer::start));
+}
+
+void Workspace::previewEditor(int editorId) {
+    Tab *t = nullptr;
+    EditorPane *e = findEditor(editorId, nullptr, nullptr, &t);
+    if (!e || !e->previewable()) return;
+    if (ViewPane *v = m_previews.value(editorId)) {   // already shown: bring it forward
+        int vs = -1, vt = -1;
+        if (findView(v->id(), &vs, &vt)) { focusAgent(vs, vt, v->id()); return; }
+    }
+    auto *v = new ViewPane(PaneIds::next());
+    ViewPane::Source src;
+    src.file = e->path();
+    src.baseDir = e->baseDir();
+    if (e->dirty()) { src.file.clear(); src.content = e->buffer().text(); }
+    v->setSource(src);
+    if (!placeView(v, editorId, "right")) { delete v; return; }
+    t->focusPane(editorId);   // keep typing in the editor
+    linkPreview(e, v);
+}
+
+QString Workspace::currentDir() const {
+    Space *s = currentSpace();
+    Tab *t = s ? s->currentTab() : nullptr;
+    if (!t) return QDir::homePath();
+    if (TerminalSession *ts = t->focusedSession()) return ts->cwd();
+    if (EditorPane *e = t->editorById(t->focusedId())) return e->baseDir();
+    return s->cwd();
+}
+
+QVariantList Workspace::quickOpen(const QString &query, int limit) {
+    // the files of the project: git's list when it is a repository (ignored files stay out), else a bounded walk
+    const QString dir = currentDir();
+    const qint64 now = QDateTime::currentMSecsSinceEpoch();
+    if (dir != m_filesDir || now - m_filesAt > 10000) {
+        m_files.clear();
+        QProcess git;
+        git.setWorkingDirectory(dir);
+        git.start("git", {"ls-files", "--cached", "--others", "--exclude-standard"});
+        if (git.waitForFinished(3000) && git.exitStatus() == QProcess::NormalExit && git.exitCode() == 0) {
+            for (const QByteArray &l : git.readAllStandardOutput().split('\n'))
+                if (!l.isEmpty()) m_files << QString::fromUtf8(l);
+        } else {
+            static const QSet<QString> skip = {".git", "node_modules", "target", "build", "dist", ".cache", "__pycache__", ".venv"};
+            QDirIterator it(dir, QDir::Files | QDir::Dirs | QDir::NoDotAndDotDot | QDir::Hidden, QDirIterator::Subdirectories);
+            while (it.hasNext() && m_files.size() < 50000) {
+                const QString p = it.next();
+                const QString rel = QDir(dir).relativeFilePath(p);
+                bool skipped = false;
+                for (const QString &part : rel.split('/')) if (skip.contains(part)) { skipped = true; break; }
+                if (!skipped && it.fileInfo().isFile()) m_files << rel;
+            }
+        }
+        m_filesDir = dir;
+        m_filesAt = now;
+    }
+    // fuzzy: every query character in order; contiguous runs, word starts and the file name score higher
+    const QString q = query.trimmed().toLower();
+    struct Hit { int score; QString path; };
+    QVector<Hit> hits;
+    for (const QString &f : std::as_const(m_files)) {
+        if (q.isEmpty()) { hits.append({-int(f.size()), f}); continue; }
+        const QString lf = f.toLower();
+        const int nameAt = int(lf.lastIndexOf('/')) + 1;
+        int score = 0, qi = 0, prev = -2;
+        for (int i = 0; i < lf.size() && qi < q.size(); ++i) {
+            if (lf[i] != q[qi]) continue;
+            score += 1;
+            if (i == prev + 1) score += 5;
+            if (i == 0 || lf[i - 1] == '/' || lf[i - 1] == '_' || lf[i - 1] == '-' || lf[i - 1] == '.') score += 8;
+            if (i >= nameAt) score += 3;
+            prev = i;
+            ++qi;
+        }
+        if (qi < q.size()) continue;
+        if (lf.mid(nameAt).startsWith(q)) score += 30;
+        hits.append({score * 1000 - int(f.size()), f});
+    }
+    std::partial_sort(hits.begin(), hits.begin() + qMin<qsizetype>(limit, hits.size()), hits.end(),
+                      [](const Hit &a, const Hit &b) { return a.score > b.score; });
+    QVariantList out;
+    for (int i = 0; i < qMin<qsizetype>(limit, hits.size()); ++i)
+        out << QVariantMap{{"path", hits[i].path}, {"abs", QDir(dir).absoluteFilePath(hits[i].path)}};
+    return out;
+}
+
 // ---------------- actions & keybindings ----------------
 
 namespace {
@@ -865,6 +1130,7 @@ const ActionInfo kActions[] = {
     {"goto-space", "Go to space N"},
     {"next-attention", "Jump to agent that needs attention"},
     {"toggle-sidebar", "Show / hide sidebar"}, {"open-settings", "Open settings"}, {"launch-agent", "Launch an agent"}, {"operator", "Open the operator (AI that runs nebula for you)"}, {"broadcast", "Send a prompt to several agents"}, {"toggle-help", "Show / hide this help"}, {"setup-wizard", "Open the setup wizard"},
+    {"quick-open", "Open a file (quick open)"},
     {"font-larger", "Increase font size"}, {"font-smaller", "Decrease font size"}, {"font-reset", "Reset font size"},
 };
 
@@ -881,6 +1147,7 @@ const char *const kDefaults[][2] = {
     {"Ctrl+Alt+5", "goto-space:5"}, {"Ctrl+Alt+6", "goto-space:6"}, {"Ctrl+Alt+7", "goto-space:7"}, {"Ctrl+Alt+8", "goto-space:8"},
     {"Ctrl+Alt+9", "goto-space:9"},
     {"Ctrl+Shift+A", "next-attention"}, {"Ctrl+Shift+B", "toggle-sidebar"}, {"Ctrl+,", "open-settings"}, {"Ctrl+Shift+L", "launch-agent"}, {"Ctrl+Shift+I", "operator"}, {"Ctrl+Shift+M", "broadcast"}, {"Ctrl+Shift+?", "toggle-help"},
+    {"Ctrl+Shift+P", "quick-open"},
     {"Ctrl++", "font-larger"}, {"Ctrl+=", "font-larger"}, {"Ctrl+-", "font-smaller"}, {"Ctrl+0", "font-reset"},
 };
 
@@ -1116,6 +1383,7 @@ bool Workspace::runAction(const QString &spec) {
     if (name == "broadcast") { showOverlay("broadcast"); return true; }
     if (name == "open-settings") { setSettingsVisible(!m_settings); return true; }
     if (name == "setup-wizard") { showOverlay("onboarding"); return true; }
+    if (name == "quick-open") { showOverlay("quickopen"); return true; }
     if (name == "toggle-help") { m_help = !m_help; emit viewChanged(); return true; }
     if (name == "toggle-views") { if (m_modals.isEmpty()) return false; setModalHidden(!m_modalHidden); return true; }
     if (name == "font-larger") { m_theme->zoom(1); return true; }

@@ -10,6 +10,7 @@
 #include "paths.h"
 #include "settings.h"
 #include "terminalview.h"
+#include "editor/editorview.h"
 #include "theme.h"
 #include "views/viewpane.h"
 #include "views/viewweb.h"
@@ -117,6 +118,7 @@ int main(int argc, char *argv[]) {
     Settings settings;
     Theme theme(&settings);
     TerminalView::setTheme(&theme);
+    EditorView::setTheme(&theme);
     ViewPane::setTheme(&theme);
     Profiles profiles;
     Llm llm;
@@ -149,7 +151,7 @@ int main(int argc, char *argv[]) {
     const auto openDocs = [&] {
         for (const QString &f : documents) {
             try {
-                api.invoke("view.show", {{"file", f}, {"cwd", QFileInfo(f).absolutePath()}});
+                api.invoke(isDocument(f) ? "view.show" : "editor.open", {{"file", f}, {"cwd", QFileInfo(f).absolutePath()}});
             } catch (const std::exception &e) {
                 std::fprintf(stderr, "nebula: %s: %s\n", qPrintable(f), e.what());
             }

@@ -69,6 +69,7 @@ Item {
                     HoverHandler { id: hover; cursorShape: Qt.PointingHandCursor }
                     TapHandler { onTapped: parent.clicked() }
                 }
+                HeaderButton { visible: !!root.pane && root.pane.sourceFile !== ""; icon: "edit"; label: "edit"; onClicked: app.editView(root.pane.id) }
                 HeaderButton { icon: "split-right"; label: "dock right"; onClicked: app.dockModal("right") }
                 HeaderButton { icon: "split-down"; label: "dock below"; onClicked: app.dockModal("down") }
                 HeaderButton { icon: "hide"; label: "hide  esc"; onClicked: app.setModalHidden(true) }

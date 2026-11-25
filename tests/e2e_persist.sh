@@ -124,3 +124,22 @@ rm -f "$NEBULA_SOCKET"; start_gui
 [ "$(ids | wc -w)" = 1 ] || fail "discard-session: '$(ids)'"
 echo "discard-session: ok"
 pkill -f "$FAKE/" || true; rm -rf "$FAKE"
+# ---- editors: the file comes back in its place in the layout, with text that was never saved
+ED=$(mktemp -d)
+printf 'first line\n' > "$ED/notes.txt"
+E=$(ctl editor.open file="$ED/notes.txt" | python3 -c 'import json,sys;print(json.load(sys.stdin)["pane"])')
+ctl pane.send_keys pane="$E" keys='["Ctrl+End"]'
+ctl pane.send_text pane="$E" text="unsaved $TAG"
+sleep 1.5                      # the session (and the unsaved text with it) is saved on a debounce
+sleep 1; kill -9 $GUI; wait $GUI 2>/dev/null || true; kill_host; rm -f "$NEBULA_SOCKET"
+start_gui
+ctl editor.get pane="$E" text=true | python3 -c "
+import json, sys
+d = json.load(sys.stdin)
+assert d['path'].endswith('notes.txt') and d['dirty'] and 'unsaved $TAG' in d['text'], d
+assert 'restored' in d['message'], d" || fail "editor not restored with its unsaved text: $(ctl editor.list)"
+[ "$(cat "$ED/notes.txt")" = "first line" ] || fail "restoring must not write the file"
+ctl pane.close pane="$E" force=true
+ls "$NEBULA_STATE_DIR/editors" 2>/dev/null | grep -q "^$E\." && fail "unsaved text of a closed editor left behind"
+rm -rf "$ED"
+echo "editor restore: ok"

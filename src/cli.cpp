@@ -35,6 +35,8 @@ methods:
   view.show file=PATH | content=STR (content=@- reads stdin) [view=ID] [title=STR] [where=modal|right|down|tab]
   view.get view=ID | view.list | view.close view=ID | view.dock view=ID where=modal|right|down|tab | view.toggle
   view.components [name=NAME]
+  editor.open file=PATH [line=N] [where=right|down|tab] | editor.list | editor.get [pane=ID] [text=true] | editor.save [pane=ID]
+      (pane.send_text / pane.send_keys type into an editor pane; pane.close refuses unsaved changes without force=true)
   view.export view=ID [format=html|pdf] [path=FILE]   (a standalone HTML file, or a PDF)
   view.snapshot view=ID [block=N] [path=FILE.png]     (a PNG of the view, scrolled to block N; default view-ID.png)
 
@@ -96,12 +98,12 @@ int runCtl(const QStringList &args) {
         if (sid.isEmpty()) sid = Restore::sessionFromPayload(Platform::readPipedStdin(150));
         if (!sid.isEmpty()) params["session"] = sid;
     }
-    if (!params.contains("pane") && (method == "pane.report_state" || method == "view.show")) {
+    if (!params.contains("pane") && (method == "pane.report_state" || method == "view.show" || method == "editor.open")) {
         bool ok = false;
         const int id = qEnvironmentVariable("NEBULA_PANE").toInt(&ok);
         if (ok) params["pane"] = id;
     }
-    if ((method == "view.show" || method == "view.export" || method == "view.snapshot") && !params.contains("cwd")) params["cwd"] = QDir::currentPath();
+    if ((method == "view.show" || method == "view.export" || method == "view.snapshot" || method == "editor.open") && !params.contains("cwd")) params["cwd"] = QDir::currentPath();
     // the socket reply would otherwise carry the image as base64
     if (method == "view.snapshot" && !params.contains("path")) params["path"] = QString("view-%1.png").arg(params["view"].toInt());
 
@@ -139,7 +141,8 @@ int runCtl(const QStringList &args) {
     return gotResponse ? 0 : 1;
 }
 
-static bool isDocument(const QString &path) {
+// .neb and Markdown files open as rendered views; any other file opens in the editor
+bool isDocument(const QString &path) {
     const QString ext = QFileInfo(path).suffix().toLower();
     return ext == "neb" || ext == "md" || ext == "markdown";
 }
@@ -151,9 +154,11 @@ QStringList documentArguments(const QStringList &args, bool *ok) {
         const QString &a = args[i];
         if (a.startsWith('-')) continue;
         const QFileInfo fi(a);
-        if (!fi.exists() && !isDocument(a)) continue;
-        if (!fi.isFile()) { std::fprintf(stderr, "nebula: %s: %s\n", qPrintable(a), fi.exists() ? "not a file" : "no such file"); *ok = false; continue; }
-        if (!isDocument(a)) { std::fprintf(stderr, "nebula: %s: only .neb and .md documents can be opened\n", qPrintable(a)); *ok = false; continue; }
+        // a word that is not a file (the value of -platform xcb) is not ours; a file name that does not exist yet
+        // is, when it has an extension or a path (nebula notes.md creates it)
+        if (!fi.exists() && !(a.contains('/') || !fi.suffix().isEmpty())) continue;
+        if (fi.isDir()) { std::fprintf(stderr, "nebula: %s: is a directory\n", qPrintable(a)); *ok = false; continue; }
+        if (!fi.exists() && isDocument(a)) { std::fprintf(stderr, "nebula: %s: no such file\n", qPrintable(a)); *ok = false; continue; }
         files << fi.absoluteFilePath();
     }
     return files;
@@ -170,7 +175,8 @@ int openDocuments(const QStringList &files) {
     QByteArray buf;
     for (const QString &f : files) {
         const QJsonObject params{{"file", f}, {"cwd", QFileInfo(f).absolutePath()}, {"raise", true}};
-        sock.write(QJsonDocument(QJsonObject{{"id", ++id}, {"method", "view.show"}, {"params", params}}).toJson(QJsonDocument::Compact) + '\n');
+        const QString method = isDocument(f) ? "view.show" : "editor.open";
+        sock.write(QJsonDocument(QJsonObject{{"id", ++id}, {"method", method}, {"params", params}}).toJson(QJsonDocument::Compact) + '\n');
         QJsonObject reply;
         while (reply.isEmpty()) {
             int nl = buf.indexOf('\n');

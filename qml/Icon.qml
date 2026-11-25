@@ -86,6 +86,16 @@ Canvas {
             ctx.moveTo(cx, m - 0.5); ctx.lineTo(cx, cy)
             break
         }
+        case "edit":   // a pencil
+            ctx.moveTo(m, h - m); ctx.lineTo(m + 0.5, h - m - 3); ctx.lineTo(w - m - 2.5, m); ctx.lineTo(w - m, m + 2.5)
+            ctx.lineTo(m + 3, h - m - 0.5); ctx.lineTo(m, h - m)
+            break
+        case "preview": {   // an eye
+            const cy = h / 2
+            ctx.moveTo(m - 1, cy); ctx.quadraticCurveTo(w / 2, m - 2, w - m + 1, cy); ctx.quadraticCurveTo(w / 2, h - m + 2, m - 1, cy)
+            ctx.moveTo(w / 2 + w * 0.13, cy); ctx.arc(w / 2, cy, w * 0.13, 0, 2 * Math.PI)
+            break
+        }
         case "back":
             ctx.moveTo(w - m, h / 2); ctx.lineTo(m, h / 2)
             ctx.moveTo(m + 3.5, h / 2 - 3.5); ctx.lineTo(m, h / 2); ctx.lineTo(m + 3.5, h / 2 + 3.5)
