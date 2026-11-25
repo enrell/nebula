@@ -116,6 +116,24 @@ PY
 ! grep -q 'nebula\|report_state' "$HOME/.codex/config.toml" || fail "codex config not restored"
 echo "integrations: ok"
 
+# opencode accepts JSONC: a trailing comma must not stop the installer; comments must not be silently dropped
+printf '{\n  "model": "x",\n  "provider": {"a": {"url": "http://h/v1",},},\n}\n' > "$HOME/.config/opencode/opencode.json"
+ctl integration.install agent=opencode kind=mcp || fail "opencode.json with trailing commas"
+python3 -c "import json,os;d=json.load(open(os.environ['HOME']+'/.config/opencode/opencode.json'));assert d['model']=='x' and d['provider']['a']['url']=='http://h/v1' and 'nebula' in d['mcp'], d" || fail "trailing-comma config not rewritten as JSON"
+ctl integration.list | python3 -c "import json,sys;assert [i for i in json.load(sys.stdin) if i['id']=='opencode'][0]['mcp'] is True" || fail "mcp not reported installed"
+ctl integration.remove agent=opencode kind=mcp
+printf '{\n  // my model\n  "model": "x", /* keep */\n  "url": "http://h//not-a-comment",\n}\n' > "$HOME/.config/opencode/opencode.json"
+cp "$HOME/.config/opencode/opencode.json" "$HOME/oc.before"
+OUT=$(ctl integration.install agent=opencode kind=mcp 2>&1) && fail "a commented config must not be rewritten"
+echo "$OUT" | grep -q 'has comments' || fail "no explanation for comments: $OUT"
+cmp -s "$HOME/.config/opencode/opencode.json" "$HOME/oc.before" || fail "commented config was modified"
+rm "$HOME/.config/opencode/opencode.json"
+printf '{"model": "y",}\n' > "$HOME/.config/opencode/opencode.jsonc"
+ctl integration.install agent=opencode kind=mcp || fail "opencode.jsonc"
+python3 -c "import json,os;d=json.load(open(os.environ['HOME']+'/.config/opencode/opencode.jsonc'));assert d['model']=='y' and 'nebula' in d['mcp'], d" || fail "opencode.jsonc not used"
+[ ! -e "$HOME/.config/opencode/opencode.json" ] || fail "created opencode.json next to opencode.jsonc"
+echo "opencode jsonc: ok"
+
 # ---- exact state via report_state + AI summary on "done"
 mkdir -p "$HOME/bin"; printf '#!/bin/sh\nsleep 60\n' > "$HOME/bin/claude"; chmod +x "$HOME/bin/claude"
 ctl pane.focus pane="$N"                       # P becomes an unfocused pane
