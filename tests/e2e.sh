@@ -33,4 +33,39 @@ ctl action.run action=new-tab
 [ "$(ctl space.list | python3 -c 'import json,sys;print(len(json.load(sys.stdin)[0]["tabs"]))')" = 2 ] || fail "new-tab"
 ctl pane.report_state pane="$P" state=working 2>/dev/null && true
 ctl ping >/dev/null
+
+# ---- editor: open, type (auto-indent, closing brackets), save exactly, undo, unsaved changes guard closing
+ED=$(mktemp -d)
+printf 'def f(x):\n    return x\n' > "$ED/a.py"
+E=$(ctl editor.open file="$ED/a.py" | python3 -c 'import json,sys;print(json.load(sys.stdin)["pane"])')
+get() { ctl editor.get pane="$E" text=true | python3 -c "import json,sys;d=json.load(sys.stdin);print($1)"; }
+[ "$(get 'd["language"]')" = Python ] || fail "language: $(get 'd')"
+ctl pane.send_keys pane="$E" keys='["Ctrl+End"]'
+ctl pane.send_text pane="$E" text="def g(y):"
+ctl pane.send_keys pane="$E" keys='["Enter"]'
+ctl pane.send_text pane="$E" text="return g"
+ctl pane.send_keys pane="$E" keys='["(", "y", ")"]'   # typed: ( closes itself, ) steps over it
+[ "$(get 'repr(d["text"])')" = "'def f(x):\n    return x\ndef g(y):\n    return g(y)'" ] || fail "typing: $(get 'repr(d["text"])')"
+[ "$(get 'd["dirty"]')" = True ] || fail "dirty after typing"
+{ ctl pane.close pane="$E" 2>&1 || true; } | grep -q 'unsaved changes' || fail "closing an unsaved editor must refuse"
+ctl editor.save pane="$E"
+[ "$(cat "$ED/a.py")" = "$(printf 'def f(x):\n    return x\ndef g(y):\n    return g(y)')" ] || fail "saved file: $(cat "$ED/a.py" | od -c | head)"
+[ "$(get 'd["dirty"]')" = False ] || fail "dirty after save"
+ctl pane.send_keys pane="$E" keys='["Ctrl+Z"]'
+[ "$(get 'd["dirty"]')" = True ] && get 'd["text"]' | grep -qv 'return g(y)' || fail "undo"
+ctl pane.close pane="$E" force=true
+[ "$(ctl editor.list | python3 -c 'import json,sys;print(len(json.load(sys.stdin)))')" = 0 ] || fail "force close"
+# a file changed on disk reloads by itself when there are no unsaved changes
+E=$(ctl editor.open file="$ED/a.py" | python3 -c 'import json,sys;print(json.load(sys.stdin)["pane"])')
+printf 'changed outside\n' > "$ED/a.py"
+for _ in $(seq 30); do get 'd["text"]' | grep -q 'changed outside' && break; sleep 0.1; done
+get 'd["text"]' | grep -q 'changed outside' || fail "external change not reloaded"
+# opening the same file again focuses the editor instead of a second one
+[ "$(ctl editor.open file="$ED/a.py" | python3 -c 'import json,sys;print(json.load(sys.stdin)["pane"])')" = "$E" ] || fail "reopen"
+{ ctl editor.open file="$ED" 2>&1 || true; } | grep -q 'is a directory' || fail "directory"
+printf 'a\0b' > "$ED/bin.dat"
+{ ctl editor.open file="$ED/bin.dat" 2>&1 || true; } | grep -q 'binary file' || fail "binary"
+ctl pane.close pane="$E"
+rm -rf "$ED"
+echo "editor: ok"
 echo "e2e: ok"

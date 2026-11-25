@@ -3,6 +3,7 @@
 #include <QList>
 #include <QJsonObject>
 #include <QObject>
+#include <QPointer>
 #include <QJsonArray>
 #include <QRectF>
 #include <QSet>
@@ -15,6 +16,7 @@
 class Space;
 class Workspace;
 class ViewPane;
+class EditorPane;
 
 class Tab : public QObject {
     Q_OBJECT
@@ -39,10 +41,17 @@ public:
     }
     TerminalSession *focusedSession() const { return m_sessions.value(m_focus); }   // null when a view is focused
     QList<ViewPane *> views() const;
-    bool hasPane(int id) const { return m_sessions.contains(id) || m_views.contains(id); }
+    QList<EditorPane *> editors() const;
+    bool hasPane(int id) const { return m_sessions.contains(id) || m_views.contains(id) || m_editors.contains(id); }
 
     Q_INVOKABLE QObject *session(int id) const { return m_sessions.value(id); }
     Q_INVOKABLE QObject *view(int id) const;
+    Q_INVOKABLE QObject *editor(int id) const;
+    EditorPane *editorById(int id) const { return m_editors.value(id); }
+    EditorPane *dirtyEditor() const;   // one with unsaved changes, if any
+    // Puts an editor next to `anchorPane` and focuses it (opening a file is asking to type in it).
+    bool addEditor(EditorPane *e, int anchorPane, bool sideBySide);
+    static Tab *withEditor(EditorPane *e, QObject *parent);
     TerminalSession *sessionById(int id) const { return m_sessions.value(id); }
     ViewPane *viewById(int id) const { return m_views.value(id); }
     // Puts a view next to `anchorPane` (right or below). Focus stays where it is: a view must not take the
@@ -51,7 +60,9 @@ public:
     static Tab *withView(ViewPane *v, QObject *parent);   // a new tab holding only this view
     Q_INVOKABLE int split(bool sideBySide);
     int splitWith(bool sideBySide, const QString &cwd, const QString &profile);
+    // Closes a pane; a modified editor asks first (save, discard or cancel) and closes when answered.
     Q_INVOKABLE void closePane(int id);
+    void closePaneNow(int id) { removePane(id, true); }
     ViewPane *takeView(int id);   // removes a view from the layout without closing it (to show it as a modal)
     Q_INVOKABLE void focusPane(int id);
     Q_INVOKABLE void focusDirection(int dx, int dy);
@@ -79,6 +90,9 @@ private:
     explicit Tab(RestoreTag, QObject *parent) : QObject(parent) {}
     TerminalSession *makeSession(const QString &cwd, int id = 0, bool attach = false, const QString &prefill = QString(), const QString &profile = QString());
     void adoptView(ViewPane *v);
+    void adoptEditor(EditorPane *e);
+    bool addLeaf(int pane, int anchorPane, bool sideBySide);
+    QString kindOf(int pane) const;
     ViewPane *removePane(int id, bool destroy);
     Node *find(Node *n, int pane) const;
     QVariantMap toVariant(const Node *n) const;
@@ -88,6 +102,7 @@ private:
     Node *m_root = nullptr;
     QHash<int, TerminalSession *> m_sessions;
     QHash<int, ViewPane *> m_views;
+    QHash<int, EditorPane *> m_editors;
     int m_focus = -1;
     bool m_zoom = false;
     int m_nodeSeq = 1;
@@ -192,6 +207,18 @@ public:
     Q_INVOKABLE bool dockModal(const QString &where);   // top modal -> split next to its anchor ("right"/"down") or a tab
     Q_INVOKABLE void popOutView(int viewId);           // docked view -> modal
     bool closeView(int id);                            // docked or modal
+
+    // Editors. openEditor focuses the file when it is already open; `where` is right | down | tab (default: right
+    // of the focused pane). Returns {pane} or {error}.
+    Q_INVOKABLE QVariantMap openEditor(const QString &path, int line = 0, const QString &where = QString(), int anchorPane = -1);
+    EditorPane *findEditor(int id, int *spaceIdx = nullptr, int *tabIdx = nullptr, Tab **tab = nullptr) const;
+    QList<EditorPane *> allEditors() const;
+    Q_INVOKABLE void editView(int viewId);         // the file a view shows, in an editor next to it
+    Q_INVOKABLE void previewEditor(int editorId);  // a Markdown / .neb editor shown as a view next to it, live
+    void linkPreview(EditorPane *e, ViewPane *v);
+    // Quick open (Ctrl+P): files under the current space's directory that match `query`, best first.
+    Q_INVOKABLE QVariantList quickOpen(const QString &query, int limit = 40);
+    Q_INVOKABLE QString currentDir() const;
     bool isModal(const ViewPane *v) const;
     QList<ViewPane *> modals() const;
 
@@ -255,5 +282,9 @@ private:
     QString m_overlay;
     QVariantMap m_overlayData;
     QByteArray m_saved;
+    QHash<int, QPointer<ViewPane>> m_previews;   // editor id -> the view showing it live
+    QString m_filesDir;                          // quick open's file list and when it was read
+    QStringList m_files;
+    qint64 m_filesAt = 0;
     QTimer m_saveTimer;
 };

@@ -147,6 +147,7 @@ Window {
     Loader { anchors.fill: parent; z: 15; active: app.overlay === "operator"; source: "OperatorPanel.qml" }
     Loader { anchors.fill: parent; z: 15; active: app.overlay === "broadcast"; source: "BroadcastDialog.qml" }
     Loader { anchors.fill: parent; z: 16; active: app.overlay === "onboarding"; source: "OnboardingWizard.qml" }
+    Loader { anchors.fill: parent; z: 15; active: app.overlay === "quickopen"; source: "QuickOpen.qml"; onLoaded: item.forceActiveFocus() }
 
     ContextMenu {
         id: menu

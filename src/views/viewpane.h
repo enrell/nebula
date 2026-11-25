@@ -24,6 +24,7 @@ class ViewPane : public QObject {
     Q_PROPERTY(QString title READ title NOTIFY changed)
     Q_PROPERTY(QString agentState READ agentState CONSTANT)
     Q_PROPERTY(int errorCount READ errorCount NOTIFY changed)
+    Q_PROPERTY(QString sourceFile READ sourceFile NOTIFY changed)   // the file shown, "" for inline content
     Q_PROPERTY(QJsonObject document READ document NOTIFY documentChanged)
     Q_PROPERTY(QJsonObject theme READ themeJson NOTIFY themeChanged)
     Q_PROPERTY(QString fileBase READ fileBase CONSTANT)
@@ -61,6 +62,7 @@ public:
     QByteArray sandboxDocument(int blockIndex) const;   // the page an `html` block runs in (see ViewWeb)
     QString pageUrl() const;
     QString baseDir() const { return m_src.baseDir; }
+    QString sourceFile() const { return m_src.file; }
     QString paneTitle() const { return m_src.title; }
     int anchor() const { return m_anchor; }          // the pane that asked for the view (docking goes next to it)
     void setAnchor(int pane) { m_anchor = pane; }

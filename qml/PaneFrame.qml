@@ -6,10 +6,11 @@ Item {
     clip: true
     property var tab
     property int paneId: -1
-    property string kind: "terminal"          // "terminal" | "view"
+    property string kind: "terminal"          // "terminal" | "view" | "editor"
     readonly property bool isView: kind === "view"
-    // the pane object: a TerminalSession, or a ViewPane for views (both have label and agentState)
-    readonly property var session: tab ? (isView ? tab.view(paneId) : tab.session(paneId)) : null
+    readonly property bool isEditor: kind === "editor"
+    // the pane object: a TerminalSession, a ViewPane or an EditorPane (all have label and agentState)
+    readonly property var session: tab ? (isView ? tab.view(paneId) : isEditor ? tab.editor(paneId) : tab.session(paneId)) : null
     readonly property bool focused: tab && tab.focusedId === paneId && win.tab === tab && win.active
     readonly property int fs: Math.round(theme.fontSize * 1.33)
     // the title sits on the top border; content starts below it so the first row never paints over it
@@ -64,6 +65,8 @@ Item {
         Row {
             id: btns
             anchors.centerIn: parent
+            IconButton { size: 11; icon: "edit"; visible: root.isView && !!root.session && root.session.sourceFile !== ""; onClicked: app.editView(root.paneId) }
+            IconButton { size: 11; icon: "preview"; visible: root.isEditor && !!root.session && root.session.previewable; onClicked: app.previewEditor(root.paneId) }
             IconButton { size: 11; icon: "popout"; visible: root.isView; onClicked: app.popOutView(root.paneId) }
             IconButton { size: 11; icon: "split-right"; onClicked: { root.tab.focusPane(root.paneId); app.runAction("split-right") } }
             IconButton { size: 11; icon: "split-down"; onClicked: { root.tab.focusPane(root.paneId); app.runAction("split-down") } }
@@ -75,7 +78,7 @@ Item {
     Loader {
         id: content
         anchors { fill: parent; leftMargin: 6; rightMargin: 6; topMargin: root.titleH + 2; bottomMargin: 5 }
-        sourceComponent: root.isView ? viewContent : terminalContent
+        sourceComponent: root.isView ? viewContent : root.isEditor ? editorContent : terminalContent
     }
 
     Component {
@@ -86,6 +89,15 @@ Item {
             paneFocused: root.focused
             onActivated: if (root.tab) root.tab.focusPane(root.paneId)
             onContextMenuRequested: (x, y, sel, url) => win.openMenu(view, x, y, sel, url)
+        }
+    }
+
+    Component {
+        id: editorContent
+        EditorContent {
+            pane: root.session
+            paneFocused: root.focused
+            onActivated: if (root.tab) root.tab.focusPane(root.paneId)
         }
     }
 

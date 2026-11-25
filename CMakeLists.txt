@@ -70,6 +70,8 @@ qt_add_qml_module(nebula
     src/terminalview.h src/terminalview.cpp
     src/workspace.h src/workspace.cpp
     src/agentdetect.h src/agentdetect.cpp
+    src/editor/textbuffer.h src/editor/textbuffer.cpp src/editor/highlighter.h src/editor/highlighter.cpp
+    src/editor/editorpane.h src/editor/editorpane.cpp src/editor/editorview.h src/editor/editorview.cpp
     src/apiserver.h src/apiserver.cpp
     src/cli.h src/cli.cpp
     src/paths.h
@@ -106,6 +108,8 @@ qt_add_qml_module(nebula
     qml/Badge.qml
     qml/Dropdown.qml
     qml/Kbd.qml
+    qml/EditorContent.qml
+    qml/QuickOpen.qml
     qml/Card.qml
     qml/StatusBar.qml
     qml/StateMark.qml
@@ -131,7 +135,7 @@ if(WIN32)
 else()
   target_link_libraries(nebula PRIVATE util)
 endif()
-target_include_directories(nebula PRIVATE src)
+target_include_directories(nebula PRIVATE src src/editor)   # src/editor: the QML type registration includes editorview.h by name
 target_compile_definitions(nebula PRIVATE NEBULA_VERSION="${PROJECT_VERSION}")
 if(MSVC)
   target_compile_options(nebula PRIVATE /W3 /utf-8 /permissive-)
@@ -148,6 +152,11 @@ add_executable(test_agentdetect tests/test_agentdetect.cpp src/agentdetect.cpp)
 target_include_directories(test_agentdetect PRIVATE src)
 target_link_libraries(test_agentdetect PRIVATE Qt6::Core)
 add_test(NAME agentdetect COMMAND test_agentdetect)
+
+add_executable(test_editor tests/test_editor.cpp src/editor/textbuffer.cpp src/editor/highlighter.cpp)
+target_include_directories(test_editor PRIVATE src)
+target_link_libraries(test_editor PRIVATE Qt6::Core)
+add_test(NAME editor COMMAND test_editor)
 
 # the view checker inside V4 with the real file sandbox, over the same cases as `npm test` in renderer/
 add_executable(test_views tests/test_views.cpp src/views/viewengine.cpp src/views/viewfiles.cpp)
