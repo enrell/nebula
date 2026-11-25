@@ -4,6 +4,7 @@
 #include <QBuffer>
 #include <QFile>
 #include <QMimeDatabase>
+#include <QQmlEngine>
 #include <QRegularExpression>
 #include <QWebEngineUrlRequestInterceptor>
 #include <QWebEngineUrlRequestJob>
@@ -102,6 +103,10 @@ QObject *Provider::profile() const { return ViewWeb::profile(); }
 QQuickWebEngineProfile *profile() {
     static QQuickWebEngineProfile *p = [] {
         auto *prof = new QQuickWebEngineProfile();   // no storage name: off the record, lives for the whole process
+        // QML deletes a parentless QObject that a method call (viewWeb.profile()) handed it as soon as the garbage
+        // collector drops the wrapper. That freed the profile under every view: pages went blank, and the next view
+        // pane to appear (docking, popping out) crashed in QQuickWebEngineView::setProfile on the dangling pointer.
+        QQmlEngine::setObjectOwnership(prof, QQmlEngine::CppOwnership);
         prof->setHttpCacheType(QQuickWebEngineProfile::MemoryHttpCache);
         prof->setPersistentCookiesPolicy(QQuickWebEngineProfile::NoPersistentCookies);
         prof->installUrlSchemeHandler(kScheme, new SchemeHandler(prof));
