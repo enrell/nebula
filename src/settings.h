@@ -22,6 +22,7 @@ class Settings : public QObject {
     Q_PROPERTY(bool operatorApproveAll MEMBER m_operatorApproveAll NOTIFY changed)
     Q_PROPERTY(bool onboarded MEMBER m_onboarded NOTIFY changed)
     Q_PROPERTY(QString viewPlacement MEMBER m_viewPlacement NOTIFY changed)
+    Q_PROPERTY(QString restorePrograms MEMBER m_restorePrograms NOTIFY changed)
     Q_PROPERTY(QString configPath READ configPath CONSTANT)
     Q_PROPERTY(QString socketPath READ socketPath CONSTANT)
 public:
@@ -44,6 +45,11 @@ public:
     bool operatorApproveAll() const { return m_operatorApproveAll; }
     QString viewPlacement() const { return m_viewPlacement; }
     static const QStringList &viewPlacements() { static const QStringList p{"modal", "right", "down", "tab"}; return p; }
+    // After a reboot (or Kill all & quit), what a pane's program comes back as: "run" starts agents and known
+    // interactive programs again (others are typed at the prompt), "type" types every command, "off" restores
+    // only the shell.
+    QString restorePrograms() const { return m_restorePrograms; }
+    static const QStringList &restoreModes() { static const QStringList m{"run", "type", "off"}; return m; }
 
     Q_INVOKABLE void resetAll();
     QJsonObject toJson() const;
@@ -78,5 +84,6 @@ private:
     bool m_operatorApproveAll = true;   // yolo: the operator never asks before running its tools
     bool m_onboarded = false;       // first-run wizard finished or skipped (kept across resetAll)
     QString m_viewPlacement = "modal";   // where agent views open by default: modal | right | down | tab
+    QString m_restorePrograms = "run";
     QTimer m_saveTimer;
 };

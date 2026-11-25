@@ -230,7 +230,7 @@ bool needsApproval(const Spec &s, const QJsonObject &args) {
     if (s.destructive) return true;
     if (s.name == "run_action") {
         const QString a = args["action"].toString().section(':', 0, 0);
-        return a == "kill-session" || a == "close-space" || a == "close-tab" || a == "close-pane";
+        return a == "kill-session" || a == "discard-session" || a == "close-space" || a == "close-tab" || a == "close-pane";
     }
     return false;
 }

@@ -38,8 +38,8 @@ Tab::Tab(const QString &cwd, const QString &profile, QObject *parent) : QObject(
 
 Tab::~Tab() { delete m_root; }
 
-TerminalSession *Tab::makeSession(const QString &cwd, int id, bool attach, const QString &prefill, const QString &profile) {
-    auto *s = new TerminalSession(cwd, this, id, attach, prefill, profile);
+TerminalSession *Tab::makeSession(const QString &cwd, int id, bool attach, const QString &prefill, const QString &profile, bool autorun) {
+    auto *s = new TerminalSession(cwd, this, id, attach, prefill, profile, autorun);
     m_sessions.insert(s->id(), s);
     const int sid = s->id();
     connect(s, &TerminalSession::finished, this, [this, sid] { closePane(sid); });
@@ -101,7 +101,12 @@ Tab *Tab::withView(ViewPane *v, QObject *parent) {
 
 QJsonObject Tab::toJson() const {
     QJsonObject panes;
-    for (TerminalSession *s : m_sessions) panes[QString::number(s->id())] = QJsonObject{{"cwd", s->cwd()}, {"cmd", s->resumeCommand()}, {"profile", s->profile()}};
+    for (TerminalSession *s : m_sessions) {
+        QJsonObject p{{"cwd", s->cwd()}, {"cmd", s->resumeCommand()}, {"profile", s->profile()}};
+        if (!p["cmd"].toString().isEmpty()) p["run"] = s->resumeAutorun();
+        if (!s->agentSession().isEmpty()) p["agentSession"] = s->agentSession();
+        panes[QString::number(s->id())] = p;
+    }
     QJsonObject views;
     for (ViewPane *v : m_views) views[QString::number(v->id())] = v->toJson();
     return {{"layout", m_root ? QJsonObject::fromVariantMap(toVariant(m_root)) : QJsonObject()},
@@ -126,7 +131,10 @@ Tab *Tab::restore(const QJsonObject &o, const QSet<int> &live, QObject *parent) 
                 return node;
             }
             const QJsonObject info = panes[QString::number(id)].toObject();
-            t->makeSession(info["cwd"].toString(), id, live.contains(id), info["cmd"].toString(), info["profile"].toString());
+            // sessions saved before "run" existed only stored agents' resume commands, which do run
+            auto *ts = t->makeSession(info["cwd"].toString(), id, live.contains(id), info["cmd"].toString(), info["profile"].toString(),
+                                      info["run"].toBool(true));
+            ts->setAgentSession(info["agentSession"].toString());
             node->pane = id;
             return node;
         }
@@ -689,9 +697,10 @@ void Workspace::restore() {
     connect(qApp, &QCoreApplication::aboutToQuit, this, &Workspace::saveNow);
 }
 
-void Workspace::scheduleSave() { m_saveTimer.start(); }
+void Workspace::scheduleSave() { if (!m_quitting) m_saveTimer.start(); }
 
 void Workspace::saveNow() {
+    if (m_quitting) return;
     QJsonArray a;
     for (Space *s : m_spaces) a << s->toJson();
     const QByteArray data = QJsonDocument(QJsonObject{{"version", 1}, {"current", m_current}, {"spaces", a}}).toJson(QJsonDocument::Compact);
@@ -701,10 +710,21 @@ void Workspace::saveNow() {
 }
 
 void Workspace::killSession() {
+    saveNow();          // the layout and what each pane runs, as they are now
+    m_quitting = true;  // nothing the shutdown below closes may overwrite it
+    m_saveTimer.stop();
+    for (Space *s : std::as_const(m_spaces)) s->terminateAll();
+    HostClient::instance()->shutdown();
+    QCoreApplication::quit();
+}
+
+void Workspace::discardSession() {
     for (Space *s : std::as_const(m_spaces)) s->terminateAll();
     HostClient::instance()->shutdown();
     m_spaces.clear();
     saveNow();
+    m_quitting = true;
+    m_saveTimer.stop();
     QCoreApplication::quit();
 }
 
@@ -841,7 +861,7 @@ const ActionInfo kActions[] = {
     {"focus-up", "Focus pane above"}, {"focus-down", "Focus pane below"},
     {"new-tab", "New tab"}, {"close-tab", "Close tab"}, {"next-tab", "Next tab"}, {"prev-tab", "Previous tab"},
     {"goto-tab", "Go to tab N"},
-    {"new-space", "New space"}, {"rename-space", "Rename space"}, {"kill-session", "Kill all panes and quit"}, {"close-space", "Close space"}, {"next-space", "Next space"}, {"prev-space", "Previous space"},
+    {"new-space", "New space"}, {"rename-space", "Rename space"}, {"kill-session", "Kill all panes and quit (restored next start)"}, {"discard-session", "Kill all panes, forget the session and quit"}, {"close-space", "Close space"}, {"next-space", "Next space"}, {"prev-space", "Previous space"},
     {"goto-space", "Go to space N"},
     {"next-attention", "Jump to agent that needs attention"},
     {"toggle-sidebar", "Show / hide sidebar"}, {"open-settings", "Open settings"}, {"launch-agent", "Launch an agent"}, {"operator", "Open the operator (AI that runs nebula for you)"}, {"broadcast", "Send a prompt to several agents"}, {"toggle-help", "Show / hide this help"}, {"setup-wizard", "Open the setup wizard"},
@@ -958,6 +978,7 @@ bool Workspace::runAction(const QString &spec) {
     if (name == "font-smaller") { m_theme->zoom(-1); return true; }
     if (name == "font-reset") { m_theme->resetZoom(); return true; }
     if (name == "kill-session") { killSession(); return true; }
+    if (name == "discard-session") { discardSession(); return true; }
     if (name == "new-space") { newSpace(); return true; }
     if (name == "rename-space") { emit renameRequested(m_current); return true; }
     if (name == "close-space") { closeSpace(m_current); return true; }

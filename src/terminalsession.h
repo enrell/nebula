@@ -23,8 +23,10 @@ class TerminalSession : public QObject {
     Q_PROPERTY(QString profile READ profile CONSTANT)
     Q_PROPERTY(QString summary READ summary NOTIFY metaChanged)
 public:
-    // fixedId/attach: reuse a pane that already lives in the host (session restore). prefill is typed at the prompt (not executed).
-    TerminalSession(const QString &cwd, QObject *parent = nullptr, int fixedId = 0, bool attach = false, const QString &prefill = QString(), const QString &profile = QString());
+    // fixedId/attach: reuse a pane that already lives in the host (session restore). prefill is the program the pane
+    // was running before its shell died: run when `autorun` and Settings::restorePrograms is "run", else typed.
+    TerminalSession(const QString &cwd, QObject *parent = nullptr, int fixedId = 0, bool attach = false, const QString &prefill = QString(),
+                    const QString &profile = QString(), bool autorun = false);
     ~TerminalSession() override;
 
     int id() const { return m_id; }
@@ -44,7 +46,11 @@ public:
     QString profile() const { return m_profile; }
     QString summary() const { return m_summary; }
     void setSummary(const QString &s) { if (s != m_summary) { m_summary = s; emit metaChanged(); } }
+    // What brings this pane back after its shell dies: the program in the foreground, an agent in its exact session.
     QString resumeCommand() const;
+    bool resumeAutorun() const;
+    void setAgentSession(const QString &id);   // the agent's conversation id, as its hooks report it
+    QString agentSession() const { return m_agentSession; }
     // callbacks from HostClient
     void hostOutput(const QByteArray &d);
     void hostSize(int rows, int cols);
@@ -113,6 +119,10 @@ private:
     int m_mouse = 0, m_cursorShape = 1;
     QByteArray m_title;
     QString m_cwd, m_branch, m_agent, m_state, m_proc;
+    QStringList m_fgArgs;        // argv of the foreground program, empty at the shell prompt
+    QString m_agentSession;
+    QString m_pendingRestore;    // a restored command typed at the prompt that the user has not run or changed yet
+    bool m_autorun = false;
     qint64 m_stateSince = 0;
     QString m_reportedCwd;       // the directory the shell last reported with OSC 9;9 or OSC 7
     QByteArray m_oscCarry;       // the start of a report that continues in the next chunk of output

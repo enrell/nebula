@@ -1,4 +1,5 @@
 #include "apiserver.h"
+#include "restore.h"
 #include "integrations.h"
 #include "launcher.h"
 #include "llm.h"
@@ -581,7 +582,9 @@ QJsonValue ApiServer::call(const QString &method, const QJsonObject &p, QLocalSo
         const QString st = p["state"].toString();
         static const QStringList ok = {"working", "blocked", "done", "idle", ""};
         if (!ok.contains(st)) throw ApiError("state must be working|blocked|done|idle (or empty to clear)");
-        pane(p)->reportState(st, p["ttl"].toInt(300));
+        TerminalSession *ts = pane(p);
+        ts->reportState(st, p["ttl"].toInt(300));
+        if (p.contains("session")) ts->setAgentSession(Restore::sessionFromPayload(QJsonDocument(QJsonObject{{"session_id", p["session"].toString()}}).toJson()));
         return true;
     }
     throw ApiError("unknown method '" + method.toStdString() + "'");

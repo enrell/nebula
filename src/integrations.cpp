@@ -151,23 +151,27 @@ QString Integrations::install(const QString &agent, const QString &kind) {
             const QString js = R"(// managed by nebula - reports agent state to the nebula sidebar
 import { spawn } from "node:child_process"
 
-const report = (state) => {
+// the session id lets nebula bring this pane back into the same session after a reboot
+const report = (state, session) => {
   if (!process.env.NEBULA_PANE) return
+  const args = ["ctl", "pane.report_state", "state=" + state, "ttl=3600"]
+  if (session) args.push("session=" + session)
   try {
-    spawn(process.env.NEBULA_BIN || "nebula", ["ctl", "pane.report_state", "state=" + state, "ttl=3600"], { stdio: "ignore", detached: true }).unref()
+    spawn(process.env.NEBULA_BIN || "nebula", args, { stdio: "ignore", detached: true }).unref()
   } catch {}
 }
 
 export const NebulaPlugin = async () => ({
   event: async ({ event }) => {
+    const sid = event.properties?.sessionID
     switch (event.type) {
-      case "session.idle": case "session.error": report("idle"); break
-      case "permission.asked": report("blocked"); break
-      case "permission.replied": report("working"); break
-      case "session.status": if (event.properties?.status?.type === "busy") report("working"); break
+      case "session.idle": case "session.error": report("idle", sid); break
+      case "permission.asked": report("blocked", sid); break
+      case "permission.replied": report("working", sid); break
+      case "session.status": if (event.properties?.status?.type === "busy") report("working", sid); break
     }
   },
-  "tool.execute.before": async () => report("working"),
+  "tool.execute.before": async (input) => report("working", input?.sessionID),
 })
 )";
             if (!writeText(opencodePlugin(), js)) err = "cannot write " + opencodePlugin();
@@ -177,7 +181,7 @@ export const NebulaPlugin = async () => ({
             static const QRegularExpression notify("^notify\\s*=", QRegularExpression::MultilineOption);
             if (notify.match(t).hasMatch() && !t.contains(kMarker)) return "codex already has a custom `notify` in config.toml; not overriding it";
             t.remove(QRegularExpression(QString("^notify\\s*=.*%1.*\\n").arg(kMarker), QRegularExpression::MultilineOption));
-            const QString shCmd = "[ -n \\\"$NEBULA_PANE\\\" ] && \\\"${NEBULA_BIN:-nebula}\\\" ctl pane.report_state state=idle ttl=3600 >/dev/null 2>&1; exit 0";
+            const QString shCmd = "[ -n \\\"$NEBULA_PANE\\\" ] && \\\"${NEBULA_BIN:-nebula}\\\" ctl pane.report_state state=idle ttl=3600 payload=\\\"$0\\\" >/dev/null 2>&1; exit 0";
             const QString entry = Platform::isWindows
                 ? QString("notify = [\"%1\", \"ctl\", \"--hook\", \"pane.report_state\", \"state=idle\", \"ttl=3600\"]\n").arg(bin())
                 : QString("notify = [\"sh\", \"-c\", \"%1\"]\n").arg(shCmd);

@@ -1,5 +1,6 @@
 #include "settings.h"
 #include "paths.h"
+#include <QCoreApplication>
 #include <QFile>
 #include <QJsonDocument>
 #include <QMetaProperty>
@@ -12,6 +13,9 @@ Settings::Settings(QObject *parent) : QObject(parent) {
     load();
     connect(this, &Settings::changed, &m_saveTimer, qOverload<>(&QTimer::start));
     connect(this, &Settings::fontChanged, &m_saveTimer, qOverload<>(&QTimer::start));
+    // a change made just before quitting (Kill all & quit) must not wait for the timer that will never fire
+    if (QCoreApplication::instance())
+        connect(QCoreApplication::instance(), &QCoreApplication::aboutToQuit, this, [this] { if (m_saveTimer.isActive()) { m_saveTimer.stop(); save(); } });
 }
 
 QString Settings::socketPath() const { return Paths::socket(); }
@@ -63,6 +67,7 @@ bool Settings::set(const QString &key, const QVariant &value) {
     if (key == "scrollback") v = qBound(0, v.toInt(), 1000000);
     if (key == "sidebarWidth") v = qBound(140, v.toInt(), 600);
     if (key == "viewPlacement" && !viewPlacements().contains(v.toString())) return false;
+    if (key == "restorePrograms" && !restoreModes().contains(v.toString())) return false;
     return p.write(this, v);
 }
 
@@ -83,5 +88,6 @@ void Settings::resetAll() {
     m_operatorModel.clear();
     m_operatorApproveAll = true;
     m_viewPlacement = "modal";
+    m_restorePrograms = "run";
     emit changed();
 }
