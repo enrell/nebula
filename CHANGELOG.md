@@ -2,7 +2,7 @@
 
 All notable changes to nebula are documented here. Release tags match `project(nebula VERSION …)` in `CMakeLists.txt`.
 
-## Unreleased
+## 0.5.0 — 2026-11-25
 
 ### Added
 
