@@ -14,6 +14,7 @@ class Settings : public QObject {
     Q_PROPERTY(bool notifications MEMBER m_notifications NOTIFY changed)
     Q_PROPERTY(bool urlClick MEMBER m_urlClick NOTIFY changed)
     Q_PROPERTY(int sidebarWidth MEMBER m_sidebarWidth NOTIFY changed)
+    Q_PROPERTY(bool closeToTray MEMBER m_closeToTray NOTIFY changed)   // closing the window keeps nebula in the tray
     Q_PROPERTY(bool explorerVisible MEMBER m_explorerVisible NOTIFY changed)
     Q_PROPERTY(int explorerWidth MEMBER m_explorerWidth NOTIFY changed)
     Q_PROPERTY(bool explorerHidden MEMBER m_explorerHidden NOTIFY changed)   // show hidden files
@@ -80,7 +81,7 @@ private:
     bool m_notifications = true;
     bool m_urlClick = true;
     int m_sidebarWidth = 236;
-    bool m_explorerVisible = true, m_explorerHidden = false;
+    bool m_explorerVisible = true, m_explorerHidden = false, m_closeToTray = true;
     int m_explorerWidth = 260;
     QString m_aiProfile, m_aiModel;
     bool m_aiSummaries = false;

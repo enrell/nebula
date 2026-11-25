@@ -19,7 +19,7 @@ Values are parsed as JSON when possible (pane=3 enter=true keys='["Ctrl+C"]'), o
 Use text=@- to read a value from stdin. Set NEBULA_SOCKET to talk to another instance.
 
 methods:
-  window.screenshot [path=PNG] | window.resize width=N height=N
+  window.show | window.screenshot [path=PNG] | window.resize width=N height=N
   operator.ask prompt=STR [approve=all|none]   (the built-in ACP operator; none = reject every permission request)
   settings.get | settings.set key=NAME value=V
   keys.list | keys.add action=NAME keys=Ctrl+Alt+K | keys.remove action=NAME keys=KEYS | keys.reset [action=NAME]
@@ -195,4 +195,13 @@ int openDocuments(const QStringList &files) {
             std::fprintf(stderr, "nebula: %s: the document has errors (shown in the view)\n", qPrintable(f));
     }
     return rc;
+}
+
+int showRunning() {
+    QLocalSocket sock;
+    sock.connectToServer(Paths::socket());
+    if (!sock.waitForConnected(1500)) return 1;
+    sock.write(QJsonDocument(QJsonObject{{"id", 1}, {"method", "window.show"}, {"params", QJsonObject()}}).toJson(QJsonDocument::Compact) + '\n');
+    if (!sock.waitForReadyRead(3000)) return 1;
+    return QJsonDocument::fromJson(sock.readAll().split('\n').first()).object()["ok"].toBool() ? 0 : 1;
 }

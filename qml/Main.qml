@@ -1,7 +1,9 @@
 import QtQuick
+import Qt.labs.platform as Labs
 
 Window {
     id: win
+    objectName: "nebula-main"   // the window ApiServer shows and raises
     width: 1280
     height: 760
     visible: true
@@ -40,6 +42,30 @@ Window {
     }
 
     Component.onCompleted: if (!settings.onboarded) app.showOverlay("onboarding")
+
+    // Closing the window keeps nebula running in the system tray (agents keep notifying, the window comes back
+    // as it was); without a tray, or with the setting off, closing quits the window as before (shells stay alive).
+    function showWindow() {
+        if (win.visibility === Window.Minimized || !win.visible) win.showNormal()
+        win.raise()
+        win.requestActivate()
+    }
+    onClosing: (close) => {
+        if (settings.closeToTray && tray.available) { close.accepted = false; win.hide() }
+    }
+    Labs.SystemTrayIcon {
+        id: tray
+        visible: settings.closeToTray && available
+        icon.source: "../data/nebula-tray.png"
+        tooltip: "nebula" + (win.countState("blocked") ? "  ·  " + win.countState("blocked") + " waiting for you" : "")
+        onActivated: (reason) => { if (reason !== Labs.SystemTrayIcon.Context) win.visible && win.active ? win.hide() : win.showWindow() }
+        menu: Labs.Menu {
+            Labs.MenuItem { text: "Show nebula"; onTriggered: win.showWindow() }
+            Labs.MenuSeparator {}
+            Labs.MenuItem { text: "Quit (shells keep running)"; onTriggered: Qt.quit() }
+            Labs.MenuItem { text: "Kill all & quit"; onTriggered: app.killSession() }
+        }
+    }
 
     Sidebar {
         id: sidebar

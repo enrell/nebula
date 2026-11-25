@@ -107,10 +107,10 @@ int main(int argc, char *argv[]) {
         QLocalSocket probe;
         probe.connectToServer(Paths::socket());
         if (probe.waitForConnected(200)) {
-            if (!documents.isEmpty()) {
-                probe.disconnectFromServer();
-                return openDocuments(documents);
-            }
+            probe.disconnectFromServer();
+            if (!documents.isEmpty()) return openDocuments(documents);
+            // starting nebula again (the launcher, the dock) brings back the running window, also from the tray
+            if (showRunning() == 0) return 0;
             std::fprintf(stderr, "nebula: already running (%s). Set NEBULA_SOCKET to start a separate instance.\n", qPrintable(Paths::socket()));
             return 1;
         }

@@ -197,6 +197,11 @@ FocusScope {
                     }
                 }
                 SettingRow {
+                    label: "Keep running in the tray"
+                    description: "Closing the window hides nebula in the system tray; its icon brings it back. Off: closing quits the window (shells keep running either way)"
+                    Toggle { checked: settings.closeToTray; onToggled: (v) => settings.closeToTray = v }
+                }
+                SettingRow {
                     label: "Desktop notifications"
                     description: "When an unfocused agent finishes or needs input"
                     Toggle { checked: settings.notifications; onToggled: (v) => settings.notifications = v }

@@ -248,8 +248,8 @@ QJsonObject ApiServer::showView(const QJsonObject &p, ViewPane **out) {
 // Best effort: some compositors (Wayland) only mark the window as wanting attention.
 void ApiServer::raiseWindow() {
     for (QWindow *w : QGuiApplication::topLevelWindows())
-        if (qobject_cast<QQuickWindow *>(w)) {
-            if (w->windowStates() & Qt::WindowMinimized) w->showNormal();
+        if (qobject_cast<QQuickWindow *>(w) && w->objectName() == "nebula-main") {   // not a menu or a helper window
+            if (!w->isVisible() || (w->windowStates() & Qt::WindowMinimized)) w->showNormal();   // hidden in the tray, or minimized
             w->raise();
             w->requestActivate();
             return;
@@ -419,6 +419,7 @@ QJsonValue ApiServer::call(const QString &method, const QJsonObject &p, QLocalSo
         if (!Settings::instance()->set(p["key"].toString(), p["value"].toVariant())) throw ApiError("unknown setting or invalid value");
         return true;
     }
+    if (method == "window.show") { raiseWindow(); return true; }
     if (method == "window.resize") {
         for (QWindow *tw : QGuiApplication::topLevelWindows())
             if (qobject_cast<QQuickWindow *>(tw)) { tw->resize(p["width"].toInt(1280), p["height"].toInt(760)); return true; }

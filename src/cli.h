@@ -15,3 +15,6 @@ int openDocuments(const QStringList &files);
 
 // .neb and Markdown files open as views (rendered); everything else opens in the editor
 bool isDocument(const QString &path);
+
+// Asks the running instance to show its window (hidden in the tray, minimized or behind others). Returns the exit code.
+int showRunning();

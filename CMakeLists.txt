@@ -120,6 +120,8 @@ qt_add_qml_module(nebula
     qml/OnboardingWizard.qml
     qml/ViewContent.qml
     qml/ViewModal.qml
+  RESOURCES
+    data/nebula-tray.png
 )
 
 # Views: the document checker and the page renderer, built from renderer/ (see renderer/package.json).
@@ -210,7 +212,7 @@ set(CPACK_STRIP_FILES ON)
 set(CPACK_DEBIAN_FILE_NAME DEB-DEFAULT)
 set(CPACK_DEBIAN_PACKAGE_SECTION devel)
 set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS ON)
-set(CPACK_DEBIAN_PACKAGE_DEPENDS "qml6-module-qtquick, qml6-module-qtquick-window, qml6-module-qtqml-workerscript, qml6-module-qtwebengine, qml6-module-qtwebchannel, qt6-wayland")
+set(CPACK_DEBIAN_PACKAGE_DEPENDS "qml6-module-qtquick, qml6-module-qtquick-window, qml6-module-qtqml-workerscript, qml6-module-qtwebengine, qml6-module-qtwebchannel, qml6-module-qt-labs-platform, qt6-wayland")
 set(CPACK_DEBIAN_PACKAGE_SUGGESTS "libsecret-tools")
 set(CPACK_RPM_FILE_NAME RPM-DEFAULT)
 set(CPACK_RPM_PACKAGE_LICENSE MIT)

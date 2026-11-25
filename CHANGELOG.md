@@ -2,6 +2,17 @@
 
 All notable changes to nebula are documented here. Release tags match `project(nebula VERSION …)` in `CMakeLists.txt`.
 
+## Unreleased
+
+### Added
+
+- **Explorer**: the project's files as a tree next to the panes (`Ctrl+Shift+F`): open, create, rename, trash; git-ignored files dimmed; follows the disk. A click opens files in the editor (reusing it, as an IDE does), `.neb` and Markdown as views.
+- **System tray**: closing the window keeps nebula in the tray; the icon or starting `nebula` again brings it back (`nebula ctl window.show`). Settings > General > *Keep running in the tray*.
+
+### Fixed
+
+- **The armed Kill all & quit button covered the sidebar footer icons.**
+
 ## 0.4.0 — 2026-11-25
 
 ### Added

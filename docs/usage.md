@@ -43,6 +43,12 @@ All `Ctrl+Shift+…` combos are unused by terminal programs, so nothing is stole
 
 Actions: split-right split-down close-pane zoom-pane focus-left/right/up/down new-tab close-tab next-tab prev-tab goto-tab:N new-space rename-space close-space next-space prev-space goto-space:N next-attention toggle-views toggle-sidebar open-settings launch-agent operator broadcast toggle-help font-larger font-smaller font-reset.
 
+## Explorer
+
+`Ctrl+Shift+F` (or the files button in the sidebar footer) shows the current space's project, its git work tree or its folder, as a tree between the sidebar and the panes; drag its edge to resize it. Folders open and close, files git ignores are dimmed, the file in the focused editor is marked, and the tree follows the disk (files made by agents, builds or the shell show up on their own).
+
+A click opens a file and keeps the keyboard in the tree; `Enter` or a double click opens it and moves into it. `.neb` and Markdown open as views (with an *edit* button), anything else in the editor, reusing the tab's editor when it has no unsaved changes. Arrows move and open folders, `F2` renames, `Delete` moves to the trash (after a confirmation). The header and the right-click menu create files and folders (`src/new.rs` creates the folder too), rename, trash, copy a path or open a terminal in a folder; the eye shows hidden files.
+
 ## Editor
 
 A native editor pane for code and text, drawn like the terminal (no web engine), next to your shells and agents.
@@ -56,6 +62,10 @@ A native editor pane for code and text, drawn like the terminal (no web engine),
 - **Nothing is lost**: unsaved text is kept with the session, so closing the window, a reboot or Kill all & quit bring it back; closing a modified editor (or its tab or space) asks to save, discard or cancel.
 - **`.neb` and Markdown**: the *edit* button of a view opens its file next to it, and the *preview* button of an editor shows the document next to the editor; either way the view follows what you type, before you save.
 - **Automation**: `editor.list`, `editor.get [pane=ID] [text=true]`, `editor.save`, and `pane.send_text` / `pane.send_keys` type into an editor; `pane.close` refuses unsaved changes without `force=true`.
+
+## Tray
+
+Closing the window keeps nebula running in the system tray (the StatusNotifierItem tray of Waybar, Quickshell, KDE, GNOME with the AppIndicator extension, or the Windows notification area): agents keep notifying, and the tray icon, or starting `nebula` again, brings the window back as it was. The tray menu also quits (shells keep running in the host) or kills everything. Settings > General > *Keep running in the tray* turns it off; without a tray, closing quits the window as before.
 
 ## Mouse
 
