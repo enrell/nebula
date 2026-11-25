@@ -166,6 +166,8 @@ class Workspace : public QObject {
     Q_PROPERTY(QObject *modalView READ modalView NOTIFY modalChanged)
     Q_PROPERTY(int modalCount READ modalCount NOTIFY modalChanged)
     Q_PROPERTY(bool modalVisible READ modalVisible NOTIFY modalChanged)
+    // while the settings page records a shortcut, key presses go to it instead of running bindings
+    Q_PROPERTY(bool capturingKeys READ capturingKeys WRITE setCapturingKeys NOTIFY capturingKeysChanged)
 public:
     explicit Workspace(Theme *theme, QObject *parent = nullptr);
     QVariantList spaces() const;
@@ -207,6 +209,17 @@ public:
     Q_INVOKABLE bool runAction(const QString &spec);
     Q_INVOKABLE void setSettingsVisible(bool v) { if (m_settings != v) { m_settings = v; if (!v) emit focusRequested(); emit viewChanged(); } }
     Q_INVOKABLE void reloadBindings();
+    // Editing bindings from the settings page. Changes are written to keys.conf (comments and other lines kept)
+    // as the smallest set of overrides on top of the defaults.
+    Q_INVOKABLE QVariantList keymap() const;                     // [{action, desc, keys[], defaults[], changed, editable}]
+    Q_INVOKABLE QString keysFor(int key, int modifiers) const;   // a key event as "Ctrl+Shift+D", "" for a bare modifier
+    Q_INVOKABLE QVariantMap bindingOwner(const QString &keys) const;   // {action, desc} bound to these keys, or {}
+    Q_INVOKABLE bool addBinding(const QString &action, const QString &keys);
+    Q_INVOKABLE void removeBinding(const QString &action, const QString &keys);
+    Q_INVOKABLE void resetBinding(const QString &action);
+    Q_INVOKABLE void resetAllBindings();
+    bool capturingKeys() const { return m_capturing; }
+    void setCapturingKeys(bool on) { if (on != m_capturing) { m_capturing = on; emit capturingKeysChanged(); } }
     Q_INVOKABLE void openKeysConfig();
     Q_INVOKABLE void hideHelp() { if (m_help) { m_help = false; emit viewChanged(); } }
     void restore();
@@ -231,6 +244,7 @@ signals:
     void renameRequested(int index);
     void focusRequested();
     void modalChanged();
+    void capturingKeysChanged();
 
 private:
     struct Binding {
@@ -249,7 +263,7 @@ private:
     QList<Binding> m_bindings;
     int m_current = 0;
     QVariantList m_agents;
-    bool m_sidebar = true, m_help = false, m_settings = false;
+    bool m_sidebar = true, m_help = false, m_settings = false, m_capturing = false;
     QList<ViewPane *> m_modals;
     bool m_modalHidden = false;
     QString m_overlay;

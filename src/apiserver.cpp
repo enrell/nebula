@@ -384,6 +384,22 @@ QJsonValue ApiServer::call(const QString &method, const QJsonObject &p, QLocalSo
         return QJsonObject{{"version", QCoreApplication::applicationVersion()}, {"socket", path()}, {"spaces", int(spaces.size())},
                            {"panes", panes}, {"current_space", m_ws->currentIndex()}};
     }
+    if (method == "keys.list") return QJsonArray::fromVariantList(m_ws->keymap());
+    if (method == "keys.add" || method == "keys.remove") {
+        const QString action = p["action"].toString(), keys = p["keys"].toString();
+        bool known = false;
+        for (const QVariant &e : m_ws->keymap()) known |= e.toMap()["action"].toString() == action && e.toMap()["editable"].toBool();
+        if (!known) throw ApiError("unknown or not editable action: " + action.toStdString());
+        if (method == "keys.add") {
+            if (!m_ws->addBinding(action, keys)) throw ApiError("invalid keys: " + keys.toStdString());
+        } else m_ws->removeBinding(action, keys);
+        return true;
+    }
+    if (method == "keys.reset") {
+        if (p.contains("action")) m_ws->resetBinding(p["action"].toString());
+        else m_ws->resetAllBindings();
+        return true;
+    }
     if (method == "settings.get") return Settings::instance()->toJson();
     if (method == "settings.set") {
         if (!Settings::instance()->set(p["key"].toString(), p["value"].toVariant())) throw ApiError("unknown setting or invalid value");

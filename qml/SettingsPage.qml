@@ -460,7 +460,7 @@ FocusScope {
                 PageTitle { title: "Keybindings"; subtitle: "All Ctrl+Shift+… combos are unused by terminal programs, so nothing is stolen from your shell or TUIs." }
                 SettingRow {
                     label: "Custom bindings"
-                    description: "Edit keys.conf, then reload. Lines look like: Ctrl+Shift+D = split-right"
+                    description: "Click + and press a shortcut, or hover one to remove it. Changes go to keys.conf (Ctrl+Shift+D = split-right), which you can also edit by hand."
                     Row {
                         spacing: 8
                         Button { label: "Edit keys.conf"; onClicked: app.openKeysConfig() }
@@ -468,17 +468,7 @@ FocusScope {
                     }
                 }
                 Item { width: 1; height: 8 }
-                Repeater {
-                    model: app.bindings
-                    delegate: Item {
-                        required property var modelData
-                        width: pKeys.width
-                        height: root.fs + 18
-                        Text { anchors.verticalCenter: parent.verticalCenter; text: modelData.desc; color: theme.fg; font.family: theme.fontFamily; font.pixelSize: root.fs - 1 }
-                        Kbd { anchors { right: parent.right; verticalCenter: parent.verticalCenter } keys: modelData.keys }
-                        Rectangle { anchors { left: parent.left; right: parent.right; bottom: parent.bottom } height: 1; color: theme.border; opacity: 0.4 }
-                    }
-                }
+                KeybindingsPage { width: pKeys.width; visible: root.page === 5 && app.settingsVisible }
             }
 
             // ═══ Session & About ═══

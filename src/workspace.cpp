@@ -874,32 +874,175 @@ QKeyCombination normalize(QKeyCombination c) {
 }
 } // namespace
 
+namespace {
+// "ctrl+shift+d", "Ctrl+Shift+D" and a recorded key event all become the same text
+QString canonicalKeys(const QString &keys) {
+    const QKeySequence seq = QKeySequence::fromString(keys, QKeySequence::PortableText);
+    if (seq.isEmpty() || seq.count() != 1) return {};
+    return QKeySequence(normalize(seq[0])).toString(QKeySequence::PortableText);
+}
+
+struct ConfLine { QString raw, keys, action; };   // keys empty: a comment, blank or unparsable line, kept as is
+
+QString keysConfPath() { return Paths::configDir() + "/keys.conf"; }
+
+QList<ConfLine> readKeysConf() {
+    QList<ConfLine> out;
+    QFile f(keysConfPath());
+    if (!f.open(QIODevice::ReadOnly)) return out;
+    QByteArray all = f.readAll();
+    if (all.endsWith('\n')) all.chop(1);
+    if (all.isEmpty()) return out;
+    for (const QByteArray &raw : all.split('\n')) {
+        ConfLine l{QString::fromUtf8(raw), {}, {}};
+        const QString line = l.raw.trimmed();
+        const int eq = line.indexOf(" = ");
+        if (!line.isEmpty() && !line.startsWith('#') && eq > 0) {
+            l.keys = canonicalKeys(line.left(eq).trimmed());
+            l.action = line.mid(eq + 3).trimmed();
+        }
+        out << l;
+    }
+    return out;
+}
+
+bool writeKeysConf(const QList<ConfLine> &lines) {
+    QDir().mkpath(Paths::configDir());
+    QFile f(keysConfPath());
+    if (!f.open(QIODevice::WriteOnly | QIODevice::Truncate)) return false;
+    QByteArray out;
+    bool header = false;
+    for (const ConfLine &l : lines) header |= l.raw.startsWith("# nebula key bindings");
+    if (!header) out += "# nebula key bindings: <keys> = <action>   (use 'none' to unbind)\n";
+    for (const ConfLine &l : lines) out += l.raw.toUtf8() + '\n';
+    return f.write(out) == out.size();
+}
+
+// keys -> action after the defaults and then every keys.conf line, in order (a later line wins). Keys are canonical;
+// *display keeps the text each winning entry was written with ("Ctrl+Shift+?" rather than the canonical "Ctrl+?").
+QHash<QString, QString> effectiveBindings(const QList<ConfLine> &lines, QStringList *order = nullptr, QHash<QString, QString> *display = nullptr) {
+    QHash<QString, QString> table;
+    auto put = [&](const QString &keys, const QString &action, const QString &text) {
+        if (keys.isEmpty()) return;
+        if (order && !table.contains(keys)) *order << keys;
+        table[keys] = action;
+        if (display) (*display)[keys] = text;
+    };
+    for (auto &d : kDefaults) put(canonicalKeys(d[0]), d[1], d[0]);
+    for (const ConfLine &l : lines) put(l.keys, l.action, l.raw.trimmed().section(" = ", 0, 0).trimmed());
+    return table;
+}
+
+QStringList defaultKeysOf(const QString &action) {
+    QStringList out;
+    for (auto &d : kDefaults)
+        if (action == d[1]) out << canonicalKeys(d[0]);
+    return out;
+}
+
+QString actionDesc(const QString &action) {
+    for (auto &a : kActions)
+        if (action.section(':', 0, 0) == a.name) return a.desc;
+    return action;
+}
+} // namespace
+
 void Workspace::loadBindings() {
     m_bindings.clear();
-    QHash<QString, QString> table; // keys -> action
     QStringList order;
-    auto put = [&](const QString &keys, const QString &action) {
-        if (!table.contains(keys)) order << keys;
-        table[keys] = action;
-    };
-    for (auto &d : kDefaults) put(d[0], d[1]);
-    QFile f(Paths::configDir() + "/keys.conf");
-    if (f.open(QIODevice::ReadOnly)) {
-        for (const QByteArray &raw : f.readAll().split('\n')) {
-            const QString line = QString::fromUtf8(raw).trimmed();
-            if (line.isEmpty() || line.startsWith('#')) continue;
-            const int eq = line.indexOf(" = ");
-            if (eq < 0) continue;
-            put(line.left(eq).trimmed(), line.mid(eq + 3).trimmed());
-        }
-    }
+    const QList<ConfLine> lines = readKeysConf();
+    for (const ConfLine &l : lines)
+        if (!l.raw.trimmed().isEmpty() && !l.raw.trimmed().startsWith('#') && l.raw.contains(" = ") && l.keys.isEmpty())
+            qWarning("nebula: invalid key binding '%s'", qPrintable(l.raw.trimmed()));
+    QHash<QString, QString> display;
+    const QHash<QString, QString> table = effectiveBindings(lines, &order, &display);
     for (const QString &keys : std::as_const(order)) {
         const QString action = table[keys];
         if (action == "none" || action.isEmpty()) continue;
         const QKeySequence seq = QKeySequence::fromString(keys, QKeySequence::PortableText);
-        if (seq.isEmpty()) { qWarning("nebula: invalid key binding '%s'", qPrintable(keys)); continue; }
-        m_bindings.append({normalize(seq[0]), keys, action});
+        m_bindings.append({normalize(seq[0]), display.value(keys, keys), action});
     }
+}
+
+QVariantList Workspace::keymap() const {
+    QVariantList out;
+    const QList<ConfLine> lines = readKeysConf();
+    for (auto &a : kActions) {
+        const QString name = a.name;
+        const bool numbered = name == "goto-tab" || name == "goto-space";   // nine bindings each: keys.conf only
+        QStringList keys, defaults;
+        for (const Binding &b : m_bindings) {
+            if (numbered ? b.action.startsWith(name + ":") : b.action == name) keys << b.keys;
+        }
+        for (auto &d : kDefaults)
+            if (numbered ? QString(d[1]).startsWith(name + ":") : name == d[1]) defaults << d[0];
+        auto canonical = [](const QStringList &l) { QSet<QString> out; for (const QString &k : l) out.insert(canonicalKeys(k)); return out; };
+        const bool changed = canonical(keys) != canonical(defaults);
+        if (numbered) {
+            auto collapse = [](const QStringList &l) {
+                for (const QString &k : l) if (k.endsWith("+1")) return QStringList{k.chopped(1) + "1-9"};
+                return l.isEmpty() ? QStringList() : QStringList{l.first()};
+            };
+            keys = collapse(keys);
+            defaults = collapse(defaults);
+        }
+        out << QVariantMap{{"action", name}, {"desc", QString(a.desc).replace(" N", numbered ? " 1-9" : " N")}, {"keys", keys},
+                           {"defaults", defaults}, {"changed", changed}, {"editable", !numbered}};
+    }
+    return out;
+}
+
+QString Workspace::keysFor(int key, int modifiers) const {
+    if (key == Qt::Key_Shift || key == Qt::Key_Control || key == Qt::Key_Alt || key == Qt::Key_Meta || key == Qt::Key_AltGr
+        || key == Qt::Key_Super_L || key == Qt::Key_Super_R || key == Qt::Key_unknown || key == 0)
+        return {};
+    const QKeyCombination c = normalize(QKeyCombination(Qt::KeyboardModifiers(modifiers), Qt::Key(key)));
+    return QKeySequence(c).toString(QKeySequence::PortableText);
+}
+
+QVariantMap Workspace::bindingOwner(const QString &keys) const {
+    const QString k = canonicalKeys(keys);
+    for (const Binding &b : m_bindings)
+        if (canonicalKeys(b.keys) == k) return {{"action", b.action}, {"desc", actionDesc(b.action)}};
+    return {};
+}
+
+bool Workspace::addBinding(const QString &action, const QString &keys) {
+    const QString k = canonicalKeys(keys);
+    if (k.isEmpty() || action.isEmpty()) return false;
+    QList<ConfLine> lines = readKeysConf();
+    lines.erase(std::remove_if(lines.begin(), lines.end(), [&](const ConfLine &l) { return l.keys == k; }), lines.end());
+    if (effectiveBindings(lines).value(k) != action) lines << ConfLine{k + " = " + action, k, action};
+    writeKeysConf(lines);
+    reloadBindings();
+    return true;
+}
+
+void Workspace::removeBinding(const QString &action, const QString &keys) {
+    const QString k = canonicalKeys(keys);
+    QList<ConfLine> lines = readKeysConf();
+    lines.erase(std::remove_if(lines.begin(), lines.end(), [&](const ConfLine &l) { return l.keys == k && l.action == action; }), lines.end());
+    if (effectiveBindings(lines).value(k) == action) lines << ConfLine{k + " = none", k, "none"};
+    writeKeysConf(lines);
+    reloadBindings();
+}
+
+void Workspace::resetBinding(const QString &action) {
+    const QStringList defaults = defaultKeysOf(action);
+    QList<ConfLine> lines = readKeysConf();
+    // drop every override that touches this action: its own lines and anything rebinding or unbinding its defaults
+    lines.erase(std::remove_if(lines.begin(), lines.end(), [&](const ConfLine &l) {
+        return !l.keys.isEmpty() && (l.action == action || defaults.contains(l.keys));
+    }), lines.end());
+    writeKeysConf(lines);
+    reloadBindings();
+}
+
+void Workspace::resetAllBindings() {
+    QList<ConfLine> lines = readKeysConf();
+    lines.erase(std::remove_if(lines.begin(), lines.end(), [](const ConfLine &l) { return !l.keys.isEmpty(); }), lines.end());
+    writeKeysConf(lines);
+    reloadBindings();
 }
 
 QVariantList Workspace::bindings() const {
@@ -920,12 +1063,13 @@ QVariantList Workspace::bindings() const {
         if (!grouped.contains(d)) order << d;
         grouped[d] << keys;
     }
-    for (const QString &d : std::as_const(order)) out << QVariantMap{{"desc", d}, {"keys", grouped[d].join("  ")}};
+    for (const QString &d : std::as_const(order)) out << QVariantMap{{"desc", d}, {"keys", grouped[d]}};
     return out;
 }
 
 bool Workspace::eventFilter(QObject *o, QEvent *e) {
     if (e->type() != QEvent::KeyPress || !qobject_cast<QQuickWindow *>(o)) return false;
+    if (m_capturing) return false;   // the settings page is recording a shortcut
     auto *ke = static_cast<QKeyEvent *>(e);
     const QKeyCombination c = normalize(ke->keyCombination());
     if (m_help && c.key() == Qt::Key_Escape) { hideHelp(); return true; }

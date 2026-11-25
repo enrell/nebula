@@ -71,6 +71,27 @@ echo "$W" | grep -q '"/[^"]*/repo-feat-y"' || fail "worktree from a worktree sho
 ctl agent.presets | grep -q claude || fail "presets"
 echo "launcher: ok"
 
+# ---- keybindings edited through the API: keys.conf keeps comments and other lines, holds only overrides
+CONF="$HOME/.config/nebula/keys.conf"
+mkdir -p "$(dirname "$CONF")"; printf '# mine\nAlt+Left = focus-left\n' > "$CONF"
+km() { ctl keys.list | python3 -c "import json,sys;print([e for e in json.load(sys.stdin) if e['action']=='$1'][0]['$2'])"; }
+ctl keys.add action=split-right keys=ctrl+alt+k
+grep -qx 'Ctrl+Alt+K = split-right' "$CONF" || fail "keys.add not written canonically: $(cat "$CONF")"
+[ "$(km split-right changed)" = True ] || fail "changed flag"
+ctl keys.add action=split-right keys=Ctrl+Shift+E                  # taken from split-down
+[ "$(km split-down keys)" = "[]" ] || fail "conflicting key not moved: $(km split-down keys)"
+ctl keys.reset action=split-down                                   # gives it back
+[ "$(km split-down keys)" = "['Ctrl+Shift+E']" ] || fail "reset did not restore the default"
+ctl keys.remove action=split-right keys=Ctrl+Shift+D                # a default: unbound with 'none'
+grep -qx 'Ctrl+Shift+D = none' "$CONF" || fail "removing a default must write none"
+[ "$(km toggle-help keys)" = "['Ctrl+Shift+?']" ] || fail "keys must be shown as written: $(km toggle-help keys)"
+{ ctl keys.add action=nope keys=Ctrl+Alt+J 2>&1 || true; } | grep -q 'unknown or not editable' || fail "unknown action accepted"
+ctl keys.reset
+[ "$(grep -v '^#' "$CONF" | grep -c .)" = 0 ] || fail "reset all left bindings: $(cat "$CONF")"
+grep -qx '# mine' "$CONF" || fail "comment lost"
+[ "$(km split-right keys)" = "['Ctrl+Shift+D']" ] || fail "defaults after reset all"
+echo "keybindings: ok"
+
 # ---- integrations (throw-away HOME)
 mkdir -p "$HOME/.claude" "$HOME/.codex" "$HOME/.gemini" "$HOME/.config/opencode"
 echo '{"theme":"dark","hooks":{"Stop":[{"hooks":[{"type":"command","command":"echo mine"}]}]}}' > "$HOME/.claude/settings.json"
