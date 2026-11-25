@@ -153,3 +153,23 @@ $app = '{1AC14E77-02E7-4E5D-B744-2EB1AE5198B7}\WindowsPowerShell\v1.0\powershell
 }
 
 } // namespace Platform
+
+#ifdef Q_OS_WIN
+QByteArray Platform::readPipedStdin(int) { return {}; }
+#else
+#include <poll.h>
+#include <unistd.h>
+QByteArray Platform::readPipedStdin(int timeoutMs) {
+    if (isatty(STDIN_FILENO)) return {};
+    QByteArray out;
+    char buf[4096];
+    pollfd p{STDIN_FILENO, POLLIN, 0};
+    // payloads are small and written at once; stop at EOF, after 64 KiB, or when nothing comes within the timeout
+    while (out.size() < 65536 && poll(&p, 1, timeoutMs) > 0 && (p.revents & (POLLIN | POLLHUP))) {
+        const ssize_t n = read(STDIN_FILENO, buf, sizeof buf);
+        if (n <= 0) break;
+        out.append(buf, n);
+    }
+    return out;
+}
+#endif

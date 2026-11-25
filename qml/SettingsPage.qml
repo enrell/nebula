@@ -484,8 +484,19 @@ FocusScope {
                         Text { text: "↻"; color: theme.green; font.pixelSize: root.fs * 2 }
                         Sub {
                             width: parent.parent.width - 50
-                            text: "Closing the window keeps everything running. Shells live in a background host and are reattached, with scrollback, next time you open nebula. After a reboot the layout is restored with fresh shells, and agents get their resume command typed at the prompt."
+                            text: "Closing the window keeps everything running. Shells live in a background host and are reattached, with scrollback, next time you open nebula. After a reboot, or Kill all & quit, the layout comes back with fresh shells: each pane starts its program again, and agents reopen the exact conversation they were in."
                         }
+                    }
+                }
+                SettingRow {
+                    label: "Restore programs"
+                    description: "After a reboot or Kill all & quit. Agents and interactive programs (editors, monitors, file managers, REPLs, ssh) can start again by themselves; other commands, like a build, are only typed at the prompt."
+                    Choice {
+                        readonly property var values: ["run", "type", "off"]
+                        width: 220
+                        model: ["start them again", "type at the prompt", "only the shell"]
+                        index: Math.max(0, values.indexOf(settings.restorePrograms))
+                        onPicked: (i) => settings.restorePrograms = values[i]
                     }
                 }
                 Group { title: "Paths" }
@@ -499,8 +510,13 @@ FocusScope {
                 }
                 SettingRow {
                     label: "Kill session"
-                    description: "Terminates every pane and quits"
+                    description: "Terminates every pane and quits. Everything comes back next time you start nebula."
                     Button { label: "Kill all & quit"; danger: true; onClicked: app.killSession() }
+                }
+                SettingRow {
+                    label: "Discard session"
+                    description: "Terminates every pane, forgets the layout and quits. nebula starts empty next time."
+                    Button { label: "Discard & quit"; danger: true; onClicked: app.discardSession() }
                 }
             }
         }

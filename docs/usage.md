@@ -51,9 +51,15 @@ Click a pane to focus; drag dividers (double-click resets to 50%); drag the side
 
 Panes are owned by a small background daemon (`nebula --host`, started automatically), not by the window. Close the window, crash the GUI or `kill -9` it: shells and their jobs keep running. Next launch reattaches every pane, replaying up to 2 MB of output per pane (including alt-screen/mouse modes) so scrollback and TUIs come back as you left them.
 
-The layout (spaces, tabs, splits, ratios, names, focus, zoom) is saved continuously to `session.json` in the state dir. If the host is gone too (reboot), the layout is rebuilt with fresh shells in the same directories; panes that were running an agent get a `[nebula] session restored` note and the resume command (`claude --continue`, `opencode --continue`, `codex resume --last`, ...) typed at the prompt, ready for Enter. Panes that survive in the host but not in the layout show up in a `recovered` space.
+The layout (spaces, tabs, splits, ratios, names, focus, zoom) is saved continuously to `session.json` in the state dir, together with what each pane is running. If the host is gone too (a reboot, or `kill-session`), the layout is rebuilt with fresh shells in the same directories and each pane gets its program back, under a `[nebula] session restored` note:
 
-Closing a pane/tab/space kills its shells. `kill-session` (Settings, or `nebula ctl action.run action=kill-session`) terminates everything and stops the host. Tests: `just e2e-persist`.
+- **Agents** reopen the exact conversation they were in, with the flags they were started with and without their initial prompt: `claude --dangerously-skip-permissions --resume <id>`, `opencode --session <id>`, `codex resume <id>`. The id comes from the agent's hooks (install them in Settings > Integrations; Claude Code's need no reinstall, opencode's and Codex's do) or from its own arguments; without one it falls back to `--continue` / `resume --last`.
+- **Interactive programs** (editors, pagers, `htop`/`btop`, file managers, `lazygit`, database shells, REPLs without a script, `ssh`, `tail -f`) start again by themselves.
+- **Anything else** (a build, a script) is typed at the prompt and waits for Enter. It stays remembered until you do something in that pane, so a second reboot keeps it.
+
+Settings > Session > *Restore programs* changes this: start them again (default), type every command at the prompt, or restore only the shells. Panes that survive in the host but not in the layout show up in a `recovered` space.
+
+Closing a pane/tab/space kills its shells. `kill-session` (the power button, Settings, or `nebula ctl action.run action=kill-session`) terminates everything and quits, keeping the session for the next start; `discard-session` also forgets it, so nebula starts empty. Tests: `just e2e-persist`.
 
 ## Settings
 

@@ -77,7 +77,8 @@ private:
     };
     struct RestoreTag {};
     explicit Tab(RestoreTag, QObject *parent) : QObject(parent) {}
-    TerminalSession *makeSession(const QString &cwd, int id = 0, bool attach = false, const QString &prefill = QString(), const QString &profile = QString());
+    TerminalSession *makeSession(const QString &cwd, int id = 0, bool attach = false, const QString &prefill = QString(), const QString &profile = QString(),
+                                 bool autorun = false);
     void adoptView(ViewPane *v);
     ViewPane *removePane(int id, bool destroy);
     Node *find(Node *n, int pane) const;
@@ -223,7 +224,10 @@ public:
     Q_INVOKABLE void openKeysConfig();
     Q_INVOKABLE void hideHelp() { if (m_help) { m_help = false; emit viewChanged(); } }
     void restore();
+    // Terminates every pane and quits. The layout, each pane's program and each agent's conversation are kept and
+    // come back on the next start; discardSession forgets them instead.
     Q_INVOKABLE void killSession();
+    Q_INVOKABLE void discardSession();
     void saveNow();
 
     // locate a pane by its global id; returns null if it does not exist
@@ -263,6 +267,7 @@ private:
     QList<Binding> m_bindings;
     int m_current = 0;
     QVariantList m_agents;
+    bool m_quitting = false;   // after killSession: panes closing on the way out must not be saved
     bool m_sidebar = true, m_help = false, m_settings = false, m_capturing = false;
     QList<ViewPane *> m_modals;
     bool m_modalHidden = false;

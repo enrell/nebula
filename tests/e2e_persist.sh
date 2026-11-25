@@ -45,3 +45,82 @@ start_gui
 [ "$(ids)" = "$P $N" ] || fail "layout not resurrected: '$(ids)'"
 pgrep -f "sleep 9$TAG" >/dev/null && fail "old job should be gone after host death"
 echo "resurrect: ok"
+
+# ---- Kill all & quit, and a reboot (host and GUI gone): each pane starts its program again, an agent reopens the
+# exact conversation its hook reported, with its own flags and without its old prompt; other commands are typed.
+ctl action.run action=discard-session >/dev/null 2>&1 || true
+for _ in $(seq 50); do kill -0 $GUI 2>/dev/null || break; sleep 0.1; done
+kill_host; rm -f "$NEBULA_SOCKET"
+FAKE=$(mktemp -d)
+mkdir -p "$FAKE/home/.config/nebula"; echo '{"onboarded":true}' > "$FAKE/home/.config/nebula/settings.json"
+export HOME="$FAKE/home"   # settings.set below must never touch the real settings
+export PATH="$FAKE:$PATH" FAKE_AGENT_LOG="$FAKE/agent.log"
+# a stand-in for Claude Code: logs how it was started and, like its Stop hook, hands nebula its session id on stdin
+cat > "$FAKE/claude" <<'PY'
+#!/usr/bin/env python3
+import json, os, subprocess, sys, time
+open(os.environ["FAKE_AGENT_LOG"], "a").write(json.dumps(sys.argv[1:]) + "\n")
+if "--resume" not in sys.argv:
+    subprocess.run([os.environ["NEBULA_BIN"], "ctl", "pane.report_state", "state=idle"],
+                   input=json.dumps({"session_id": "sess-" + os.environ["NEBULA_PANE"], "hook_event_name": "Stop"}).encode())
+print("fake claude ready", flush=True)
+time.sleep(100000)
+PY
+chmod +x "$FAKE/claude"
+printf 'notes-%s\n' "$TAG" > "$FAKE/notes.txt"
+start_gui
+[ "$(ids | wc -w)" = 1 ] || fail "discard-session should start empty: '$(ids)'"
+A=$(ids)
+ctl pane.send_text pane="$A" text="claude --dangerously-skip-permissions 'fix the bug'" enter=true
+B=$(ctl pane.split pane="$A" direction=right | python3 -c 'import json,sys;print(json.load(sys.stdin)["pane"])')
+ctl pane.send_text pane="$B" text="less $FAKE/notes.txt" enter=true
+C=$(ctl pane.split pane="$B" direction=down | python3 -c 'import json,sys;print(json.load(sys.stdin)["pane"])')
+ctl pane.send_text pane="$C" text="sleep 7$TAG" enter=true
+wait_read "$A" "fake claude ready" || fail "fake agent did not start: $(ctl pane.read pane="$A")"
+wait_read "$B" "notes-$TAG" || fail "less did not start"
+sleep 2                         # the host reports the foreground programs; the layout save is debounced
+python3 - "$NEBULA_STATE_DIR/session.json" "$A" "$B" "$C" "$FAKE" "$TAG" <<'PY' || fail "saved session: $(cat "$NEBULA_STATE_DIR/session.json")"
+import json, sys
+path, a, b, c, fake, tag = sys.argv[1:]
+panes = json.load(open(path))["spaces"][0]["tabs"][0]["panes"]
+assert panes[a]["cmd"] == f"claude --dangerously-skip-permissions --resume sess-{a}" and panes[a]["run"] is True, panes[a]
+assert panes[b]["cmd"] == f"less {fake}/notes.txt" and panes[b]["run"] is True, panes[b]
+assert panes[c]["cmd"] == f"sleep 7{tag}" and panes[c]["run"] is False, panes[c]
+PY
+
+check_restored() {   # $1: what happened
+  wait_read "$A" "fake claude ready" || fail "$1: agent not started again"
+  [ "$(tail -1 "$FAKE_AGENT_LOG")" = "[\"--dangerously-skip-permissions\", \"--resume\", \"sess-$A\"]" ] || fail "$1: agent started as $(tail -1 "$FAKE_AGENT_LOG")"
+  wait_read "$B" "notes-$TAG" || fail "$1: less not started again"
+  wait_read "$C" "sleep 7$TAG" || fail "$1: command not typed"
+  sleep 0.5; pgrep -f "^sleep 7$TAG" >/dev/null && fail "$1: a command that is not interactive must only be typed"
+  [ "$(ids)" = "$A $B $C" ] || fail "$1: panes '$(ids)'"
+}
+ctl action.run action=kill-session >/dev/null 2>&1 || true
+for _ in $(seq 50); do kill -0 $GUI 2>/dev/null || break; sleep 0.1; done
+pgrep -f "notes.txt" >/dev/null && fail "kill-session left programs running"
+rm -f "$NEBULA_SOCKET"; start_gui
+check_restored "after Kill all & quit"
+echo "kill-session restores: ok"
+
+sleep 1.5; kill -9 $GUI; wait $GUI 2>/dev/null || true; kill_host; sleep 0.5; pkill -f "$FAKE/" || true; rm -f "$NEBULA_SOCKET"
+start_gui
+check_restored "after a reboot"
+echo "reboot restores: ok"
+
+ctl settings.set key=restorePrograms value=type >/dev/null
+N=$(wc -l < "$FAKE_AGENT_LOG")
+ctl action.run action=kill-session >/dev/null 2>&1 || true
+for _ in $(seq 50); do kill -0 $GUI 2>/dev/null || break; sleep 0.1; done
+rm -f "$NEBULA_SOCKET"; start_gui
+wait_read "$A" "resume sess-$A" || fail "restorePrograms=type: command not typed: $(ctl pane.read pane="$A")"
+sleep 1; [ "$(wc -l < "$FAKE_AGENT_LOG")" = "$N" ] || fail "restorePrograms=type must not start the agent"
+ctl settings.set key=restorePrograms value=run >/dev/null
+echo "restore setting: ok"
+
+ctl action.run action=discard-session >/dev/null 2>&1 || true
+for _ in $(seq 50); do kill -0 $GUI 2>/dev/null || break; sleep 0.1; done
+rm -f "$NEBULA_SOCKET"; start_gui
+[ "$(ids | wc -w)" = 1 ] || fail "discard-session: '$(ids)'"
+echo "discard-session: ok"
+pkill -f "$FAKE/" || true; rm -rf "$FAKE"

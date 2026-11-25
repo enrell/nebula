@@ -70,6 +70,7 @@ qt_add_qml_module(nebula
     src/terminalview.h src/terminalview.cpp
     src/workspace.h src/workspace.cpp
     src/agentdetect.h src/agentdetect.cpp
+    src/restore.h src/restore.cpp
     src/apiserver.h src/apiserver.cpp
     src/cli.h src/cli.cpp
     src/paths.h
@@ -149,6 +150,11 @@ add_executable(test_agentdetect tests/test_agentdetect.cpp src/agentdetect.cpp)
 target_include_directories(test_agentdetect PRIVATE src)
 target_link_libraries(test_agentdetect PRIVATE Qt6::Core)
 add_test(NAME agentdetect COMMAND test_agentdetect)
+
+add_executable(test_restore tests/test_restore.cpp src/restore.cpp)
+target_include_directories(test_restore PRIVATE src)
+target_link_libraries(test_restore PRIVATE Qt6::Core)
+add_test(NAME restore COMMAND test_restore)
 
 # the view checker inside V4 with the real file sandbox, over the same cases as `npm test` in renderer/
 add_executable(test_views tests/test_views.cpp src/views/viewengine.cpp src/views/viewfiles.cpp)

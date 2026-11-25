@@ -1,4 +1,5 @@
 #include "terminalsession.h"
+#include "restore.h"
 #include "agentdetect.h"
 #include "paneids.h"
 #include "paths.h"
@@ -16,8 +17,8 @@
 #include <cerrno>
 #include <cstring>
 
-TerminalSession::TerminalSession(const QString &cwd, QObject *parent, int fixedId, bool attach, const QString &prefill, const QString &profile)
-    : QObject(parent), m_id(fixedId > 0 ? fixedId : PaneIds::next()), m_cwd(cwd), m_prefill(prefill), m_profile(profile) {
+TerminalSession::TerminalSession(const QString &cwd, QObject *parent, int fixedId, bool attach, const QString &prefill, const QString &profile, bool autorun)
+    : QObject(parent), m_id(fixedId > 0 ? fixedId : PaneIds::next()), m_cwd(cwd), m_prefill(prefill), m_profile(profile), m_autorun(autorun) {
     PaneIds::reserve(m_id);
     m_vt = vterm_new(m_rows, m_cols);
     vterm_set_utf8(m_vt, 1);
@@ -65,10 +66,17 @@ void TerminalSession::start(const QString &cwd, bool attach) {
         if (Settings::instance()) shell = Settings::instance()->shell();
         host->spawn(m_id, cwd, shell, m_rows, m_cols, Profiles::instance() ? Profiles::instance()->envFor(m_profile) : QStringList());
         host->attach(m_id);
-        if (!m_prefill.isEmpty()) {
-            const QByteArray note = "\x1b[2m[nebula] session restored - press Enter to resume:\x1b[0m\r\n";
+        const QString mode = Settings::instance() ? Settings::instance()->restorePrograms() : QString("run");
+        if (!m_prefill.isEmpty() && mode != "off") {
+            const bool run = m_autorun && mode == "run";
+            const QByteArray note = run ? "\x1b[2m[nebula] session restored, starting it again:\x1b[0m\r\n"
+                                        : "\x1b[2m[nebula] session restored - press Enter to resume:\x1b[0m\r\n";
             vterm_input_write(m_vt, note.constData(), size_t(note.size()));
-            QTimer::singleShot(350, this, [this] { if (m_alive) sendText(m_prefill); });
+            QTimer::singleShot(350, this, [this, run] {
+                if (!m_alive) return;
+                sendText(run ? m_prefill + "\r" : m_prefill);
+                if (!run) m_pendingRestore = m_prefill;   // remembered until the user acts here (another reboot keeps it)
+            });
         }
     }
 }
@@ -262,6 +270,7 @@ QString TerminalSession::readText(int lines, bool scrollback) const {
 }
 
 void TerminalSession::injectKey(int key, int qtMods, const QString &text) {
+    m_pendingRestore.clear();
     QKeyEvent e(QEvent::KeyPress, key, Qt::KeyboardModifiers(qtMods), text);
     keyPress(&e);
 }
@@ -340,6 +349,7 @@ static VTermModifier vmods(int qtMods) {
 }
 
 void TerminalSession::keyPress(QKeyEvent *e) {
+    m_pendingRestore.clear();
     const int key = e->key();
     const Qt::KeyboardModifiers qm = e->modifiers();
     VTermModifier mod = vmods(int(qm));
@@ -381,10 +391,12 @@ void TerminalSession::keyPress(QKeyEvent *e) {
 }
 
 void TerminalSession::sendText(const QString &text) {
+    m_pendingRestore.clear();
     for (char32_t c : text.toUcs4()) vterm_keyboard_unichar(m_vt, c, VTERM_MOD_NONE);
 }
 
 void TerminalSession::paste(const QString &text) {
+    m_pendingRestore.clear();
     if (text.isEmpty()) return;
     vterm_keyboard_start_paste(m_vt);
     const QByteArray b = QString(text).replace("\r\n", "\n").replace('\n', '\r').toUtf8();
@@ -440,10 +452,22 @@ void TerminalSession::poll() {
 }
 
 QString TerminalSession::resumeCommand() const {
-    static const QHash<QString, QString> resume = {
-        {"claude", "claude --continue"}, {"opencode", "opencode --continue"}, {"codex", "codex resume --last"},
-        {"aider", "aider --restore-chat-history"}};
-    return m_agent.isEmpty() ? QString() : resume.value(m_agent, m_agent);
+    if (m_fgArgs.isEmpty() && m_agent.isEmpty() && !m_pendingRestore.isEmpty()) return m_pendingRestore;
+    const QStringList args = m_fgArgs.isEmpty() && !m_agent.isEmpty() ? QStringList{m_agent} : m_fgArgs;
+    if (Platform::paneShellKind() == Platform::ShellKind::Posix) return Restore::plan(m_agent, args, m_agentSession).command;
+    return Restore::plan(m_agent, args, m_agentSession, [](const QString &a) { return Platform::quote(a); }).command;
+}
+
+bool TerminalSession::resumeAutorun() const {
+    if (m_fgArgs.isEmpty() && m_agent.isEmpty() && !m_pendingRestore.isEmpty()) return false;
+    const QStringList args = m_fgArgs.isEmpty() && !m_agent.isEmpty() ? QStringList{m_agent} : m_fgArgs;
+    return Restore::plan(m_agent, args, m_agentSession).autorun;
+}
+
+void TerminalSession::setAgentSession(const QString &id) {
+    if (id.isEmpty() || id == m_agentSession) return;
+    m_agentSession = id;
+    emit metaChanged();   // saved with the layout
 }
 
 void TerminalSession::hostInfo(qint64 pid, qint64 fg) {
@@ -459,15 +483,22 @@ void TerminalSession::hostInfo(qint64 pid, qint64 fg) {
     if (branch != m_branch) { m_branch = branch; changed = true; }
 
     QString proc, agent;
+    QStringList fgArgs;
     if (fg > 0) {
         const QStringList args = ProcInfo::arguments(fg);
+        if (fg != m_pid) fgArgs = args;   // the shell itself at its prompt is not a program to restore
         const QString comm = ProcInfo::name(fg);
         proc = comm.isEmpty() ? (args.isEmpty() ? QString() : QFileInfo(args[0]).fileName()) : comm;
         agent = AgentDetect::identify(args, comm);
     }
     if (proc != m_proc) { m_proc = proc; changed = true; }
+    if (fgArgs != m_fgArgs) { m_fgArgs = fgArgs; changed = true; }
     if (agent != m_agent) {
         m_agent = agent;
+        // its hook may report the session before this poll notices the agent: keep that, unless the agent left
+        // or its arguments name the session
+        const QString fromArgs = Restore::sessionFromArgs(agent, fgArgs);
+        if (agent.isEmpty() || !fromArgs.isEmpty()) m_agentSession = fromArgs;
         m_sawWorking = false;
         m_notWorkingPolls = 0;
         m_reported.clear();

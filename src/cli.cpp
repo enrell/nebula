@@ -1,5 +1,7 @@
 #include "cli.h"
 #include "paths.h"
+#include "platform.h"
+#include "restore.h"
 #include <QCoreApplication>
 #include <QDir>
 #include <QFileInfo>
@@ -69,6 +71,7 @@ int runCtl(const QStringList &args) {
         QStringList rest;
         for (int i = 1; i < args.size(); ++i)
             if (i == 1 || args[i].startsWith("state=") || args[i].startsWith("ttl=") || args[i].startsWith("pane=")) rest << args[i];
+            else if (args[i].startsWith('{')) rest << "payload=" + args[i];
         runCtl(rest);
         return 0;
     }
@@ -81,6 +84,17 @@ int runCtl(const QStringList &args) {
         const int eq = args[i].indexOf('=');
         if (eq <= 0) { std::fprintf(stderr, "nebula: expected key=value, got '%s'\n", qPrintable(args[i])); return 2; }
         params[args[i].left(eq)] = parseValue(args[i].mid(eq + 1));
+    }
+    // agent hooks run `ctl pane.report_state` with the agent's JSON payload on stdin (Claude Code) or as an argument
+    // (Codex notify): its conversation id is what restores the pane into the same conversation after a reboot
+    if (method == "pane.report_state" && !params.contains("session")) {
+        QString sid;
+        if (params.contains("payload")) {
+            const QJsonValue pl = params.take("payload");
+            sid = Restore::sessionFromPayload(pl.isObject() ? QJsonDocument(pl.toObject()).toJson() : pl.toString().toUtf8());
+        }
+        if (sid.isEmpty()) sid = Restore::sessionFromPayload(Platform::readPipedStdin(150));
+        if (!sid.isEmpty()) params["session"] = sid;
     }
     if (!params.contains("pane") && (method == "pane.report_state" || method == "view.show")) {
         bool ok = false;

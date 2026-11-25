@@ -1,4 +1,5 @@
 #pragma once
+#include <QByteArray>
 #include <QString>
 #include <QStringList>
 
@@ -34,6 +35,10 @@ QString quote(const QString &arg, ShellKind kind);
 // A bare program name resolved to its file, so QProcess can start things the system finds by other rules (on
 // Windows: claude -> C:/.../claude.cmd). Names with a path, and names that are not found, come back unchanged.
 QString program(const QString &name);
+
+// What a hook handed this process on stdin (an agent's JSON payload), read for at most `timeoutMs`. Empty when stdin
+// is a terminal or nothing arrives. Windows: always empty (its hooks pass nothing on stdin that nebula uses).
+QByteArray readPipedStdin(int timeoutMs);
 
 // A desktop notification (notify-send, a toast on Windows)
 void notify(const QString &title, const QString &body);
