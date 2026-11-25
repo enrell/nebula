@@ -34,6 +34,7 @@ private:
     TerminalSession *pane(const QJsonObject &p) const;
     QJsonObject paneInfo(TerminalSession *s) const;
     QJsonObject showView(const QJsonObject &p, ViewPane **out);
+    static void raiseWindow();
     bool waitForRender(ViewPane *v, const QJsonObject &req, QLocalSocket *sock, const QJsonObject &report);
     void startViewTask(const QJsonObject &req, QLocalSocket *sock);   // view.export, view.snapshot
     void broadcast(const QJsonObject &ev);

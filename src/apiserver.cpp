@@ -126,6 +126,7 @@ QJsonObject ApiServer::handle(const QJsonObject &req, QLocalSocket *sock) {
         if (m == "view.show") {
             ViewPane *v = nullptr;
             const QJsonObject r = showView(req["params"].toObject(), &v);
+            if (req["params"]["raise"].toBool()) raiseWindow();   // opened from a file manager: bring nebula forward
             if (v && waitForRender(v, req, sock, r)) return {{"__deferred", true}};
             resp["result"] = r;
         } else if (m == "view.export" || m == "view.snapshot") {
@@ -240,6 +241,17 @@ QJsonObject ApiServer::showView(const QJsonObject &p, ViewPane **out) {
     else if (!m_ws->placeView(v, anchor, where)) { delete v; throw ApiError("cannot place the view"); }
     *out = v;
     return r;
+}
+
+// Best effort: some compositors (Wayland) only mark the window as wanting attention.
+void ApiServer::raiseWindow() {
+    for (QWindow *w : QGuiApplication::topLevelWindows())
+        if (qobject_cast<QQuickWindow *>(w)) {
+            if (w->windowStates() & Qt::WindowMinimized) w->showNormal();
+            w->raise();
+            w->requestActivate();
+            return;
+        }
 }
 
 // A view that is on screen reports back after drawing; include that in the reply (page-side issues such as an

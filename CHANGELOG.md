@@ -2,6 +2,12 @@
 
 All notable changes to nebula are documented here. Release tags match `project(nebula VERSION …)` in `CMakeLists.txt`.
 
+## Unreleased
+
+### Added
+
+- **`.neb` documents**: `nebula FILE.neb` (also `.md`) opens a view document in the running instance, or starts nebula with it. Linux packages and `install.sh` register the `application/x-nebula-document` type and a `MimeType` / `%F` desktop entry; `install.ps1` associates `.neb` on Windows.
+
 ## 0.3.0 — 2026-10-14
 
 ### Added

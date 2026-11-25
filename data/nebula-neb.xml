@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mime-info xmlns="http://www.freedesktop.org/standards/shared-mime-info">
+  <mime-type type="application/x-nebula-document">
+    <comment>nebula document</comment>
+    <comment xml:lang="pt_BR">documento do nebula</comment>
+    <sub-class-of type="text/markdown"/>
+    <icon name="nebula"/>
+    <glob pattern="*.neb"/>
+  </mime-type>
+</mime-info>

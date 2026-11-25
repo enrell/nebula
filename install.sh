@@ -15,12 +15,14 @@ DIR=$PREFIX/lib/nebula
 BIN=$PREFIX/bin/nebula
 DESKTOP=$PREFIX/share/applications/nebula.desktop
 ICON=$PREFIX/share/icons/hicolor/scalable/apps/nebula.svg
+MIME=$PREFIX/share/mime/packages/nebula-neb.xml
 
 say() { printf '\033[1mnebula:\033[0m %s\n' "$*"; }
 die() { printf '\033[1;31mnebula:\033[0m %s\n' "$*" >&2; exit 1; }
 
 if [ "${1:-}" = "--uninstall" ]; then
-  rm -rf "$DIR"; rm -f "$BIN" "$DESKTOP" "$ICON"
+  rm -rf "$DIR"; rm -f "$BIN" "$DESKTOP" "$ICON" "$MIME"
+  command -v update-mime-database >/dev/null 2>&1 && update-mime-database "$PREFIX/share/mime" >/dev/null 2>&1 || true
   say "removed (your settings in ~/.config/nebula are untouched)"
   exit 0
 fi
@@ -53,23 +55,29 @@ grep " $file\$" SHA256SUMS | sha256sum -c - >/dev/null 2>&1 || die "checksum mis
 say "checksum ok"
 tar -xzf "$file"
 
-mkdir -p "$PREFIX/lib" "$PREFIX/bin" "$PREFIX/share/applications" "$(dirname "$ICON")"
+mkdir -p "$PREFIX/lib" "$PREFIX/bin" "$PREFIX/share/applications" "$(dirname "$ICON")" "$(dirname "$MIME")"
 rm -rf "$DIR"
 mv nebula "$DIR"
 rm -f "$BIN"                                    # may be an older AppImage install
 ln -s "$DIR/bin/nebula" "$BIN"
 cp "$DIR/share/icons/hicolor/scalable/apps/nebula.svg" "$ICON"
+cp "$DIR/share/mime/packages/nebula-neb.xml" "$MIME"
 cat > "$DESKTOP" <<DESK
 [Desktop Entry]
 Type=Application
 Name=Nebula
 Comment=Native workspace manager for terminal AI agents
-Exec=$BIN
+Exec=$BIN %F
 Icon=nebula
 Terminal=false
+MimeType=application/x-nebula-document;
 Categories=Development;System;TerminalEmulator;
 StartupWMClass=nebula
 DESK
+
+# the .neb type (file managers, `gio open file.neb`) needs the mime database refreshed; harmless when the tool is missing
+command -v update-mime-database >/dev/null 2>&1 && update-mime-database "$PREFIX/share/mime" >/dev/null 2>&1 || true
+command -v update-desktop-database >/dev/null 2>&1 && update-desktop-database "$PREFIX/share/applications" >/dev/null 2>&1 || true
 
 say "installed $(cat "$DIR/VERSION" 2>/dev/null) to $DIR"
 case ":$PATH:" in *":$PREFIX/bin:"*) ;; *) say "add $PREFIX/bin to your PATH to run 'nebula' from a shell" ;; esac

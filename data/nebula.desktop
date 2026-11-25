@@ -2,8 +2,9 @@
 Type=Application
 Name=Nebula
 Comment=Native workspace manager for terminal AI agents
-Exec=nebula
+Exec=nebula %F
 Icon=nebula
 Terminal=false
+MimeType=application/x-nebula-document;
 Categories=Development;System;TerminalEmulator;
 StartupWMClass=nebula

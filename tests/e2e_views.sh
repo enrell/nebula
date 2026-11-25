@@ -14,7 +14,7 @@ WORK=$(mktemp -d) GUI= LOG=$WORK/gui.log
 ctl() { "$BIN" ctl "$@"; }
 fail() { echo "FAIL: $*" >&2; tail -20 "$LOG" >&2; exit 1; }
 json() { python3 -c "import json,sys; d=json.load(sys.stdin); print($1)"; }
-start_gui() { "$BIN" >>"$LOG" 2>&1 & GUI=$!; for _ in $(seq 80); do ctl ping >/dev/null 2>&1 && return; sleep 0.1; done; fail "gui did not start"; }
+start_gui() { "$BIN" "$@" >>"$LOG" 2>&1 & GUI=$!; for _ in $(seq 80); do ctl ping >/dev/null 2>&1 && return; sleep 0.1; done; fail "gui did not start"; }
 kill_host() { for pid in $(pgrep -f "$BIN --host" 2>/dev/null); do tr '\0' '\n' < "/proc/$pid/environ" 2>/dev/null | grep -qx "NEBULA_SOCKET=$NEBULA_SOCKET" && kill "$pid" 2>/dev/null || true; done; }
 cleanup() { ctl action.run action=kill-session >/dev/null 2>&1 || true; kill $GUI 2>/dev/null || true; kill_host; rm -rf "$NEBULA_STATE_DIR" "$WORK" "$NEBULA_SOCKET" "$NEBULA_SOCKET.host"; }
 trap cleanup EXIT
@@ -98,6 +98,21 @@ for _ in $(seq 30); do [ "$(ctl view.get view="$V" | json 'len(d["errors"])')" =
 [ "$(ctl view.get view="$V" | json 'd["errors"][0]["line"]')" = 2 ] || fail "watched file not re-checked: $(ctl view.get view="$V")"
 echo "live reload: ok"
 
+# .neb documents: `nebula FILE` hands the file to the running instance, which opens it like view.show file=
+printf -- '---\ntitle: Notes\n---\n```nebula:stats\n- {label: A, value: 1}\n```\n' > notes.neb
+N0=$(ctl view.list | json 'len(d)')
+"$BIN" notes.neb || fail "nebula notes.neb with an instance running"
+[ "$(ctl view.list | json 'len(d)')" = $((N0 + 1)) ] || fail "the document was not opened: $(ctl view.list)"
+ctl view.list | json '[v for v in d if v["title"] == "Notes"][0]["source"]' | grep -q 'notes.neb$' || fail "wrong source: $(ctl view.list)"
+ctl view.close view="$(ctl view.list | json '[v for v in d if v["title"] == "Notes"][0]["view"]')" >/dev/null
+touch plain.rs
+! "$BIN" plain.rs 2>"$WORK/err" || fail "a .rs file should not open"
+grep -q 'only .neb and .md' "$WORK/err" || fail "no explanation for a .rs file: $(cat "$WORK/err")"
+! "$BIN" missing.neb 2>"$WORK/err" || fail "a missing file should fail"
+grep -q 'no such file' "$WORK/err" || fail "no explanation for a missing file: $(cat "$WORK/err")"
+[ "$(ctl view.list | json 'len(d)')" = "$N0" ] || fail "a failed open left a view behind"
+echo "neb documents: ok"
+
 # research record: a data file the page never loads (a bibliography) is watched too; export and snapshot
 cat > paper.md <<'MD'
 ---
@@ -165,5 +180,13 @@ ctl view.close view="$E" >/dev/null
 [ "$(ctl view.list | json 'len(d)')" = 1 ] || fail "view.close"
 ls "$NEBULA_STATE_DIR/views" | grep -q "^$E\." && fail "inline content of a closed view left behind"
 echo "close: ok"
+
+# no instance running: `nebula FILE` starts one and opens the document
+ctl action.run action=kill-session >/dev/null 2>&1 || true
+kill $GUI 2>/dev/null || true; wait $GUI 2>/dev/null || true; kill_host; rm -f "$NEBULA_SOCKET" "$NEBULA_SOCKET.host"
+start_gui notes.neb
+ctl view.list | json '"Notes" in [v["title"] for v in d]' | grep -qx True || fail "cold start did not open the document: $(ctl view.list)"
+echo "neb cold start: ok"
+
 if grep -E "TypeError|ReferenceError|is not defined|qt\.qml\.|view [0-9]+:" "$LOG"; then fail "warnings in the GUI log"; fi
 echo "views e2e: ok"

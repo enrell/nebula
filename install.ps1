@@ -28,6 +28,7 @@ $ErrorActionPreference = "Stop"
 $ProgressPreference = "SilentlyContinue"   # Invoke-WebRequest is far slower with its progress bar
 $repo = "enrell/nebula"
 $startMenu = Join-Path $env:APPDATA "Microsoft\Windows\Start Menu\Programs\nebula.lnk"
+$nebKeys = @("HKCU:\Software\Classes\.neb", "HKCU:\Software\Classes\nebula.document")   # the .neb file type, per user
 
 function Say($m) { Write-Host "nebula: $m" -ForegroundColor Cyan }
 
@@ -51,6 +52,7 @@ if ($Uninstall) {
   Stop-Nebula
   if (Test-Path $Dir) { Remove-Item -Recurse -Force $Dir }
   if (Test-Path $startMenu) { Remove-Item -Force $startMenu }
+  $nebKeys | Where-Object { Test-Path $_ } | ForEach-Object { Remove-Item -Recurse -Force $_ }
   Remove-FromPath $Dir
   Say "removed (your settings in $env:APPDATA\nebula are untouched)"
   return
@@ -97,6 +99,14 @@ try {
   $link.WorkingDirectory = $env:USERPROFILE
   $link.Description = "Workspace for terminal AI agents"
   $link.Save()
+
+  # double-clicking a .neb file opens it in nebula (per user, no administrator needed)
+  $exe = Join-Path $Dir "nebula.exe"
+  New-Item -Force "HKCU:\Software\Classes\.neb" | Out-Null
+  Set-ItemProperty "HKCU:\Software\Classes\.neb" -Name "(default)" -Value "nebula.document"
+  New-Item -Force "HKCU:\Software\Classes\nebula.document\shell\open\command" | Out-Null
+  Set-ItemProperty "HKCU:\Software\Classes\nebula.document" -Name "(default)" -Value "nebula document"
+  Set-ItemProperty "HKCU:\Software\Classes\nebula.document\shell\open\command" -Name "(default)" -Value "`"$exe`" `"%1`""
 
   $ver = if (Test-Path (Join-Path $Dir "VERSION")) { (Get-Content (Join-Path $Dir "VERSION")).Trim() } else { $Version }
   Say "installed nebula $ver in $Dir"
