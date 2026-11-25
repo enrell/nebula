@@ -66,6 +66,7 @@ bool Settings::set(const QString &key, const QVariant &value) {
     if (!v.canConvert(p.metaType()) || !v.convert(p.metaType())) return false;
     if (key == "scrollback") v = qBound(0, v.toInt(), 1000000);
     if (key == "sidebarWidth") v = qBound(140, v.toInt(), 600);
+    if (key == "explorerWidth") v = qBound(160, v.toInt(), 800);
     if (key == "viewPlacement" && !viewPlacements().contains(v.toString())) return false;
     if (key == "restorePrograms" && !restoreModes().contains(v.toString())) return false;
     return p.write(this, v);
@@ -81,6 +82,9 @@ void Settings::resetAll() {
     m_notifications = true;
     m_urlClick = true;
     m_sidebarWidth = 236;
+    m_explorerVisible = true;
+    m_explorerHidden = false;
+    m_explorerWidth = 260;
     m_aiProfile.clear();
     m_aiModel.clear();
     m_aiSummaries = false;

@@ -217,6 +217,11 @@ Rectangle {
                 hoverColor: theme.red
                 onClicked: killArm.running ? killArm.stop() : killArm.start()
             }
+            IconButton {
+                icon: "files"; size: 16
+                color: settings.explorerVisible ? theme.accent : theme.muted
+                onClicked: app.runAction("toggle-explorer")
+            }
             IconButton { icon: "keys"; size: 16; onClicked: app.runAction("toggle-help") }
             IconButton {
                 icon: "gear"; size: 16

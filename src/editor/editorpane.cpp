@@ -64,7 +64,10 @@ bool EditorPane::open(const QString &path, QString *error) {
     m_statesValid = 0;
     detectIndent();
     m_cursor = m_anchor = {};
+    scrollLine = scrollColumn = 0;
     m_wasDirty = false;
+    m_changedOnDisk = false;
+    setMessage({});
     watch();
     emit changed();
     emit cursorChanged();

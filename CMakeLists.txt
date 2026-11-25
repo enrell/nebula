@@ -71,6 +71,7 @@ qt_add_qml_module(nebula
     src/workspace.h src/workspace.cpp
     src/agentdetect.h src/agentdetect.cpp
     src/restore.h src/restore.cpp
+    src/filetree.h src/filetree.cpp
     src/editor/textbuffer.h src/editor/textbuffer.cpp src/editor/highlighter.h src/editor/highlighter.cpp
     src/editor/editorpane.h src/editor/editorpane.cpp src/editor/editorview.h src/editor/editorview.cpp
     src/apiserver.h src/apiserver.cpp
@@ -112,6 +113,7 @@ qt_add_qml_module(nebula
     qml/KeybindingsPage.qml
     qml/EditorContent.qml
     qml/QuickOpen.qml
+    qml/Explorer.qml
     qml/Card.qml
     qml/StatusBar.qml
     qml/StateMark.qml

@@ -11,6 +11,7 @@
 #include "settings.h"
 #include "terminalview.h"
 #include "editor/editorview.h"
+#include "filetree.h"
 #include "theme.h"
 #include "views/viewpane.h"
 #include "views/viewweb.h"
@@ -131,6 +132,7 @@ int main(int argc, char *argv[]) {
     if (!api.listen(Paths::socket())) std::fprintf(stderr, "nebula: warning: cannot listen on %s\n", qPrintable(Paths::socket()));
 
     ViewWeb::Provider viewWeb;   // before the engine: QML bindings use it until the engine is gone
+    FileTree files;              // the explorer's disk access; same reason
     QQmlApplicationEngine engine;
     engine.rootContext()->setContextProperty("theme", &theme);
     engine.rootContext()->setContextProperty("settings", &settings);
@@ -141,6 +143,7 @@ int main(int argc, char *argv[]) {
     engine.rootContext()->setContextProperty("launcher", &launcher);
     engine.rootContext()->setContextProperty("operatorAgent", &op);
     engine.rootContext()->setContextProperty("viewWeb", &viewWeb);
+    engine.rootContext()->setContextProperty("files", &files);
     // Dev mode: NEBULA_QML_DIR=/path/to/qml loads the UI from disk and reloads it whenever a .qml file changes,
     // so UI iteration needs no rebuild at all.
     const QString qmlDir = qEnvironmentVariable("NEBULA_QML_DIR");

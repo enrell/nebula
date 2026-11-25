@@ -8,6 +8,7 @@
 #include "theme.h"
 #include "views/viewpane.h"
 #include "editor/editorpane.h"
+#include "cli.h"
 #include <QClipboard>
 #include <QCoreApplication>
 #include <QGuiApplication>
@@ -1050,6 +1051,67 @@ void Workspace::previewEditor(int editorId) {
     linkPreview(e, v);
 }
 
+QVariantMap Workspace::openFile(const QString &path) {
+    const QFileInfo fi(path);
+    if (fi.isDir()) return {{"error", "is a directory"}};
+    if (isDocument(path) && fi.exists()) {
+        auto *v = new ViewPane(PaneIds::next());
+        ViewPane::Source src;
+        src.file = fi.canonicalFilePath();
+        src.baseDir = fi.canonicalPath();
+        v->setSource(src);
+        Space *s = currentSpace();
+        Tab *t = s ? s->currentTab() : nullptr;
+        const int anchor = t ? t->focusedId() : -1;
+        const QString where = Settings::instance()->viewPlacement();
+        if (where == "modal") showModal(v, anchor);
+        else if (!placeView(v, anchor, where)) { delete v; return {{"error", "cannot place the view"}}; }
+        scheduleSave();
+        return {{"pane", v->id()}};
+    }
+    // open somewhere already: focus it
+    const QString canonical = fi.exists() ? fi.canonicalFilePath() : fi.absoluteFilePath();
+    for (EditorPane *e : allEditors())
+        if (e->path() == canonical) return openEditor(canonical);
+    // reuse the tab's editor (the focused one first) when nothing would be lost
+    Space *s = currentSpace();
+    Tab *t = s ? s->currentTab() : nullptr;
+    if (t) {
+        QList<EditorPane *> candidates = t->editors();
+        if (EditorPane *f = t->editorById(t->focusedId())) candidates.prepend(f);
+        for (EditorPane *e : std::as_const(candidates)) {
+            if (e->dirty() || m_previews.value(e->id())) continue;   // a live preview stays with its file
+            QString err;
+            if (!e->open(canonical, &err)) return {{"error", err}};
+            t->focusPane(e->id());
+            scheduleSave();
+            emit focusRequested();
+            return {{"pane", e->id()}};
+        }
+    }
+    return openEditor(canonical);
+}
+
+QString Workspace::projectDir() const {
+    Space *s = currentSpace();
+    const QString dir = s ? s->cwd() : QDir::homePath();
+    QProcess git;
+    git.setWorkingDirectory(dir);
+    git.start("git", {"rev-parse", "--show-toplevel"});
+    if (git.waitForFinished(1500) && git.exitCode() == 0) {
+        const QString top = QString::fromUtf8(git.readAllStandardOutput()).trimmed();
+        if (!top.isEmpty()) return top;
+    }
+    return dir;
+}
+
+void Workspace::terminalAt(const QString &dir) {
+    Space *s = currentSpace();
+    if (!s) return;
+    s->newTabWith(QFileInfo(dir).isDir() ? dir : QFileInfo(dir).absolutePath(), s->profile());
+    emit focusRequested();
+}
+
 QString Workspace::currentDir() const {
     Space *s = currentSpace();
     Tab *t = s ? s->currentTab() : nullptr;
@@ -1130,7 +1192,7 @@ const ActionInfo kActions[] = {
     {"goto-space", "Go to space N"},
     {"next-attention", "Jump to agent that needs attention"},
     {"toggle-sidebar", "Show / hide sidebar"}, {"open-settings", "Open settings"}, {"launch-agent", "Launch an agent"}, {"operator", "Open the operator (AI that runs nebula for you)"}, {"broadcast", "Send a prompt to several agents"}, {"toggle-help", "Show / hide this help"}, {"setup-wizard", "Open the setup wizard"},
-    {"quick-open", "Open a file (quick open)"},
+    {"quick-open", "Open a file (quick open)"}, {"toggle-explorer", "Show / hide the file explorer"},
     {"font-larger", "Increase font size"}, {"font-smaller", "Decrease font size"}, {"font-reset", "Reset font size"},
 };
 
@@ -1147,7 +1209,7 @@ const char *const kDefaults[][2] = {
     {"Ctrl+Alt+5", "goto-space:5"}, {"Ctrl+Alt+6", "goto-space:6"}, {"Ctrl+Alt+7", "goto-space:7"}, {"Ctrl+Alt+8", "goto-space:8"},
     {"Ctrl+Alt+9", "goto-space:9"},
     {"Ctrl+Shift+A", "next-attention"}, {"Ctrl+Shift+B", "toggle-sidebar"}, {"Ctrl+,", "open-settings"}, {"Ctrl+Shift+L", "launch-agent"}, {"Ctrl+Shift+I", "operator"}, {"Ctrl+Shift+M", "broadcast"}, {"Ctrl+Shift+?", "toggle-help"},
-    {"Ctrl+Shift+P", "quick-open"},
+    {"Ctrl+Shift+P", "quick-open"}, {"Ctrl+Shift+F", "toggle-explorer"},
     {"Ctrl++", "font-larger"}, {"Ctrl+=", "font-larger"}, {"Ctrl+-", "font-smaller"}, {"Ctrl+0", "font-reset"},
 };
 
@@ -1384,6 +1446,7 @@ bool Workspace::runAction(const QString &spec) {
     if (name == "open-settings") { setSettingsVisible(!m_settings); return true; }
     if (name == "setup-wizard") { showOverlay("onboarding"); return true; }
     if (name == "quick-open") { showOverlay("quickopen"); return true; }
+    if (name == "toggle-explorer") { Settings::instance()->setProperty("explorerVisible", !Settings::instance()->property("explorerVisible").toBool()); return true; }
     if (name == "toggle-help") { m_help = !m_help; emit viewChanged(); return true; }
     if (name == "toggle-views") { if (m_modals.isEmpty()) return false; setModalHidden(!m_modalHidden); return true; }
     if (name == "font-larger") { m_theme->zoom(1); return true; }

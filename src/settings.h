@@ -14,6 +14,9 @@ class Settings : public QObject {
     Q_PROPERTY(bool notifications MEMBER m_notifications NOTIFY changed)
     Q_PROPERTY(bool urlClick MEMBER m_urlClick NOTIFY changed)
     Q_PROPERTY(int sidebarWidth MEMBER m_sidebarWidth NOTIFY changed)
+    Q_PROPERTY(bool explorerVisible MEMBER m_explorerVisible NOTIFY changed)
+    Q_PROPERTY(int explorerWidth MEMBER m_explorerWidth NOTIFY changed)
+    Q_PROPERTY(bool explorerHidden MEMBER m_explorerHidden NOTIFY changed)   // show hidden files
     Q_PROPERTY(QString aiProfile MEMBER m_aiProfile NOTIFY changed)
     Q_PROPERTY(QString aiModel MEMBER m_aiModel NOTIFY changed)
     Q_PROPERTY(bool aiSummaries MEMBER m_aiSummaries NOTIFY changed)
@@ -77,6 +80,8 @@ private:
     bool m_notifications = true;
     bool m_urlClick = true;
     int m_sidebarWidth = 236;
+    bool m_explorerVisible = true, m_explorerHidden = false;
+    int m_explorerWidth = 260;
     QString m_aiProfile, m_aiModel;
     bool m_aiSummaries = false;
     QString m_operatorAgent;        // ACP agent command line; empty = auto-detect

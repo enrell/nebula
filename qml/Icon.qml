@@ -96,6 +96,23 @@ Canvas {
             ctx.moveTo(w / 2 + w * 0.13, cy); ctx.arc(w / 2, cy, w * 0.13, 0, 2 * Math.PI)
             break
         }
+        case "files": {   // two sheets: the explorer
+            ctx.moveTo(m + 2, m - 1); ctx.lineTo(w - m - 2, m - 1); ctx.lineTo(w - m + 1, m + 2); ctx.lineTo(w - m + 1, h - m - 3)
+            ctx.rect(m - 1, m + 2, w - 2 * m - 1, h - 2 * m - 1)
+            break
+        }
+        case "folder":
+            ctx.moveTo(m - 1, h - m); ctx.lineTo(m - 1, m); ctx.lineTo(w / 2 - 1, m); ctx.lineTo(w / 2 + 1, m + 2)
+            ctx.lineTo(w - m + 1, m + 2); ctx.lineTo(w - m + 1, h - m); ctx.closePath()
+            break
+        case "refresh":
+            ctx.arc(w / 2, h / 2, w / 2 - m, -Math.PI * 0.35, Math.PI * 1.45)
+            ctx.moveTo(w - m - 0.5, m - 0.5); ctx.lineTo(w - m + 0.5, h / 2 - 2.5); ctx.lineTo(w - m - 3.5, h / 2 - 2.5)
+            break
+        case "collapse":
+            ctx.moveTo(m, h / 2 - 3); ctx.lineTo(w / 2, h / 2 - 6); ctx.lineTo(w - m, h / 2 - 3)
+            ctx.moveTo(m, h / 2 + 6); ctx.lineTo(w / 2, h / 2 + 3); ctx.lineTo(w - m, h / 2 + 6)
+            break
         case "back":
             ctx.moveTo(w - m, h / 2); ctx.lineTo(m, h / 2)
             ctx.moveTo(m + 3.5, h / 2 - 3.5); ctx.lineTo(m, h / 2); ctx.lineTo(m + 3.5, h / 2 + 3.5)

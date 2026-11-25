@@ -66,6 +66,37 @@ Window {
         onPositionChanged: (m) => settings.sidebarWidth = Math.round(mapToItem(win.contentItem, m.x, 0).x)
     }
 
+    // the file explorer, between the sidebar and the panes (Ctrl+Shift+F); the edge drags its width
+    Explorer {
+        id: explorer
+        anchors { left: sidebar.right; leftMargin: app.sidebarVisible ? 1 : 0; top: parent.top; bottom: parent.bottom }
+        width: settings.explorerVisible ? settings.explorerWidth : 0
+        visible: settings.explorerVisible
+    }
+    Rectangle {
+        anchors { left: explorer.right; top: parent.top; bottom: parent.bottom }
+        width: 1
+        visible: settings.explorerVisible
+        color: theme.border
+    }
+    MouseArea {
+        visible: settings.explorerVisible
+        x: explorer.x + explorer.width - 3
+        width: 7
+        height: parent.height
+        z: 5
+        cursorShape: Qt.SplitHCursor
+        preventStealing: true
+        onPositionChanged: (m) => settings.explorerWidth = Math.round(mapToItem(win.contentItem, m.x, 0).x - explorer.x)
+    }
+    // the left edge of the tabs, panes and status bar
+    readonly property Item paneEdge: settings.explorerVisible ? explorer : sidebar
+
+    function openItemsMenu(item, x, y, items) {
+        const p = item.mapToItem(win.contentItem, x, y)
+        menu.open(p.x, p.y, items)
+    }
+
     function openMenu(view, x, y, hasSel, url) {
         const p = view.mapToItem(win.contentItem, x, y)
         const zoomed = tab && tab.zoomed
@@ -102,18 +133,18 @@ Window {
 
     TabBar {
         id: tabs
-        anchors { left: sidebar.right; leftMargin: 1; right: parent.right; top: parent.top }
+        anchors { left: win.paneEdge.right; leftMargin: 1; right: parent.right; top: parent.top }
         height: win.uiSize + 14
     }
 
     StatusBar {
         id: status
-        anchors { left: sidebar.right; leftMargin: 1; right: parent.right; bottom: parent.bottom }
+        anchors { left: win.paneEdge.right; leftMargin: 1; right: parent.right; bottom: parent.bottom }
         height: win.uiSize + 12
     }
 
     Item {
-        anchors { left: sidebar.right; leftMargin: 1; right: parent.right; top: tabs.bottom; bottom: status.top }
+        anchors { left: win.paneEdge.right; leftMargin: 1; right: parent.right; top: tabs.bottom; bottom: status.top }
         Repeater {
             model: win.space ? win.space.tabs : []
             delegate: PaneTree {
