@@ -217,13 +217,16 @@ Rectangle {
                 hoverColor: theme.red
                 onClicked: killArm.running ? killArm.stop() : killArm.start()
             }
+            // while Kill all & quit is armed its wide button needs the room: only the power icon (to disarm) stays
             IconButton {
+                visible: !killArm.running
                 icon: "files"; size: 16
                 color: settings.explorerVisible ? theme.accent : theme.muted
                 onClicked: app.runAction("toggle-explorer")
             }
-            IconButton { icon: "keys"; size: 16; onClicked: app.runAction("toggle-help") }
+            IconButton { visible: !killArm.running; icon: "keys"; size: 16; onClicked: app.runAction("toggle-help") }
             IconButton {
+                visible: !killArm.running
                 icon: "gear"; size: 16
                 color: app.settingsVisible ? theme.accent : theme.muted
                 onClicked: app.setSettingsVisible(!app.settingsVisible)
