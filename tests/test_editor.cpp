@@ -119,7 +119,9 @@ int main() {
         b.undo(nullptr);
         CHECK_EQ(b.text(), "foo bar\nFoo food\nbar-FOO");
     }
-    // ---- save: atomic, through symlinks, keeps permissions
+    // ---- save: atomic, through symlinks, keeps permissions (POSIX: Windows has no symlink by QFile::link nor an
+    // execute bit)
+#ifndef Q_OS_WIN
     {
         QTemporaryDir dir;
         const QString path = dir.filePath("f.txt");
@@ -135,6 +137,16 @@ int main() {
         CHECK_EQ(QString::fromUtf8(g.readAll()), "xy\n");
         CHECK(QFile::permissions(path) & QFileDevice::ExeOwner);
         CHECK(!b.modified());
+    }
+#endif
+    {
+        QTemporaryDir dir;
+        TextBuffer b;
+        b.loadBytes("one\r\ntwo\r\n");
+        b.insert({1, 3}, "!");
+        CHECK(b.save(dir.filePath("crlf.txt")));
+        QFile g(dir.filePath("crlf.txt")); CHECK(g.open(QIODevice::ReadOnly));
+        CHECK(g.readAll() == QByteArray("one\r\ntwo!\r\n"));
     }
     // ---- highlighting
     {

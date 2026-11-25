@@ -73,32 +73,33 @@ start_gui
 A=$(ids)
 ctl pane.send_text pane="$A" text="claude --dangerously-skip-permissions 'fix the bug'" enter=true
 B=$(ctl pane.split pane="$A" direction=right | python3 -c 'import json,sys;print(json.load(sys.stdin)["pane"])')
-ctl pane.send_text pane="$B" text="less $FAKE/notes.txt" enter=true
+ctl pane.send_text pane="$B" text="tail -f $FAKE/notes.txt" enter=true   # interactive: comes back by itself
 C=$(ctl pane.split pane="$B" direction=down | python3 -c 'import json,sys;print(json.load(sys.stdin)["pane"])')
 ctl pane.send_text pane="$C" text="sleep 7$TAG" enter=true
 wait_read "$A" "fake claude ready" || fail "fake agent did not start: $(ctl pane.read pane="$A")"
-wait_read "$B" "notes-$TAG" || fail "less did not start"
+wait_read "$B" "notes-$TAG" || fail "tail -f did not start"
 sleep 2                         # the host reports the foreground programs; the layout save is debounced
 python3 - "$NEBULA_STATE_DIR/session.json" "$A" "$B" "$C" "$FAKE" "$TAG" <<'PY' || fail "saved session: $(cat "$NEBULA_STATE_DIR/session.json")"
 import json, sys
 path, a, b, c, fake, tag = sys.argv[1:]
 panes = json.load(open(path))["spaces"][0]["tabs"][0]["panes"]
 assert panes[a]["cmd"] == f"claude --dangerously-skip-permissions --resume sess-{a}" and panes[a]["run"] is True, panes[a]
-assert panes[b]["cmd"] == f"less {fake}/notes.txt" and panes[b]["run"] is True, panes[b]
+assert panes[b]["cmd"] == f"tail -f {fake}/notes.txt" and panes[b]["run"] is True, panes[b]
 assert panes[c]["cmd"] == f"sleep 7{tag}" and panes[c]["run"] is False, panes[c]
 PY
 
 check_restored() {   # $1: what happened
   wait_read "$A" "fake claude ready" || fail "$1: agent not started again"
   [ "$(tail -1 "$FAKE_AGENT_LOG")" = "[\"--dangerously-skip-permissions\", \"--resume\", \"sess-$A\"]" ] || fail "$1: agent started as $(tail -1 "$FAKE_AGENT_LOG")"
-  wait_read "$B" "notes-$TAG" || fail "$1: less not started again"
+  wait_read "$B" "notes-$TAG" || fail "$1: tail -f not started again"
   wait_read "$C" "sleep 7$TAG" || fail "$1: command not typed"
   sleep 0.5; pgrep -f "^sleep 7$TAG" >/dev/null && fail "$1: a command that is not interactive must only be typed"
   [ "$(ids)" = "$A $B $C" ] || fail "$1: panes '$(ids)'"
 }
 ctl action.run action=kill-session >/dev/null 2>&1 || true
 for _ in $(seq 50); do kill -0 $GUI 2>/dev/null || break; sleep 0.1; done
-pgrep -f "notes.txt" >/dev/null && fail "kill-session left programs running"
+for _ in $(seq 30); do pgrep -f "$FAKE/notes.txt" >/dev/null || break; sleep 0.1; done
+pgrep -f "$FAKE/notes.txt" >/dev/null && fail "kill-session left programs running"
 rm -f "$NEBULA_SOCKET"; start_gui
 check_restored "after Kill all & quit"
 echo "kill-session restores: ok"
