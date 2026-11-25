@@ -35,6 +35,7 @@ methods:
   view.show file=PATH | content=STR (content=@- reads stdin) [view=ID] [title=STR] [where=modal|right|down|tab]
   view.get view=ID | view.list | view.close view=ID | view.dock view=ID where=modal|right|down|tab | view.toggle
   view.components [name=NAME]
+  file.open file=PATH   (in a tab of its own: .neb / Markdown as a view, anything else in the editor)
   editor.open file=PATH [line=N] [where=right|down|tab] | editor.list | editor.get [pane=ID] [text=true] | editor.save [pane=ID]
       (pane.send_text / pane.send_keys type into an editor pane; pane.close refuses unsaved changes without force=true)
   view.export view=ID [format=html|pdf] [path=FILE]   (a standalone HTML file, or a PDF)
@@ -103,7 +104,7 @@ int runCtl(const QStringList &args) {
         const int id = qEnvironmentVariable("NEBULA_PANE").toInt(&ok);
         if (ok) params["pane"] = id;
     }
-    if ((method == "view.show" || method == "view.export" || method == "view.snapshot" || method == "editor.open") && !params.contains("cwd")) params["cwd"] = QDir::currentPath();
+    if ((method == "view.show" || method == "view.export" || method == "view.snapshot" || method == "editor.open" || method == "file.open") && !params.contains("cwd")) params["cwd"] = QDir::currentPath();
     // the socket reply would otherwise carry the image as base64
     if (method == "view.snapshot" && !params.contains("path")) params["path"] = QString("view-%1.png").arg(params["view"].toInt());
 
@@ -175,7 +176,7 @@ int openDocuments(const QStringList &files) {
     QByteArray buf;
     for (const QString &f : files) {
         const QJsonObject params{{"file", f}, {"cwd", QFileInfo(f).absolutePath()}, {"raise", true}};
-        const QString method = isDocument(f) ? "view.show" : "editor.open";
+        const QString method = "file.open";
         sock.write(QJsonDocument(QJsonObject{{"id", ++id}, {"method", method}, {"params", params}}).toJson(QJsonDocument::Compact) + '\n');
         QJsonObject reply;
         while (reply.isEmpty()) {

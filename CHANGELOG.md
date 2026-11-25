@@ -2,6 +2,16 @@
 
 All notable changes to nebula are documented here. Release tags match `project(nebula VERSION …)` in `CMakeLists.txt`.
 
+## Unreleased
+
+### Changed
+
+- **Files open in tabs of their own** in the main area (explorer, quick open, `nebula FILE`, the file manager): `.neb` and Markdown as a view instead of a modal, other files in the editor, never splitting a terminal. *Edit* on a view and *preview* on an editor open the other one in its own tab too, still following the text as you type. A file already open is focused. New `nebula ctl file.open`.
+
+### Fixed
+
+- **Ctrl+W on the only open file closed everything**: closing the last tab of a space that holds only files now leaves a shell in its place.
+
 ## 0.5.1 — 2026-11-25
 
 ### Changed

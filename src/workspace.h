@@ -218,9 +218,11 @@ public:
     EditorPane *findEditor(int id, int *spaceIdx = nullptr, int *tabIdx = nullptr, Tab **tab = nullptr) const;
     QList<EditorPane *> allEditors() const;
     Q_INVOKABLE void editView(int viewId);         // the file a view shows, in an editor next to it
-    // What the explorer does with a click: .neb / Markdown as a view (placed like agent views), anything else in the
-    // editor, reusing the current tab's editor when it has no unsaved changes, as an IDE does. Returns {pane} or {error}.
+    // Opening a file (explorer, quick open, `nebula FILE`): in the main area, in a tab of its own - .neb / Markdown as
+    // a view, anything else in the editor; a file already open is focused. Returns {pane} or {error}.
     Q_INVOKABLE QVariantMap openFile(const QString &path);
+    ViewPane *viewOfFile(const QString &file) const;
+    int showFileView(const QString &file);
     Q_INVOKABLE QString projectDir() const;        // the explorer's root: the current space's git work tree or folder
     Q_INVOKABLE void terminalAt(const QString &dir);   // a new tab with a shell in dir
     Q_INVOKABLE void previewEditor(int editorId);  // a Markdown / .neb editor shown as a view next to it, live

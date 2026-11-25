@@ -13,7 +13,7 @@ Dialog {
     function refresh() { results = app.quickOpen(input.text, 40); sel = 0; error = "" }
     function open(path) {
         app.hideOverlay()
-        const r = app.openEditor(path, 0, "")
+        const r = app.openFile(path)
         if (r.error) { app.showOverlay("quickopen"); error = r.error }
     }
     function accept() {

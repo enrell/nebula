@@ -66,6 +66,22 @@ get 'd["text"]' | grep -q 'changed outside' || fail "external change not reloade
 printf 'a\0b' > "$ED/bin.dat"
 { ctl editor.open file="$ED/bin.dat" 2>&1 || true; } | grep -q 'binary file' || fail "binary"
 ctl pane.close pane="$E"
+# files open in tabs of their own; closing the last tab holding only a file leaves a shell, not an empty space
+NT=$(ctl space.list | python3 -c 'import json,sys;print(len(json.load(sys.stdin)[0]["tabs"]))')
+printf -- '---\ntitle: Doc\n---\n# doc\n' > "$ED/doc.neb"
+F=$(ctl file.open file="$ED/a.py" | python3 -c 'import json,sys;print(json.load(sys.stdin)["pane"])')
+ctl file.open file="$ED/doc.neb" >/dev/null
+[ "$(ctl space.list | python3 -c 'import json,sys;print(len(json.load(sys.stdin)[0]["tabs"]))')" = $((NT + 2)) ] || fail "file.open: one tab per file"
+ctl view.list | python3 -c 'import json,sys;assert [v for v in json.load(sys.stdin) if v["title"]=="Doc" and v["where"]=="docked"]' || fail ".neb must open as a docked view, not a modal"
+[ "$(ctl file.open file="$ED/a.py" | python3 -c 'import json,sys;print(json.load(sys.stdin)["pane"])')" = "$F" ] || fail "file.open of an open file"
+ctl tab.close tab=$((NT + 1)) >/dev/null                       # the Doc view
+for _ in $(seq $NT); do ctl tab.close tab=0 >/dev/null; done      # every terminal tab: only a.py is left
+[ "$(ctl space.list | python3 -c 'import json,sys;print([t["title"] for t in json.load(sys.stdin)[0]["tabs"]])')" = "['a.py']" ] || fail "setup: $(ctl space.list)"
+[ "$(ctl pane.list | python3 -c 'import json,sys;print(len(json.load(sys.stdin)))')" = 0 ] || fail "setup: terminals left"
+ctl pane.close pane="$F" >/dev/null                               # what Ctrl+W does on the last file
+sleep 0.5
+ctl ping >/dev/null || fail "closing the last file closed nebula"
+[ "$(ctl pane.list | python3 -c 'import json,sys;print(len(json.load(sys.stdin)))')" = 1 ] || fail "no shell left after closing the last file"
 rm -rf "$ED"
 echo "editor: ok"
 echo "e2e: ok"

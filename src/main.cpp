@@ -154,7 +154,7 @@ int main(int argc, char *argv[]) {
     const auto openDocs = [&] {
         for (const QString &f : documents) {
             try {
-                api.invoke(isDocument(f) ? "view.show" : "editor.open", {{"file", f}, {"cwd", QFileInfo(f).absolutePath()}});
+                api.invoke("file.open", {{"file", f}, {"cwd", QFileInfo(f).absolutePath()}});
             } catch (const std::exception &e) {
                 std::fprintf(stderr, "nebula: %s: %s\n", qPrintable(f), e.what());
             }

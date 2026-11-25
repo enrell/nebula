@@ -553,6 +553,15 @@ void Space::closeTab(int i) {
         m_tabs[i]->closePane(e->id());
         return;
     }
+    // the last tab of a space that held only files (Ctrl+W on the last open file): a shell takes its place, so
+    // closing a file never closes the space, or nebula with it
+    if (m_tabs.size() == 1 && m_tabs[i]->sessions().isEmpty()) {
+        Tab *t = m_tabs[i];
+        QString dir = m_cwd;
+        if (!t->editors().isEmpty()) dir = t->editors().first()->baseDir();
+        else if (!t->views().isEmpty()) dir = t->views().first()->baseDir();
+        addTab(QFileInfo(dir).isDir() ? dir : m_cwd);
+    }
     Tab *t = m_tabs.takeAt(i);
     t->disconnect(this);
     t->terminateAll();
@@ -1010,13 +1019,10 @@ QVariantMap Workspace::openEditor(const QString &path, int line, const QString &
 void Workspace::editView(int viewId) {
     ViewPane *v = findView(viewId);
     if (!v || v->sourceFile().isEmpty()) return;
-    // a modal view is docked first, so the editor and the document sit side by side
-    if (isModal(v)) {
-        showModal(v, v->anchor());
-        if (!dockModal("right")) return;
-    }
-    const QVariantMap r = openEditor(v->sourceFile(), 0, "right", viewId);
-    if (EditorPane *e = r.contains("pane") ? findEditor(r["pane"].toInt()) : nullptr) linkPreview(e, v);
+    if (isModal(v)) setModalHidden(true);   // an agent's view: the editor still opens in a tab of its own
+    const QVariantMap r = openEditor(v->sourceFile(), 0, "tab");
+    EditorPane *e = r.contains("pane") ? findEditor(r["pane"].toInt()) : nullptr;
+    if (e && !m_previews.value(e->id())) linkPreview(e, v);
 }
 
 // Keeps `v` showing what `e` holds: the unsaved text shortly after typing stops, the file again once saved.
@@ -1039,63 +1045,66 @@ void Workspace::linkPreview(EditorPane *e, ViewPane *v) {
 }
 
 void Workspace::previewEditor(int editorId) {
-    Tab *t = nullptr;
-    EditorPane *e = findEditor(editorId, nullptr, nullptr, &t);
+    EditorPane *e = findEditor(editorId);
     if (!e || !e->previewable()) return;
-    if (ViewPane *v = m_previews.value(editorId)) {   // already shown: bring it forward
+    ViewPane *v = m_previews.value(editorId);
+    if (!v) v = viewOfFile(e->path());
+    if (v) {   // already shown: go there (and make it follow this editor)
+        if (!m_previews.value(editorId)) linkPreview(e, v);
         int vs = -1, vt = -1;
-        if (findView(v->id(), &vs, &vt)) { focusAgent(vs, vt, v->id()); return; }
+        if (findView(v->id(), &vs, &vt) && vs >= 0) focusAgent(vs, vt, v->id());
+        return;
     }
-    auto *v = new ViewPane(PaneIds::next());
-    ViewPane::Source src;
-    src.file = e->path();
-    src.baseDir = e->baseDir();
-    if (e->dirty()) { src.file.clear(); src.content = e->buffer().text(); }
-    v->setSource(src);
-    if (!placeView(v, editorId, "right")) { delete v; return; }
-    t->focusPane(editorId);   // keep typing in the editor
-    linkPreview(e, v);
+    const int id = showFileView(e->path());
+    if (ViewPane *nv = id > 0 ? findView(id) : nullptr) {
+        linkPreview(e, nv);
+        if (e->dirty()) { ViewPane::Source src; src.content = e->buffer().text(); src.baseDir = e->baseDir(); nv->setSource(src); }
+    }
 }
 
+// A view of `file` (its canonical path) already on screen, docked or as a modal.
+ViewPane *Workspace::viewOfFile(const QString &file) const {
+    for (Space *s : m_spaces)
+        for (Tab *t : s->tabList())
+            for (ViewPane *v : t->views())
+                if (v->sourceFile() == file) return v;
+    for (ViewPane *v : m_modals)
+        if (v->sourceFile() == file) return v;
+    return nullptr;
+}
+
+// Files open in the main area, each in a tab of its own: never as a modal, never splitting a terminal.
 QVariantMap Workspace::openFile(const QString &path) {
     const QFileInfo fi(path);
     if (fi.isDir()) return {{"error", "is a directory"}};
-    if (isDocument(path) && fi.exists()) {
-        auto *v = new ViewPane(PaneIds::next());
-        ViewPane::Source src;
-        src.file = fi.canonicalFilePath();
-        src.baseDir = fi.canonicalPath();
-        v->setSource(src);
-        Space *s = currentSpace();
-        Tab *t = s ? s->currentTab() : nullptr;
-        const int anchor = t ? t->focusedId() : -1;
-        const QString where = Settings::instance()->viewPlacement();
-        if (where == "modal") showModal(v, anchor);
-        else if (!placeView(v, anchor, where)) { delete v; return {{"error", "cannot place the view"}}; }
-        scheduleSave();
-        return {{"pane", v->id()}};
-    }
-    // open somewhere already: focus it
     const QString canonical = fi.exists() ? fi.canonicalFilePath() : fi.absoluteFilePath();
-    for (EditorPane *e : allEditors())
-        if (e->path() == canonical) return openEditor(canonical);
-    // reuse the tab's editor (the focused one first) when nothing would be lost
+    if (isDocument(path) && fi.exists()) {
+        if (ViewPane *v = viewOfFile(canonical)) {   // already shown: go there
+            int si = -1, ti = -1;
+            if (findView(v->id(), &si, &ti) && si >= 0) focusAgent(si, ti, v->id());
+            else showModal(v, v->anchor());
+            return {{"pane", v->id()}};
+        }
+        const int id = showFileView(canonical);
+        if (id < 0) return {{"error", "cannot open the view"}};
+        return {{"pane", id}};
+    }
+    return openEditor(canonical, 0, "tab");
+}
+
+// A view of a document in a new tab of the current space; returns its pane id, or -1.
+int Workspace::showFileView(const QString &file) {
+    auto *v = new ViewPane(PaneIds::next());
+    ViewPane::Source src;
+    src.file = file;
+    src.baseDir = QFileInfo(file).absolutePath();
+    v->setSource(src);
     Space *s = currentSpace();
     Tab *t = s ? s->currentTab() : nullptr;
-    if (t) {
-        QList<EditorPane *> candidates = t->editors();
-        if (EditorPane *f = t->editorById(t->focusedId())) candidates.prepend(f);
-        for (EditorPane *e : std::as_const(candidates)) {
-            if (e->dirty() || m_previews.value(e->id())) continue;   // a live preview stays with its file
-            QString err;
-            if (!e->open(canonical, &err)) return {{"error", err}};
-            t->focusPane(e->id());
-            scheduleSave();
-            emit focusRequested();
-            return {{"pane", e->id()}};
-        }
-    }
-    return openEditor(canonical);
+    if (!t || !placeView(v, t->focusedId(), "tab")) { delete v; return -1; }
+    focusAgent(int(m_spaces.indexOf(s)), int(s->tabList().size()) - 1, v->id());
+    scheduleSave();
+    return v->id();
 }
 
 QString Workspace::projectDir() const {

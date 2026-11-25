@@ -618,6 +618,14 @@ QJsonValue ApiServer::call(const QString &method, const QJsonObject &p, QLocalSo
         if (r.contains("error")) throw ApiError(("cannot open " + file + ": " + r["error"].toString()).toStdString());
         return QJsonObject{{"pane", r["pane"].toInt()}};
     }
+    if (method == "file.open") {   // what `nebula FILE` and the explorer do: a tab of its own, view or editor
+        QString file = p["file"].toString();
+        if (file.isEmpty()) throw ApiError("file= is required");
+        if (!p["cwd"].toString().isEmpty()) file = QDir(p["cwd"].toString()).absoluteFilePath(file);
+        const QVariantMap r = m_ws->openFile(file);
+        if (r.contains("error")) throw ApiError(("cannot open " + file + ": " + r["error"].toString()).toStdString());
+        return QJsonObject{{"pane", r["pane"].toInt()}};
+    }
     if (method == "editor.list") {
         QJsonArray out;
         for (EditorPane *e : m_ws->allEditors()) out << editorInfo(e, false);
