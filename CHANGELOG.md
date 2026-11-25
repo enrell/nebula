@@ -2,6 +2,12 @@
 
 All notable changes to nebula are documented here. Release tags match `project(nebula VERSION …)` in `CMakeLists.txt`.
 
+## Unreleased
+
+### Fixed
+
+- **Views crashed nebula or went blank**: QML freed the shared web profile once the garbage collector ran, so a view could lose its content, and the next view pane to appear (docking or popping out a view, opening another) crashed on the dangling pointer. The profile now has C++ ownership.
+
 ## 0.3.0 — 2026-10-14
 
 ### Added

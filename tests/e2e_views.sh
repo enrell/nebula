@@ -14,7 +14,7 @@ WORK=$(mktemp -d) GUI= LOG=$WORK/gui.log
 ctl() { "$BIN" ctl "$@"; }
 fail() { echo "FAIL: $*" >&2; tail -20 "$LOG" >&2; exit 1; }
 json() { python3 -c "import json,sys; d=json.load(sys.stdin); print($1)"; }
-start_gui() { "$BIN" >>"$LOG" 2>&1 & GUI=$!; for _ in $(seq 80); do ctl ping >/dev/null 2>&1 && return; sleep 0.1; done; fail "gui did not start"; }
+start_gui() { "$BIN" >>"$LOG" 2>&1 & GUI=$!; for _ in $(seq 300); do ctl ping >/dev/null 2>&1 && return; sleep 0.1; done; fail "gui did not start"; }
 kill_host() { for pid in $(pgrep -f "$BIN --host" 2>/dev/null); do tr '\0' '\n' < "/proc/$pid/environ" 2>/dev/null | grep -qx "NEBULA_SOCKET=$NEBULA_SOCKET" && kill "$pid" 2>/dev/null || true; done; }
 cleanup() { ctl action.run action=kill-session >/dev/null 2>&1 || true; kill $GUI 2>/dev/null || true; kill_host; rm -rf "$NEBULA_STATE_DIR" "$WORK" "$NEBULA_SOCKET" "$NEBULA_SOCKET.host"; }
 trap cleanup EXIT
@@ -165,5 +165,21 @@ ctl view.close view="$E" >/dev/null
 [ "$(ctl view.list | json 'len(d)')" = 1 ] || fail "view.close"
 ls "$NEBULA_STATE_DIR/views" | grep -q "^$E\." && fail "inline content of a closed view left behind"
 echo "close: ok"
+
+# QML deletes a parentless QObject a method call returned once the garbage collector drops its wrapper: that used to
+# free the web profile under the views (blank pages, then a crash when the next view appeared). Collecting on every
+# allocation makes it deterministic.
+ctl action.run action=kill-session >/dev/null 2>&1 || true
+kill $GUI 2>/dev/null || true; wait $GUI 2>/dev/null || true; kill_host; rm -f "$NEBULA_SOCKET" "$NEBULA_SOCKET.host"
+QV4_MM_AGGRESSIVE_GC=1 start_gui
+ctl window.resize width=1200 height=800 >/dev/null
+for n in 1 2 3; do
+  G=$(ctl view.show content="# gc $n" | json 'd["view"]') || fail "view.show $n under aggressive GC"
+  kill -0 $GUI 2>/dev/null || fail "gui crashed showing view $n under aggressive GC"
+  [ "$n" = 2 ] && ctl view.dock view="$G" where=right >/dev/null
+done
+ctl view.dock view="$G" where=modal >/dev/null && ctl view.dock view="$G" where=down >/dev/null || fail "dock and pop out under aggressive GC"
+sleep 1; kill -0 $GUI 2>/dev/null || fail "gui crashed docking under aggressive GC"
+echo "web profile survives the garbage collector: ok"
 if grep -E "TypeError|ReferenceError|is not defined|qt\.qml\.|view [0-9]+:" "$LOG"; then fail "warnings in the GUI log"; fi
 echo "views e2e: ok"
