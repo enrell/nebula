@@ -122,6 +122,7 @@ qt_add_qml_module(nebula
     qml/ViewModal.qml
   RESOURCES
     data/nebula-tray.png
+    data/nebula-256.png
 )
 
 # Views: the document checker and the page renderer, built from renderer/ (see renderer/package.json).

@@ -21,6 +21,7 @@
 #include <QFileSystemWatcher>
 #include <QTimer>
 #include <QGuiApplication>
+#include <QIcon>
 #include <QLocalSocket>
 #include <QQmlApplicationEngine>
 #include <QQmlContext>
@@ -97,6 +98,7 @@ int main(int argc, char *argv[]) {
     app.setApplicationName("nebula");
     app.setApplicationVersion(NEBULA_VERSION);
     app.setDesktopFileName("nebula");
+    app.setWindowIcon(QIcon(":/qt/qml/Nebula/data/nebula-256.png"));   // X11 and Windows title bars and task bars
 
     // `nebula FILE.neb`: a running instance opens the document, otherwise this one starts and opens it
     bool argsOk = true;

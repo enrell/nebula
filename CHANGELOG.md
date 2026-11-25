@@ -4,6 +4,10 @@ All notable changes to nebula are documented here. Release tags match `project(n
 
 ## Unreleased
 
+### Changed
+
+- **A new icon**: a glowing spiral nebula around a terminal prompt, for the launcher, the tray and (new) the window itself on X11 and Windows.
+
 ### Fixed
 
 - **The tray icon was a "missing icon" placeholder**: it was announced with neither a name nor a picture. It now carries the themed `nebula` icon and the built-in picture.
