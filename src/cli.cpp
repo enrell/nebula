@@ -20,6 +20,7 @@ methods:
   window.screenshot [path=PNG] | window.resize width=N height=N
   operator.ask prompt=STR [approve=all|none]   (the built-in ACP operator; none = reject every permission request)
   settings.get | settings.set key=NAME value=V
+  keys.list | keys.add action=NAME keys=Ctrl+Alt+K | keys.remove action=NAME keys=KEYS | keys.reset [action=NAME]
   ping | status | action.run action=<name>
   space.list | space.create [cwd=] [name=] | space.rename [space=N] name=STR (empty = auto) | space.focus space=N | space.close [space=N]
   tab.create [space=N] | tab.focus tab=N [space=N] | tab.close [tab=N] [space=N]

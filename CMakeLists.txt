@@ -106,6 +106,7 @@ qt_add_qml_module(nebula
     qml/Badge.qml
     qml/Dropdown.qml
     qml/Kbd.qml
+    qml/KeybindingsPage.qml
     qml/Card.qml
     qml/StatusBar.qml
     qml/StateMark.qml
