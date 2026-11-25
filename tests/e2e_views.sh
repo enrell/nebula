@@ -209,4 +209,14 @@ sleep 1; kill -0 $GUI 2>/dev/null || fail "gui crashed docking under aggressive 
 echo "web profile survives the garbage collector: ok"
 
 if grep -E "TypeError|ReferenceError|is not defined|qt\.qml\.|view [0-9]+:" "$LOG"; then fail "warnings in the GUI log"; fi
+
+# quitting after views were shown ends cleanly (the view checker's engine used to abort the process in exit())
+ctl view.show content='# last' >/dev/null
+ctl action.run action=kill-session >/dev/null 2>&1 || true
+for _ in $(seq 80); do kill -0 $GUI 2>/dev/null || break; sleep 0.1; done
+kill -0 $GUI 2>/dev/null && fail "the window did not quit"
+RC=0; wait $GUI || RC=$?
+[ "$RC" = 0 ] || fail "the window exited with status $RC after showing views"
+GUI=
+echo "clean exit: ok"
 echo "views e2e: ok"

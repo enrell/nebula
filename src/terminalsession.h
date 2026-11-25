@@ -57,7 +57,8 @@ public:
     void hostReplayDone();
     void hostExit(int status);
     void hostInfo(qint64 pid, qint64 fg);
-    void hostGone();
+    void hostGone();      // the host went away: the pane stays, waiting for respawn()
+    void respawn();       // a new host is up: start this pane again with what it was running
     void injectKey(int key, int qtMods, const QString &text);
 
     int rows() const { return m_rows; }
@@ -122,7 +123,7 @@ private:
     QStringList m_fgArgs;        // argv of the foreground program, empty at the shell prompt
     QString m_agentSession;
     QString m_pendingRestore;    // a restored command typed at the prompt that the user has not run or changed yet
-    bool m_autorun = false;
+    bool m_autorun = false, m_hostLost = false;
     qint64 m_stateSince = 0;
     QString m_reportedCwd;       // the directory the shell last reported with OSC 9;9 or OSC 7
     QByteArray m_oscCarry;       // the start of a report that continues in the next chunk of output

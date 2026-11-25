@@ -221,7 +221,7 @@ Rectangle {
             IconButton {
                 visible: !killArm.running
                 icon: "files"; size: 16
-                color: settings.explorerVisible ? theme.accent : theme.muted
+                color: settings.explorerOpen ? theme.accent : theme.muted
                 onClicked: app.runAction("toggle-explorer")
             }
             IconButton { visible: !killArm.running; icon: "keys"; size: 16; onClicked: app.runAction("toggle-help") }

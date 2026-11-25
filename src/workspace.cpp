@@ -800,6 +800,12 @@ void Workspace::killSession() {
     m_saveTimer.stop();
     for (Space *s : std::as_const(m_spaces)) s->terminateAll();
     HostClient::instance()->shutdown();
+    exitApp();
+}
+
+void Workspace::exitApp() {
+    m_exiting = true;
+    emit exitingChanged();
     QCoreApplication::quit();
 }
 
@@ -810,7 +816,7 @@ void Workspace::discardSession() {
     saveNow();
     m_quitting = true;
     m_saveTimer.stop();
-    QCoreApplication::quit();
+    exitApp();
 }
 
 void Workspace::adopt(Space *s) {
@@ -876,7 +882,7 @@ void Workspace::closeSpace(int i) {
     s->disconnect(this);
     s->terminateAll();
     s->deleteLater();
-    if (m_spaces.isEmpty()) { saveNow(); QCoreApplication::quit(); return; }
+    if (m_spaces.isEmpty()) { saveNow(); exitApp(); return; }
     if (m_current >= i) m_current = qMax(0, m_current - 1);
     emit spacesChanged();
     emit currentChanged();
@@ -1209,7 +1215,7 @@ const char *const kDefaults[][2] = {
     {"Ctrl+Alt+5", "goto-space:5"}, {"Ctrl+Alt+6", "goto-space:6"}, {"Ctrl+Alt+7", "goto-space:7"}, {"Ctrl+Alt+8", "goto-space:8"},
     {"Ctrl+Alt+9", "goto-space:9"},
     {"Ctrl+Shift+A", "next-attention"}, {"Ctrl+Shift+B", "toggle-sidebar"}, {"Ctrl+,", "open-settings"}, {"Ctrl+Shift+L", "launch-agent"}, {"Ctrl+Shift+I", "operator"}, {"Ctrl+Shift+M", "broadcast"}, {"Ctrl+Shift+?", "toggle-help"},
-    {"Ctrl+Shift+P", "quick-open"}, {"Ctrl+Shift+F", "toggle-explorer"},
+    {"Ctrl+Shift+P", "quick-open"}, {"Ctrl+E", "toggle-explorer"},
     {"Ctrl++", "font-larger"}, {"Ctrl+=", "font-larger"}, {"Ctrl+-", "font-smaller"}, {"Ctrl+0", "font-reset"},
 };
 
@@ -1446,7 +1452,12 @@ bool Workspace::runAction(const QString &spec) {
     if (name == "open-settings") { setSettingsVisible(!m_settings); return true; }
     if (name == "setup-wizard") { showOverlay("onboarding"); return true; }
     if (name == "quick-open") { showOverlay("quickopen"); return true; }
-    if (name == "toggle-explorer") { Settings::instance()->setProperty("explorerVisible", !Settings::instance()->property("explorerVisible").toBool()); return true; }
+    if (name == "toggle-explorer") {
+        const bool open = !Settings::instance()->property("explorerOpen").toBool();
+        Settings::instance()->setProperty("explorerOpen", open);
+        if (!open) emit focusRequested();   // the keyboard goes back to the pane it came from
+        return true;
+    }
     if (name == "toggle-help") { m_help = !m_help; emit viewChanged(); return true; }
     if (name == "toggle-views") { if (m_modals.isEmpty()) return false; setModalHidden(!m_modalHidden); return true; }
     if (name == "font-larger") { m_theme->zoom(1); return true; }

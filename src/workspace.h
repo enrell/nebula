@@ -184,6 +184,7 @@ class Workspace : public QObject {
     Q_PROPERTY(bool modalVisible READ modalVisible NOTIFY modalChanged)
     // while the settings page records a shortcut, key presses go to it instead of running bindings
     Q_PROPERTY(bool capturingKeys READ capturingKeys WRITE setCapturingKeys NOTIFY capturingKeysChanged)
+    Q_PROPERTY(bool exiting READ exiting NOTIFY exitingChanged)   // read when the window is asked to close
 public:
     explicit Workspace(Theme *theme, QObject *parent = nullptr);
     QVariantList spaces() const;
@@ -260,6 +261,10 @@ public:
     // come back on the next start; discardSession forgets them instead.
     Q_INVOKABLE void killSession();
     Q_INVOKABLE void discardSession();
+    // Quits the window on purpose. The window turns down close requests to stay in the tray, and Qt's quit() asks
+    // every window first, so quitting must say it means it.
+    Q_INVOKABLE void exitApp();
+    bool exiting() const { return m_exiting; }
     void saveNow();
 
     // locate a pane by its global id; returns null if it does not exist
@@ -281,6 +286,7 @@ signals:
     void focusRequested();
     void modalChanged();
     void capturingKeysChanged();
+    void exitingChanged();
 
 private:
     struct Binding {
@@ -300,6 +306,7 @@ private:
     int m_current = 0;
     QVariantList m_agents;
     bool m_quitting = false;   // after killSession: panes closing on the way out must not be saved
+    bool m_exiting = false;
     bool m_sidebar = true, m_help = false, m_settings = false, m_capturing = false;
     QList<ViewPane *> m_modals;
     bool m_modalHidden = false;

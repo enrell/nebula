@@ -26,7 +26,7 @@ public:
     void resize(int id, int rows, int cols) { send(HostProto::Resize, id, HostProto::size(quint16(rows), quint16(cols))); }
     void kill(int id) { send(HostProto::Kill, id); }
     void requestInfo(int id) { send(HostProto::Info, id); }
-    void shutdown() { send(HostProto::Shutdown, 0); m_sock.flush(); m_sock.waitForBytesWritten(500); }
+    void shutdown() { m_stopping = true; send(HostProto::Shutdown, 0); m_sock.flush(); m_sock.waitForBytesWritten(500); }
 
 private:
     HostClient() = default;
@@ -39,4 +39,9 @@ private:
     QHash<int, TerminalSession *> m_sessions;
     QByteArray m_listReply;
     bool m_gotList = false;
+    // When the host goes away on its own (it crashed, was killed, was replaced by an upgrade), a new one is started
+    // and every pane is started again in place, like after a reboot, instead of being closed.
+    void recover();
+    bool m_wired = false, m_handshake = false, m_stopping = false;
+    int m_recoverTries = 0;
 };

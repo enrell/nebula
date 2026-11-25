@@ -51,7 +51,8 @@ Window {
         win.requestActivate()
     }
     onClosing: (close) => {
-        if (settings.closeToTray && tray.available) { close.accepted = false; win.hide() }
+        // only the window's own close button goes to the tray; quitting (menus, Kill all & quit) must go through
+        if (!app.exiting && settings.closeToTray && tray.available) { close.accepted = false; win.hide() }
     }
     Labs.SystemTrayIcon {
         id: tray
@@ -62,7 +63,7 @@ Window {
         menu: Labs.Menu {
             Labs.MenuItem { text: "Show nebula"; onTriggered: win.showWindow() }
             Labs.MenuSeparator {}
-            Labs.MenuItem { text: "Quit (shells keep running)"; onTriggered: Qt.quit() }
+            Labs.MenuItem { text: "Quit (shells keep running)"; onTriggered: app.exitApp() }
             Labs.MenuItem { text: "Kill all & quit"; onTriggered: app.killSession() }
         }
     }
@@ -92,31 +93,32 @@ Window {
         onPositionChanged: (m) => settings.sidebarWidth = Math.round(mapToItem(win.contentItem, m.x, 0).x)
     }
 
-    // the file explorer, between the sidebar and the panes (Ctrl+Shift+F); the edge drags its width
+    // the file explorer, on the right of the panes, closed until opened (Ctrl+E); its left edge drags its width
     Explorer {
         id: explorer
-        anchors { left: sidebar.right; leftMargin: app.sidebarVisible ? 1 : 0; top: parent.top; bottom: parent.bottom }
-        width: settings.explorerVisible ? settings.explorerWidth : 0
-        visible: settings.explorerVisible
+        anchors { right: parent.right; top: parent.top; bottom: parent.bottom }
+        width: settings.explorerOpen ? settings.explorerWidth : 0
+        visible: settings.explorerOpen
+        onVisibleChanged: if (visible) focusTree()
     }
     Rectangle {
-        anchors { left: explorer.right; top: parent.top; bottom: parent.bottom }
+        anchors { right: explorer.left; top: parent.top; bottom: parent.bottom }
         width: 1
-        visible: settings.explorerVisible
+        visible: settings.explorerOpen
         color: theme.border
     }
     MouseArea {
-        visible: settings.explorerVisible
-        x: explorer.x + explorer.width - 3
+        visible: settings.explorerOpen
+        x: explorer.x - 4
         width: 7
         height: parent.height
         z: 5
         cursorShape: Qt.SplitHCursor
         preventStealing: true
-        onPositionChanged: (m) => settings.explorerWidth = Math.round(mapToItem(win.contentItem, m.x, 0).x - explorer.x)
+        onPositionChanged: (m) => settings.explorerWidth = Math.round(win.width - mapToItem(win.contentItem, m.x, 0).x)
     }
-    // the left edge of the tabs, panes and status bar
-    readonly property Item paneEdge: settings.explorerVisible ? explorer : sidebar
+    // the right edge of the tabs, panes and status bar
+    readonly property real paneRight: settings.explorerOpen ? explorer.width + 1 : 0
 
     function openItemsMenu(item, x, y, items) {
         const p = item.mapToItem(win.contentItem, x, y)
@@ -159,18 +161,18 @@ Window {
 
     TabBar {
         id: tabs
-        anchors { left: win.paneEdge.right; leftMargin: 1; right: parent.right; top: parent.top }
+        anchors { left: sidebar.right; leftMargin: 1; right: parent.right; rightMargin: win.paneRight; top: parent.top }
         height: win.uiSize + 14
     }
 
     StatusBar {
         id: status
-        anchors { left: win.paneEdge.right; leftMargin: 1; right: parent.right; bottom: parent.bottom }
+        anchors { left: sidebar.right; leftMargin: 1; right: parent.right; rightMargin: win.paneRight; bottom: parent.bottom }
         height: win.uiSize + 12
     }
 
     Item {
-        anchors { left: win.paneEdge.right; leftMargin: 1; right: parent.right; top: tabs.bottom; bottom: status.top }
+        anchors { left: sidebar.right; leftMargin: 1; right: parent.right; rightMargin: win.paneRight; top: tabs.bottom; bottom: status.top }
         Repeater {
             model: win.space ? win.space.tabs : []
             delegate: PaneTree {

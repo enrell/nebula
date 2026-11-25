@@ -190,7 +190,25 @@ void TerminalSession::hostExit(int) {
     emit finished();
 }
 
-void TerminalSession::hostGone() { hostExit(-2); }
+// Not an exit: closing the pane here would close every pane (and save an empty session) whenever the host died.
+void TerminalSession::hostGone() {
+    if (!m_alive || m_terminated) return;
+    m_alive = false;
+    m_hostLost = true;
+    const QByteArray note = "\r\n\x1b[2m[nebula] the terminal host stopped; starting this pane again...\x1b[0m\r\n";
+    vterm_input_write(m_vt, note.constData(), size_t(note.size()));
+    m_repaint.start();
+}
+
+void TerminalSession::respawn() {
+    if (!m_hostLost || m_terminated) return;
+    m_hostLost = false;
+    m_alive = true;
+    m_prefill = resumeCommand();   // what was running: an agent in its conversation, an editor, a monitor...
+    m_autorun = resumeAutorun();
+    m_pendingRestore.clear();
+    start(m_cwd, false);
+}
 
 void TerminalSession::writeOut(const char *s, size_t len) {
     // Replies to queries found in replayed history (a reattach) are stale: the program that asked

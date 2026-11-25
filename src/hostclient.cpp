@@ -12,6 +12,8 @@
 #include <QProcess>
 #include <QProcessEnvironment>
 #include <QThread>
+#include <QTimer>
+#include <cstdio>
 
 HostClient *HostClient::instance() {
     static HostClient *c = new HostClient;
@@ -33,9 +35,13 @@ bool HostClient::connectToHost() {
         while (!deadline.hasExpired() && !(ok = tryConnect(100))) QThread::msleep(50);
         if (!ok) return false;
     }
-    // protocol version check
+    // protocol version check (onData stays out of it while the handshake reads the socket itself)
+    m_handshake = true;
+    m_reader = HostProto::Reader();
     send(HostProto::Ping, 0);
-    if (!m_sock.waitForReadyRead(1500)) return false;
+    const bool answered = m_sock.waitForReadyRead(1500);
+    m_handshake = false;
+    if (!answered) return false;
     m_reader.feed(m_sock.readAll());
     HostProto::Frame f;
     if (!m_reader.next(f) || f.type != HostProto::Pong) return false;
@@ -43,12 +49,29 @@ bool HostClient::connectToHost() {
         std::fprintf(stderr, "nebula: the running pty host speaks a different protocol version; run `nebula --stop-host` first\n");
         return false;
     }
-    connect(&m_sock, &QLocalSocket::readyRead, this, &HostClient::onData);
-    connect(&m_sock, &QLocalSocket::disconnected, this, [this] {
-        const auto sessions = m_sessions.values();
-        for (TerminalSession *s : sessions) s->hostGone();
-    });
+    if (!m_wired) {
+        m_wired = true;
+        connect(&m_sock, &QLocalSocket::readyRead, this, [this] { if (!m_handshake) onData(); });
+        connect(&m_sock, &QLocalSocket::disconnected, this, [this] {
+            if (m_handshake) return;
+            const auto sessions = m_sessions.values();
+            for (TerminalSession *s : sessions) s->hostGone();
+            if (!m_stopping) QTimer::singleShot(300, this, &HostClient::recover);
+        });
+    }
+    m_recoverTries = 0;
     return true;
+}
+
+void HostClient::recover() {
+    if (m_stopping || connected()) return;
+    if (!connectToHost()) {
+        if (++m_recoverTries < 8) QTimer::singleShot(500 * m_recoverTries, this, &HostClient::recover);
+        else std::fprintf(stderr, "nebula: cannot start a new pty host\n");
+        return;
+    }
+    const auto sessions = m_sessions.values();
+    for (TerminalSession *s : sessions) s->respawn();
 }
 
 QList<HostClient::PaneInfo> HostClient::list() {

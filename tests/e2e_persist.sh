@@ -98,6 +98,7 @@ check_restored() {   # $1: what happened
 }
 ctl action.run action=kill-session >/dev/null 2>&1 || true
 for _ in $(seq 50); do kill -0 $GUI 2>/dev/null || break; sleep 0.1; done
+kill -0 $GUI 2>/dev/null && fail "Kill all & quit left the window running (the tray must not turn down quitting)"
 for _ in $(seq 30); do pgrep -f "$FAKE/notes.txt" >/dev/null || break; sleep 0.1; done
 pgrep -f "$FAKE/notes.txt" >/dev/null && fail "kill-session left programs running"
 rm -f "$NEBULA_SOCKET"; start_gui
@@ -144,3 +145,26 @@ ctl pane.close pane="$E" force=true
 ls "$NEBULA_STATE_DIR/editors" 2>/dev/null | grep -q "^$E\." && fail "unsaved text of a closed editor left behind"
 rm -rf "$ED"
 echo "editor restore: ok"
+
+# ---- the host dies under a running GUI: panes are not closed, a new host starts and each pane gets its program back
+HF=$(mktemp -d); printf 'host-%s\n' "$TAG" > "$HF/h.txt"
+P1=$(ids | awk '{print $1}')
+ctl pane.send_text pane="$P1" text="tail -f $HF/h.txt" enter=true
+wait_read "$P1" "host-$TAG" || fail "tail -f did not start"
+sleep 1.5
+OLD=$(for pid in $(pgrep -f "$BIN --host"); do tr '\0' '\n' < /proc/$pid/environ | grep -qx "NEBULA_SOCKET=$NEBULA_SOCKET" && echo $pid; done)
+BEFORE=$(ids)
+kill -9 $OLD
+for _ in $(seq 60); do
+  NEW=$(for pid in $(pgrep -f "$BIN --host"); do tr '\0' '\n' < /proc/$pid/environ 2>/dev/null | grep -qx "NEBULA_SOCKET=$NEBULA_SOCKET" && echo $pid; done)
+  [ -n "$NEW" ] && [ "$NEW" != "$OLD" ] && break; sleep 0.1
+done
+[ -n "$NEW" ] && [ "$NEW" != "$OLD" ] || fail "no new host after the old one died"
+kill -0 $GUI || fail "the GUI died with the host"
+[ "$(ids)" = "$BEFORE" ] || fail "panes closed when the host died: '$(ids)' (was '$BEFORE')"
+wait_read "$P1" "starting this pane again" || fail "no note in the pane"
+for _ in $(seq 50); do pgrep -f "^tail -f $HF/h.txt" >/dev/null && break; sleep 0.1; done
+pgrep -f "^tail -f $HF/h.txt" >/dev/null || fail "tail -f not started again in the new host"
+ctl pane.send_text pane="$P1" text="q" >/dev/null
+echo "host restart: ok"
+pkill -f "tail -f $HF/h.txt" || true; rm -rf "$HF"

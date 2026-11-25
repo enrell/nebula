@@ -2,6 +2,23 @@
 
 All notable changes to nebula are documented here. Release tags match `project(nebula VERSION …)` in `CMakeLists.txt`.
 
+## Unreleased
+
+### Changed
+
+- **The explorer is on the right and closed until opened**, with `Ctrl+E` to open and close it (it moves the keyboard into the tree, and back to the pane when closed).
+
+### Added
+
+- **`Ctrl+W` closes the file** in an editor pane (asking when it has unsaved changes); in terminals it stays the shell's.
+
+### Fixed
+
+- **Kill all & quit, Discard and the tray's Quit did not quit** (0.5.0): Qt asks every window before quitting, and the window turned the request down to stay in the tray. The host was stopped while the window stayed open with dead terminals. Only the window's close button goes to the tray now.
+- **nebula aborted on every quit once a view had been shown** (a core dump, and a crash notification on desktops that show them): the view checker's engine was torn down after the application.
+- **Terminals stopped working when the pty host went away** (it crashed, was killed, or an old one shut down under a newer window): every pane was closed or left dead, and could save an empty session. The panes now stay; a new host starts and each pane gets its program back, as after a reboot.
+- **The pty host crashed on every shutdown with a window attached** (its socket handlers ran on members already destroyed).
+
 ## 0.5.0 — 2026-11-25
 
 ### Added

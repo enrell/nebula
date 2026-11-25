@@ -587,6 +587,7 @@ bool EditorPane::keyPress(QKeyEvent *e, int pageLines) {
         case Qt::Key_F: emit findRequested("find", selectedText().contains('\n') ? QString() : selectedText()); return true;
         case Qt::Key_H: case Qt::Key_R: emit findRequested("replace", selectedText().contains('\n') ? QString() : selectedText()); return true;
         case Qt::Key_G: emit findRequested("goto", {}); return true;
+        case Qt::Key_W: if (!shift) { requestClose(); return true; } break;   // close the file (asks when modified)
         case Qt::Key_Slash: toggleComment(); return true;
         case Qt::Key_D: duplicate(); return true;
         case Qt::Key_L: selectLine(m_cursor.line); return true;

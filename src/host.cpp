@@ -18,6 +18,15 @@ HostServer::HostServer(QObject *parent) : QObject(parent) {
     m_idle.start();
 }
 
+// The client sockets belong to m_server, the last member to go: their `disconnected` handlers would run while
+// it destroys them, after m_panes and m_clients are gone (a SIGSEGV on every shutdown with a GUI attached).
+HostServer::~HostServer() {
+    m_idle.stop();
+    for (auto it = m_clients.begin(); it != m_clients.end(); ++it) it.key()->disconnect(this);
+    const auto ids = m_panes.keys();
+    for (int i : ids) kill(i);
+}
+
 bool HostServer::listen(const QString &path) {
     QLocalSocket probe;
     probe.connectToServer(path);

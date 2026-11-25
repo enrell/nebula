@@ -14,6 +14,7 @@ class HostServer : public QObject {
     Q_OBJECT
 public:
     explicit HostServer(QObject *parent = nullptr);
+    ~HostServer() override;
     bool listen(const QString &path);
 
 private:

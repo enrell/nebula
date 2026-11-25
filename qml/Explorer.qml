@@ -43,6 +43,7 @@ FocusScope {
         rebuild()
     }
     function refresh() { kids = ({}); rebuild() }
+    function focusTree() { if (sel < 0 && rows.length) sel = 0; list.forceActiveFocus() }
     function toggle(i) {
         const r = rows[i]
         if (!r || !r.dir) return

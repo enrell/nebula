@@ -82,7 +82,7 @@ void Settings::resetAll() {
     m_notifications = true;
     m_urlClick = true;
     m_sidebarWidth = 236;
-    m_explorerVisible = true;
+    m_explorerOpen = false;
     m_closeToTray = true;
     m_explorerHidden = false;
     m_explorerWidth = 260;

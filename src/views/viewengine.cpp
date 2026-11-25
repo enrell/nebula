@@ -34,9 +34,11 @@ struct QuietLint {
 };
 } // namespace
 
+// Never destroyed: as a static it went away in exit(), after the application, and the QJSEngine's teardown then
+// aborted the process (SIGABRT on every quit once a view had been shown). The OS reclaims it with the process.
 ViewEngine &ViewEngine::instance() {
-    static ViewEngine e;
-    return e;
+    static ViewEngine *e = new ViewEngine;
+    return *e;
 }
 
 ViewEngine::ViewEngine() : m_host(std::make_unique<ViewHost>()) {}
