@@ -4,6 +4,7 @@
 #include <QCoreApplication>
 #include <QDir>
 #include <QFile>
+#include <QFileInfo>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QProcess>
@@ -46,13 +47,73 @@ void backupOnce(const QString &path) {
     if (QFileInfo::exists(path) && !QFileInfo::exists(bak)) QFile::copy(path, bak);
 }
 
-// Load a JSON object from disk. Missing file -> empty object. Unparseable -> false (never clobber user files).
-bool loadJson(const QString &path, QJsonObject *obj) {
+// JSONC, which opencode and gemini accept (// and /* */ comments, trailing commas), as plain JSON. *comments tells
+// whether comments were dropped: those would be lost if the file were written back.
+QString plainJson(const QString &t, bool *comments) {
+    *comments = false;
+    QString noComments;
+    noComments.reserve(t.size());
+    bool str = false;
+    for (int i = t.startsWith(QChar(0xFEFF)) ? 1 : 0; i < t.size(); ++i) {
+        const QChar c = t[i];
+        if (str) {
+            noComments += c;
+            if (c == '\\' && i + 1 < t.size()) noComments += t[++i];
+            else if (c == '"') str = false;
+            continue;
+        }
+        if (c == '"') { str = true; noComments += c; continue; }
+        if (c == '/' && i + 1 < t.size() && t[i + 1] == '/') {
+            *comments = true;
+            while (i < t.size() && t[i] != '\n') ++i;
+            if (i < t.size()) noComments += '\n';
+            continue;
+        }
+        if (c == '/' && i + 1 < t.size() && t[i + 1] == '*') {
+            *comments = true;
+            const int end = t.indexOf("*/", i + 2);
+            i = end < 0 ? int(t.size()) : end + 1;
+            noComments += ' ';
+            continue;
+        }
+        noComments += c;
+    }
+    QString out;
+    out.reserve(noComments.size());
+    str = false;
+    for (int i = 0; i < noComments.size(); ++i) {
+        const QChar c = noComments[i];
+        if (str) {
+            out += c;
+            if (c == '\\' && i + 1 < noComments.size()) out += noComments[++i];
+            else if (c == '"') str = false;
+            continue;
+        }
+        if (c == '"') str = true;
+        if (c == ',') {   // drop a comma that only whitespace separates from } or ]
+            int j = i + 1;
+            while (j < noComments.size() && noComments[j].isSpace()) ++j;
+            if (j < noComments.size() && (noComments[j] == '}' || noComments[j] == ']')) continue;
+        }
+        out += c;
+    }
+    return out;
+}
+
+// Load a JSON (or JSONC) object from disk. Missing file -> empty object. Unparseable -> false (never clobber user
+// files). *comments is set when the file has comments, which saveJson would drop.
+bool loadJson(const QString &path, QJsonObject *obj, bool *comments = nullptr) {
+    if (comments) *comments = false;
     QString t;
     if (!readText(path, &t)) { *obj = {}; return true; }
     if (t.trimmed().isEmpty()) { *obj = {}; return true; }
     QJsonParseError err;
-    const QJsonDocument d = QJsonDocument::fromJson(t.toUtf8(), &err);
+    QJsonDocument d = QJsonDocument::fromJson(t.toUtf8(), &err);
+    if (err.error != QJsonParseError::NoError) {
+        bool c = false;
+        d = QJsonDocument::fromJson(plainJson(t, &c).toUtf8(), &err);
+        if (comments) *comments = c;
+    }
     if (err.error != QJsonParseError::NoError || !d.isObject()) return false;
     *obj = d.object();
     return true;
@@ -68,7 +129,11 @@ bool found(const QString &agent) { return !QStandardPaths::findExecutable(agent)
 // ---- paths
 QString claudeSettings() { return home() + "/.claude/settings.json"; }
 QString opencodePlugin() { return home() + "/.config/opencode/plugins/nebula.js"; }
-QString opencodeConfig() { return home() + "/.config/opencode/opencode.json"; }
+// opencode reads opencode.json or opencode.jsonc; use the one that exists
+QString opencodeConfig() {
+    const QString json = home() + "/.config/opencode/opencode.json", jsonc = json + "c";
+    return !QFileInfo::exists(json) && QFileInfo::exists(jsonc) ? jsonc : json;
+}
 QString codexConfig() { return home() + "/.codex/config.toml"; }
 QString geminiSettings() { return home() + "/.gemini/settings.json"; }
 
@@ -115,7 +180,8 @@ bool mcpInstalled(const QString &agent) {
     return false;
 }
 
-QString jsonPathError(const QString &p) { return p + " is not plain JSON; edit it by hand (see README)"; }
+QString jsonPathError(const QString &p) { return p + " is not valid JSON or JSONC; fix it, or edit it by hand (see README)"; }
+QString commentsError(const QString &p) { return p + " has comments, which rewriting it would lose; add the entry by hand (see README)"; }
 
 } // namespace
 
@@ -138,7 +204,9 @@ QString Integrations::install(const QString &agent, const QString &kind) {
     if (kind == "hooks") {
         if (agent == "claude") {
             QJsonObject o;
-            if (!loadJson(claudeSettings(), &o)) return jsonPathError(claudeSettings());
+            bool comments = false;
+            if (!loadJson(claudeSettings(), &o, &comments)) return jsonPathError(claudeSettings());
+            if (comments) return commentsError(claudeSettings());
             QJsonObject hooks = o["hooks"].toObject();
             for (const auto &ev : kClaudeEvents) {
                 QJsonArray arr = withoutOurs(hooks[ev.first].toArray());
@@ -195,7 +263,9 @@ export const NebulaPlugin = async () => ({
         } else if (agent == "opencode" || agent == "gemini") {
             const QString path = agent == "opencode" ? opencodeConfig() : geminiSettings();
             QJsonObject o;
-            if (!loadJson(path, &o)) return jsonPathError(path);
+            bool comments = false;
+            if (!loadJson(path, &o, &comments)) return jsonPathError(path);
+            if (comments) return commentsError(path);
             if (agent == "opencode") {
                 if (!o.contains("$schema")) o["$schema"] = "https://opencode.ai/config.json";
                 QJsonObject m = o["mcp"].toObject();
@@ -226,7 +296,9 @@ QString Integrations::remove(const QString &agent, const QString &kind) {
     if (kind == "hooks") {
         if (agent == "claude") {
             QJsonObject o;
-            if (!loadJson(claudeSettings(), &o)) return jsonPathError(claudeSettings());
+            bool comments = false;
+            if (!loadJson(claudeSettings(), &o, &comments)) return jsonPathError(claudeSettings());
+            if (comments) return commentsError(claudeSettings());
             QJsonObject hooks = o["hooks"].toObject();
             for (const QString &k : hooks.keys()) {
                 const QJsonArray arr = withoutOurs(hooks[k].toArray());
@@ -251,7 +323,9 @@ QString Integrations::remove(const QString &agent, const QString &kind) {
         } else if (agent == "opencode" || agent == "gemini") {
             const QString path = agent == "opencode" ? opencodeConfig() : geminiSettings();
             QJsonObject o;
-            if (!loadJson(path, &o)) return jsonPathError(path);
+            bool comments = false;
+            if (!loadJson(path, &o, &comments)) return jsonPathError(path);
+            if (comments) return commentsError(path);
             const QString k = agent == "opencode" ? "mcp" : "mcpServers";
             QJsonObject m = o[k].toObject();
             m.remove("nebula");
