@@ -80,7 +80,7 @@ int main(int argc, char *argv[]) {
     if (argc > 1 && QByteArray(argv[1]) == "--host") return runHost();
     if (argc > 1 && QByteArray(argv[1]) == "mcp") return runMcp();
     if (argc > 1 && (QByteArray(argv[1]) == "--help" || QByteArray(argv[1]) == "-h")) {
-        std::puts("usage: nebula [FILE...]   start the app (shells survive closing the window); FILE is a .neb or .md document\n       nebula ctl ...    control a running instance (nebula ctl --help)\n       nebula --host     run the pty host daemon (started automatically)");
+        std::puts("usage: nebula [FILE...]   start the app (shells survive closing the window); FILE opens in an editor (.neb, .md as views)\n       nebula ctl ...    control a running instance (nebula ctl --help)\n       nebula --host     run the pty host daemon (started automatically)");
         return 0;
     }
 
