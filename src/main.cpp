@@ -79,7 +79,7 @@ int main(int argc, char *argv[]) {
     if (argc > 1 && QByteArray(argv[1]) == "--host") return runHost();
     if (argc > 1 && QByteArray(argv[1]) == "mcp") return runMcp();
     if (argc > 1 && (QByteArray(argv[1]) == "--help" || QByteArray(argv[1]) == "-h")) {
-        std::puts("usage: nebula            start the app (shells survive closing the window)\n       nebula ctl ...    control a running instance (nebula ctl --help)\n       nebula --host     run the pty host daemon (started automatically)");
+        std::puts("usage: nebula [FILE...]   start the app (shells survive closing the window); FILE is a .neb or .md document\n       nebula ctl ...    control a running instance (nebula ctl --help)\n       nebula --host     run the pty host daemon (started automatically)");
         return 0;
     }
 
@@ -96,10 +96,19 @@ int main(int argc, char *argv[]) {
     app.setApplicationVersion(NEBULA_VERSION);
     app.setDesktopFileName("nebula");
 
+    // `nebula FILE.neb`: a running instance opens the document, otherwise this one starts and opens it
+    bool argsOk = true;
+    const QStringList documents = documentArguments(app.arguments(), &argsOk);
+    if (!argsOk) return 2;
+
     {
         QLocalSocket probe;
         probe.connectToServer(Paths::socket());
         if (probe.waitForConnected(200)) {
+            if (!documents.isEmpty()) {
+                probe.disconnectFromServer();
+                return openDocuments(documents);
+            }
             std::fprintf(stderr, "nebula: already running (%s). Set NEBULA_SOCKET to start a separate instance.\n", qPrintable(Paths::socket()));
             return 1;
         }
@@ -137,8 +146,18 @@ int main(int argc, char *argv[]) {
     QObject::connect(&engine, &QQmlApplicationEngine::objectCreationFailed, &app, [devQml] { if (!devQml) QCoreApplication::exit(1); }, Qt::QueuedConnection);
     workspace.restore();
     if (workspace.spaceList().isEmpty()) return 1;
+    const auto openDocs = [&] {
+        for (const QString &f : documents) {
+            try {
+                api.invoke("view.show", {{"file", f}, {"cwd", QFileInfo(f).absolutePath()}});
+            } catch (const std::exception &e) {
+                std::fprintf(stderr, "nebula: %s: %s\n", qPrintable(f), e.what());
+            }
+        }
+    };
     if (!devQml) {
         engine.loadFromModule("Nebula", "Main");
+        openDocs();
         return app.exec();
     }
     const QUrl mainUrl = QUrl::fromLocalFile(QDir(qmlDir).absoluteFilePath("Main.qml"));
@@ -160,5 +179,6 @@ int main(int argc, char *argv[]) {
     QObject::connect(&watcher, &QFileSystemWatcher::fileChanged, &debounce, qOverload<>(&QTimer::start));
     QObject::connect(&watcher, &QFileSystemWatcher::directoryChanged, &debounce, qOverload<>(&QTimer::start));
     reload();
+    openDocs();
     return app.exec();
 }

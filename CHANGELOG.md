@@ -4,6 +4,10 @@ All notable changes to nebula are documented here. Release tags match `project(n
 
 ## Unreleased
 
+### Added
+
+- **`.neb` documents**: `nebula FILE.neb` (also `.md`) opens a view document in the running instance, or starts nebula with it. Linux packages and `install.sh` register the `application/x-nebula-document` type and a `MimeType` / `%F` desktop entry; `install.ps1` associates `.neb` on Windows.
+
 ### Fixed
 
 - **Views crashed nebula or went blank**: QML freed the shared web profile once the garbage collector ran, so a view could lose its content, and the next view pane to appear (docking or popping out a view, opening another) crashed on the dangling pointer. The profile now has C++ ownership.

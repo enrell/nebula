@@ -2,6 +2,7 @@
 #include "paths.h"
 #include <QCoreApplication>
 #include <QDir>
+#include <QFileInfo>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -121,4 +122,56 @@ int runCtl(const QStringList &args) {
         }
     }
     return gotResponse ? 0 : 1;
+}
+
+static bool isDocument(const QString &path) {
+    const QString ext = QFileInfo(path).suffix().toLower();
+    return ext == "neb" || ext == "md" || ext == "markdown";
+}
+
+QStringList documentArguments(const QStringList &args, bool *ok) {
+    QStringList files;
+    *ok = true;
+    for (int i = 1; i < args.size(); ++i) {
+        const QString &a = args[i];
+        if (a.startsWith('-')) continue;
+        const QFileInfo fi(a);
+        if (!fi.exists() && !isDocument(a)) continue;
+        if (!fi.isFile()) { std::fprintf(stderr, "nebula: %s: %s\n", qPrintable(a), fi.exists() ? "not a file" : "no such file"); *ok = false; continue; }
+        if (!isDocument(a)) { std::fprintf(stderr, "nebula: %s: only .neb and .md documents can be opened\n", qPrintable(a)); *ok = false; continue; }
+        files << fi.absoluteFilePath();
+    }
+    return files;
+}
+
+int openDocuments(const QStringList &files) {
+    QLocalSocket sock;
+    sock.connectToServer(Paths::socket());
+    if (!sock.waitForConnected(1500)) {
+        std::fprintf(stderr, "nebula: cannot connect to %s\n", qPrintable(Paths::socket()));
+        return 1;
+    }
+    int rc = 0, id = 0;
+    QByteArray buf;
+    for (const QString &f : files) {
+        const QJsonObject params{{"file", f}, {"cwd", QFileInfo(f).absolutePath()}, {"raise", true}};
+        sock.write(QJsonDocument(QJsonObject{{"id", ++id}, {"method", "view.show"}, {"params", params}}).toJson(QJsonDocument::Compact) + '\n');
+        QJsonObject reply;
+        while (reply.isEmpty()) {
+            int nl = buf.indexOf('\n');
+            if (nl < 0) {
+                // the first view of a session starts the web engine, so the reply can take a few seconds
+                if (!sock.waitForReadyRead(30000)) { std::fprintf(stderr, "nebula: no reply for %s\n", qPrintable(f)); return 1; }
+                buf += sock.readAll();
+                continue;
+            }
+            reply = QJsonDocument::fromJson(buf.left(nl)).object();
+            buf.remove(0, nl + 1);
+            if (reply.contains("event")) reply = {};
+        }
+        if (!reply["ok"].toBool()) { std::fprintf(stderr, "nebula: %s: %s\n", qPrintable(f), qPrintable(reply["error"].toString())); rc = 1; }
+        else if (const QJsonObject report = reply["result"].toObject(); report.contains("ok") && !report["ok"].toBool())
+            std::fprintf(stderr, "nebula: %s: the document has errors (shown in the view)\n", qPrintable(f));
+    }
+    return rc;
 }
