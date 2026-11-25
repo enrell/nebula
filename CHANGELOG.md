@@ -2,6 +2,12 @@
 
 All notable changes to nebula are documented here. Release tags match `project(nebula VERSION …)` in `CMakeLists.txt`.
 
+## Unreleased
+
+### Fixed
+
+- **The tray icon was a "missing icon" placeholder**: it was announced with neither a name nor a picture. It now carries the themed `nebula` icon and the built-in picture.
+
 ## 0.5.2 — 2026-11-25
 
 ### Changed

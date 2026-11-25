@@ -57,7 +57,9 @@ Window {
     Labs.SystemTrayIcon {
         id: tray
         visible: settings.closeToTray && available
-        icon.source: "../data/nebula-tray.png"
+        // the themed icon the installers put in hicolor, and the built-in picture for trays that want pixels
+        icon.name: "nebula"
+        icon.source: Qt.resolvedUrl("../data/nebula-tray.png")
         tooltip: "nebula" + (win.countState("blocked") ? "  ·  " + win.countState("blocked") + " waiting for you" : "")
         onActivated: (reason) => { if (reason !== Labs.SystemTrayIcon.Context) win.visible && win.active ? win.hide() : win.showWindow() }
         menu: Labs.Menu {
